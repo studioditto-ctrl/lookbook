@@ -246,3 +246,60 @@ class TestMessage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestWhoami(unittest.TestCase):
+    """chat_id 추출은 실제 getUpdates 응답 모양으로 검증한다."""
+
+    def setUp(self):
+        from whoami import chats_from_updates, describe
+
+        self.chats_from_updates = chats_from_updates
+        self.describe = describe
+
+    def test_extracts_chat_from_message(self):
+        payload = {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 1,
+                    "message": {
+                        "message_id": 1,
+                        "chat": {"id": 123456789, "type": "private", "first_name": "지훈"},
+                        "text": "안녕",
+                    },
+                }
+            ],
+        }
+        chats = self.chats_from_updates(payload)
+        self.assertEqual([c["id"] for c in chats], [123456789])
+
+    def test_deduplicates_repeated_chats(self):
+        message = {
+            "message_id": 1,
+            "chat": {"id": 7, "type": "private", "first_name": "A"},
+        }
+        payload = {"result": [{"message": message}, {"message": message}]}
+        self.assertEqual(len(self.chats_from_updates(payload)), 1)
+
+    def test_finds_chat_in_channel_post(self):
+        payload = {
+            "result": [
+                {
+                    "update_id": 2,
+                    "channel_post": {
+                        "chat": {"id": -100123, "type": "channel", "title": "러닝방"}
+                    },
+                }
+            ]
+        }
+        chats = self.chats_from_updates(payload)
+        self.assertEqual(chats[0]["id"], -100123)
+        self.assertIn("러닝방", self.describe(chats[0]))
+
+    def test_empty_result_returns_nothing(self):
+        self.assertEqual(self.chats_from_updates({"ok": True, "result": []}), [])
+        self.assertEqual(self.chats_from_updates({}), [])
+
+    def test_describe_falls_back_to_username(self):
+        self.assertIn("runner", self.describe({"id": 1, "type": "private", "username": "runner"}))

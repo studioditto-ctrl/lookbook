@@ -7,22 +7,27 @@
 
 ## 설정하기
 
-### 1. 텔레그램 봇 준비
+### 1. 봇 만들고 토큰 등록
 
 1. 텔레그램에서 `@BotFather` 와 대화 → `/newbot` → 봇 토큰 발급
-2. 만든 봇에게 아무 메시지나 전송 (이걸 해야 다음 단계에서 채팅방이 잡힌다)
-3. `https://api.telegram.org/bot<토큰>/getUpdates` 접속 → `"chat":{"id":...}` 의 숫자 확인
+2. 레포 **Settings → Secrets and variables → Actions → New repository secret**
+   에 `TELEGRAM_BOT_TOKEN` 으로 등록
 
-### 2. Secrets 등록
+토큰은 절대 `config.yaml` 이나 코드에 적지 않는다. Secrets 에만 넣는다.
 
-레포 **Settings → Secrets and variables → Actions → New repository secret**
+### 2. chat_id 찾기
 
-| 이름 | 값 |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | BotFather가 준 토큰 |
-| `TELEGRAM_CHAT_ID` | 위에서 확인한 숫자 |
+`getUpdates` URL 을 직접 열 필요 없다. 워크플로가 대신 찾아준다.
 
-토큰은 절대 `config.yaml` 이나 코드에 적지 않는다.
+1. 만든 봇에게 텔레그램에서 아무 메시지나 전송
+   (getUpdates 는 최근 24시간 기록만 보관하므로 이 순서가 중요하다)
+2. **Actions → chat_id 확인 → Run workflow** 실행
+3. 로그에 나온 숫자를 `TELEGRAM_CHAT_ID` 로 등록
+
+```
+찾은 채팅방:
+  TELEGRAM_CHAT_ID = 123456789    ← 홍길동 · private
+```
 
 ### 3. 첫 발송 확인
 
@@ -86,11 +91,13 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... \
 
 ```
 .github/workflows/digest.yml   cron 스케줄 + 실행 + 상태 커밋
+.github/workflows/setup.yml    chat_id 확인 (최초 1회)
 .github/workflows/test.yml     푸시할 때마다 테스트
 src/collect.py                 RSS·유튜브 수집, 채널 ID 변환
 src/filter.py                  중복 제거, 키워드 점수, 슬롯별 선별
 src/telegram.py                메시지 포맷팅, 전송 (재시도 포함)
 src/state.py                   발송 이력 · 채널 캐시
+src/whoami.py                  chat_id 조회 도우미
 src/main.py                    진입점
 config.yaml                    소스 · 키워드 · 항목 수
 state/seen.json                발송 이력 (자동 갱신, 90일 보관)
