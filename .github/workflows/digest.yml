@@ -1,0 +1,84 @@
+name: 러닝 다이제스트
+
+on:
+  schedule:
+    # GitHub Actions 크론은 UTC 기준이고 러너 부하에 따라 5~15분 밀린다.
+    # 목표 시각보다 10분 앞에 잡아 KST 08:00 / 19:00 에 가깝게 맞춘다.
+    - cron: '50 22 * * *'   # 08:00 KST (전날 22:50 UTC)
+    - cron: '50 9 * * *'    # 19:00 KST (09:50 UTC)
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 발송 슬롯
+        type: choice
+        options: [morning, evening]
+        default: morning
+      dry_run:
+        description: 전송하지 않고 메시지만 확인
+        type: boolean
+        default: false
+
+# state/ 를 커밋해 되돌리기 위해 쓰기 권한이 필요하다
+permissions:
+  contents: write
+
+# 아침/저녁 실행이 겹쳐 state 커밋이 충돌하지 않게 한다
+concurrency:
+  group: digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 슬롯 결정
+        id: slot
+        run: |
+          if [ -n "${{ inputs.slot }}" ]; then
+            slot="${{ inputs.slot }}"
+          elif [ "${{ github.event.schedule }}" = "50 9 * * *" ]; then
+            slot=evening
+          else
+            slot=morning
+          fi
+          echo "slot=$slot" >> "$GITHUB_OUTPUT"
+          echo "이번 회차: $slot"
+
+      - name: 다이제스트 발송
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python src/main.py --slot "${{ steps.slot.outputs.slot }}" \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }}
+
+      - name: 발송 이력 커밋
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          if [ -z "$(git status --porcelain state)" ]; then
+            echo "변경된 상태 파일이 없습니다."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state
+          git commit -m "chore: 발송 이력 갱신 (${{ steps.slot.outputs.slot }})"
+          # 다른 회차가 먼저 밀어넣었을 수 있으니 리베이스 후 재시도한다
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "푸시 실패, 리베이스 후 재시도 ($attempt/3)"
+            sleep $((attempt * 3))
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          done
+          exit 1

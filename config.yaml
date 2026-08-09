@@ -1,0 +1,83 @@
+# 러닝 다이제스트 설정
+#
+# 소스를 추가하거나 빼려면 이 파일만 고치면 됩니다.
+# 커밋하면 다음 실행부터 바로 반영됩니다.
+
+timezone: Asia/Seoul
+
+# 슬롯별 메시지 구성 (몇 건씩 담을지)
+slots:
+  morning:
+    title: "🏃 오늘 아침 러닝 브리핑"
+    articles: 3
+    videos: 2
+  evening:
+    title: "🌙 퇴근길 러닝 브리핑"
+    articles: 1
+    videos: 4
+
+# 한 번에 몇 시간 전까지의 항목을 후보로 볼지
+lookback_hours: 36
+
+# 링크 미리보기: none | first
+# Google 뉴스 링크는 리다이렉트라 미리보기가 깨질 때가 있어 기본값은 none
+link_preview: none
+
+sources:
+  # 구글 뉴스 RSS 검색. query 를 그대로 검색어로 씁니다.
+  google_news:
+    - name: 러닝·마라톤
+      query: 러닝 OR 마라톤 OR 달리기
+      lang: ko
+      country: KR
+    - name: 러닝 훈련·부상
+      query: 러닝 훈련 OR 러닝 부상 OR 러닝화
+      lang: ko
+      country: KR
+
+  # 일반 RSS 피드 (해외 매체)
+  rss:
+    - name: Runner's World
+      url: https://www.runnersworld.com/rss/all.xml/
+    - name: Running Magazine
+      url: https://runningmagazine.ca/feed/
+    - name: iRunFar
+      url: https://www.irunfar.com/feed
+
+  # 유튜브 채널.
+  # channel_id 를 알면 그대로 쓰고, 모르면 url 에 채널 주소(@핸들)만 넣으세요.
+  # 핸들은 자동으로 channel_id 로 변환되어 state/channels.json 에 캐시됩니다.
+  youtube: []
+  # 예시:
+  #   - name: 채널 이름
+  #     url: https://www.youtube.com/@handle
+  #   - name: 채널 이름
+  #     channel_id: UCxxxxxxxxxxxxxxxxxxxxxx
+
+# 관심 키워드 가중치. 제목에 포함되면 점수가 올라가 우선 선택됩니다.
+keywords:
+  부상: 3
+  통증: 3
+  훈련: 2
+  루틴: 2
+  페이스: 2
+  기록: 2
+  마라톤: 2
+  러닝화: 2
+  스트레칭: 2
+  초보: 1
+  자세: 2
+  호흡: 1
+  injury: 3
+  training: 2
+  workout: 2
+  pace: 2
+  recovery: 2
+  shoes: 2
+  beginner: 1
+
+# 제목에 포함되면 아예 제외
+exclude:
+  - 부고
+  - 채용
+  - 분양
