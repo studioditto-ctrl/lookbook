@@ -1,8 +1,15 @@
 name: chat_id 확인
 
-# TELEGRAM_BOT_TOKEN 만 등록해두면 chat_id 를 찾아서 로그에 출력한다.
+# TELEGRAM_BOT_TOKEN 만 등록해두면 chat_id 를 찾아서 로그에 출력하고,
+# 채팅방이 하나면 텔레그램으로 확인 메시지도 보낸다.
 # 브라우저로 getUpdates URL 을 직접 열 필요가 없다.
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      send_test_message:
+        description: 확인 메시지 보내기
+        type: boolean
+        default: true
 
 jobs:
   whoami:
@@ -17,4 +24,6 @@ jobs:
       - name: chat_id 조회
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: python src/whoami.py
+        run: |
+          python src/whoami.py \
+            ${{ inputs.send_test_message == false && '--no-test-message' || '' }}
