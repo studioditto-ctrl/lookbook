@@ -21,6 +21,17 @@ jobs:
           python-version: '3.11'
           cache: pip
       - run: pip install -r requirements.txt
+      - name: 시크릿 확인
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          missing=0
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error title=TELEGRAM_BOT_TOKEN 이 비어 있습니다::Settings → Secrets and variables → Actions 의 'Repository secrets' 에 등록하세요. 'Variables' 탭이나 Codespaces/Dependabot 시크릿은 이 워크플로에서 읽히지 않습니다."
+            missing=1
+          fi
+          exit $missing
+
       - name: chat_id 조회
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

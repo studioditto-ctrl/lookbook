@@ -53,6 +53,24 @@ jobs:
           echo "slot=$slot" >> "$GITHUB_OUTPUT"
           echo "이번 회차: $slot"
 
+      # dry run 은 전송하지 않으므로 시크릿 없이도 돌 수 있게 둔다
+      - name: 시크릿 확인
+        if: ${{ inputs.dry_run != true }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          missing=0
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error title=TELEGRAM_BOT_TOKEN 이 비어 있습니다::Settings → Secrets and variables → Actions 의 'Repository secrets' 에 등록하세요. 'Variables' 탭이나 Codespaces/Dependabot 시크릿은 이 워크플로에서 읽히지 않습니다."
+            missing=1
+          fi
+          if [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error title=TELEGRAM_CHAT_ID 가 비어 있습니다::'chat_id 확인' 워크플로를 실행해 숫자를 확인한 뒤 Repository secrets 에 등록하세요."
+            missing=1
+          fi
+          exit $missing
+
       - name: 다이제스트 발송
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

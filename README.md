@@ -108,6 +108,27 @@ config.yaml                    소스 · 키워드 · 항목 수
 state/seen.json                발송 이력 (자동 갱신, 90일 보관)
 ```
 
+## 잘 안 될 때
+
+**`TELEGRAM_BOT_TOKEN 이 설정되어 있지 않습니다`**
+
+시크릿이 등록되지 않았거나 워크플로가 읽을 수 없는 자리에 있다. 확인할 것:
+
+- **Settings → Secrets and variables → Actions** 의 **Secrets** 탭인지.
+  같은 화면의 **Variables** 탭에 넣으면 `secrets.` 로 읽히지 않는다.
+- **Repository secrets** 목록에 있는지. Environment secrets 는 잡에
+  `environment:` 를 지정해야 읽힌다.
+- 이름이 정확히 `TELEGRAM_BOT_TOKEN` 인지 (오타, 앞뒤 공백 주의).
+- 왼쪽 사이드바에서 Codespaces 나 Dependabot 시크릿 화면에 넣지 않았는지.
+
+로그의 `env:` 블록에 `TELEGRAM_BOT_TOKEN:` 이 빈칸으로 보이면 못 찾은 것이고,
+`***` 로 보이면 제대로 전달된 것이다.
+
+**`최근 대화 기록이 없습니다`**
+
+봇에게 보낸 메시지가 없거나 24시간이 지났다. BotFather 가 알려준 `@사용자명`
+이 맞는지 확인하고 메시지를 다시 보낸 뒤 워크플로를 재실행한다.
+
 ## 알아둘 점
 
 - **크론은 정시를 보장하지 않는다.** 러너 부하에 따라 5~15분 밀린다.
