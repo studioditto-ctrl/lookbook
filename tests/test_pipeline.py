@@ -753,8 +753,8 @@ class TestLinkPreview(unittest.TestCase):
             for i in range(n)
         ]
 
-    def test_first_article_is_previewed(self):
-        opts = self.options({"link_preview": {"mode": "first"}}, self.items(3), self.items(2, "video"))
+    def test_preview_is_large_and_above_text(self):
+        opts = self.options({"link_preview": {"mode": "first"}}, self.items(3), [])
         self.assertEqual(opts["url"], "https://ex.com/0")
         self.assertTrue(opts["prefer_large_media"])
         self.assertTrue(opts["show_above_text"])
@@ -787,3 +787,41 @@ class TestLinkPreview(unittest.TestCase):
     def test_no_items_disables_preview(self):
         self.assertEqual(self.options({"link_preview": {"mode": "first"}}, [], []),
                          {"is_disabled": True})
+
+
+class TestLinkPreviewPrefersVideo(unittest.TestCase):
+    """유튜브 링크는 썸네일이 확실히 뜬다 — 미리보기는 영상을 먼저 쓴다."""
+
+    def setUp(self):
+        from telegram import _link_preview_options
+
+        self.options = _link_preview_options
+        self.setting = {"link_preview": {"mode": "first", "prefer": "video"}}
+
+    def items(self, n, kind, prefix):
+        return [
+            Item(id=f"{prefix}{i}", title=f"제목 {i}", url=f"https://{prefix}.com/{i}",
+                 source="매체", kind=kind, published=NOW)
+            for i in range(n)
+        ]
+
+    def test_video_wins_even_when_articles_come_first(self):
+        articles = self.items(3, "article", "news")
+        videos = self.items(2, "video", "youtu")
+        self.assertEqual(self.options(self.setting, articles, videos)["url"], "https://youtu.com/0")
+
+    def test_falls_back_to_article_when_no_videos(self):
+        articles = self.items(2, "article", "news")
+        self.assertEqual(self.options(self.setting, articles, [])["url"], "https://news.com/0")
+
+    def test_prefer_any_uses_message_order(self):
+        setting = {"link_preview": {"mode": "first", "prefer": "any"}}
+        articles = self.items(1, "article", "news")
+        videos = self.items(1, "video", "youtu")
+        self.assertEqual(self.options(setting, articles, videos)["url"], "https://news.com/0")
+
+    def test_video_preference_is_the_default(self):
+        setting = {"link_preview": {"mode": "first"}}
+        articles = self.items(1, "article", "news")
+        videos = self.items(1, "video", "youtu")
+        self.assertEqual(self.options(setting, articles, videos)["url"], "https://youtu.com/0")

@@ -29,11 +29,15 @@ summary:
 # 링크 미리보기(썸네일). 첫 항목 하나만 보여준다 — 텔레그램은 메시지당
 # 미리보기를 하나만 붙일 수 있다.
 #   mode:       none | first
+#   prefer:     video 면 영상 링크를 우선 (썸네일이 확실히 뜬다)
+#               any 면 메시지 첫 항목을 그대로 사용
 #   large:      true 면 큰 이미지, false 면 작은 썸네일
 #   above_text: true 면 본문 위에 표시
-# 첫 항목이 Google 뉴스 리다이렉트 링크면 미리보기가 안 뜰 수 있다.
+# Google 뉴스 링크는 리다이렉트라 미리보기가 비는 일이 잦아 video 를 권한다.
+# 그 회차에 영상이 없으면 기사 링크로 넘어간다.
 link_preview:
   mode: first
+  prefer: video
   large: true
   above_text: true
 

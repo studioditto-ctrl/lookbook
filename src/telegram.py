@@ -81,7 +81,12 @@ def _link_preview_options(config, articles, videos):
     if setting.get("mode", "none") != "first":
         return {"is_disabled": True}
 
-    first = next(iter(articles or videos or []), None)
+    # 유튜브 링크는 썸네일이 확실히 잡히는 반면, Google 뉴스 링크는 리다이렉트라
+    # 미리보기가 비는 일이 잦다. 그래서 메시지 순서와 무관하게 영상을 먼저 쓴다.
+    if setting.get("prefer", "video") == "video":
+        first = next(iter(videos or articles or []), None)
+    else:
+        first = next(iter(articles or videos or []), None)
     if first is None:
         return {"is_disabled": True}
 

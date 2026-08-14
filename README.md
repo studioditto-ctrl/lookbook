@@ -123,13 +123,15 @@ sources:
 ```yaml
 link_preview:
   mode: first        # none 이면 썸네일 없음
+  prefer: video      # any 면 메시지 첫 항목을 그대로 사용
   large: true        # false 면 작은 썸네일
   above_text: true   # false 면 본문 아래
 ```
 
-첫 항목이 Google 뉴스 링크(`news.google.com/rss/articles/...`)면 리다이렉트라
-미리보기가 안 뜰 수 있다. 그럴 때는 `mode: none` 으로 끄거나, 영상이 먼저
-오도록 슬롯 구성을 바꾼다.
+`prefer: video` 는 메시지 순서와 무관하게 **영상 링크**로 썸네일을 만든다.
+유튜브 링크는 썸네일이 확실히 잡히는 반면, Google 뉴스 링크
+(`news.google.com/rss/articles/...`)는 리다이렉트라 미리보기가 비는 일이
+잦기 때문이다. 그 회차에 영상이 없으면 기사 링크로 넘어간다.
 
 ### 관심사 반영
 
