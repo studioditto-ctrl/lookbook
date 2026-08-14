@@ -6,6 +6,11 @@ on:
     # 목표 시각보다 10분 앞에 잡아 KST 08:00 / 19:00 에 가깝게 맞춘다.
     - cron: '50 22 * * *'   # 08:00 KST (전날 22:50 UTC)
     - cron: '50 9 * * *'    # 19:00 KST (09:50 UTC)
+  # Actions 화면을 열 수 없을 때 발송을 돌리기 위한 경로.
+  # .trigger 파일이 바뀐 푸시에서만 실행된다 — 일반 코드 푸시로는 발송되지 않는다.
+  push:
+    paths:
+      - '.trigger'
   workflow_dispatch:
     inputs:
       slot:
