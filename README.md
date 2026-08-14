@@ -175,6 +175,17 @@ config.yaml                    소스 · 키워드 · 항목 수
 state/seen.json                발송 이력 (자동 갱신, 90일 보관)
 ```
 
+## 지금 바로 한 번 보내기
+
+Actions 화면을 열 수 없을 때는 `.trigger` 파일을 건드려 푸시하면 발송이 돈다.
+
+```bash
+date -u > .trigger && git commit -am "발송" && git push
+```
+
+경로 필터가 걸려 있어 다른 파일만 바꾼 푸시로는 발송되지 않는다. 이 경로가
+필요 없으면 `digest.yml` 의 `push:` 블록을 지운다.
+
 ## 잘 안 될 때
 
 **`TELEGRAM_BOT_TOKEN 이 설정되어 있지 않습니다`**

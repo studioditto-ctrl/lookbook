@@ -144,8 +144,19 @@ keywords:
   shoes: 2
   beginner: 1
 
-# 제목에 포함되면 아예 제외
+# 제목에 포함되면 아예 제외 (대소문자 무시)
 exclude:
   - 부고
   - 채용
   - 분양
+  # 러닝 매체는 세일·쿠폰 글을 기사와 같은 피드로 내보낸다. 다이제스트에
+  # 매트리스 할인 광고가 섞이지 않도록 걸러낸다.
+  - 할인
+  - 특가
+  - 쿠폰
+  - sale
+  - deal
+  - discount
+  - coupon
+  - prime day
+  - black friday
