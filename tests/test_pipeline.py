@@ -5,6 +5,7 @@
 
 import functools
 import http.server
+import json
 import socketserver
 import sys
 import tempfile
@@ -555,3 +556,66 @@ class TestChannelIdExtraction(unittest.TestCase):
         <meta itemprop="identifier" content="UCrightrightrightrightrr">
         """
         self.assertEqual(self.extract(page), ("UCrightrightrightrightrr", "itemprop"))
+
+
+class TestYouTubeDataAPI(unittest.TestCase):
+    """RSS 대신 Data API 로 업로드를 가져오는 경로."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        payload = {
+            "items": [
+                {"snippet": {
+                    "title": "Marathon pacing explained",
+                    "description": "How to hold  goal pace\nover 42km.",
+                    "publishedAt": "2026-08-14T02:00:00Z",
+                    "resourceId": {"videoId": "vid123"},
+                }},
+                {"snippet": {  # videoId 없음 → 건너뛴다
+                    "title": "Broken entry",
+                    "publishedAt": "2026-08-14T02:00:00Z",
+                    "resourceId": {},
+                }},
+            ]
+        }
+        cls.server = FeedServer({"api.json": json.dumps(payload), "bad.json": "not json"})
+        cls.saved_api = collect_module.YT_API
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.YT_API = cls.saved_api
+        cls.server.close()
+
+    def test_uploads_playlist_id(self):
+        self.assertEqual(
+            self.collect._uploads_playlist("UCL2AIZN201G3V3jhLIheeeg"),
+            "UUL2AIZN201G3V3jhLIheeeg",
+        )
+
+    def test_parses_videos(self):
+        self.collect.YT_API = self.server.url("api.json")
+        items = self.collect._collect_via_api("UCxxxxxxxxxxxxxxxxxxxxxx", "채널", "key")
+        self.assertEqual(len(items), 1)  # videoId 없는 항목은 제외
+        item = items[0]
+        self.assertEqual(item.url, "https://www.youtube.com/watch?v=vid123")
+        self.assertEqual(item.id, "yt:video:vid123")
+        self.assertEqual(item.kind, "video")
+        self.assertEqual(item.source, "채널")
+        self.assertEqual(item.summary, "How to hold goal pace over 42km.")
+        self.assertEqual(item.published.year, 2026)
+
+    def test_bad_json_is_recorded_not_raised(self):
+        self.collect.YT_API = self.server.url("bad.json")
+        problems = []
+        items = self.collect._collect_via_api("UCx", "채널", "key", problems)
+        self.assertEqual(items, [])
+        self.assertEqual(problems[0][0], "채널")
+
+    def test_http_error_is_recorded_not_raised(self):
+        self.collect.YT_API = self.server.url("missing.json")
+        problems = []
+        self.assertEqual(self.collect._collect_via_api("UCx", "채널", "key", problems), [])
+        self.assertEqual(len(problems), 1)

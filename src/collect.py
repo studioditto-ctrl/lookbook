@@ -5,6 +5,7 @@
 """
 
 import html
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ USER_AGENT = "running-digest/1.0 (+https://github.com/studioditto-ctrl/lookbook)
 TIMEOUT = 20
 
 YT_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+YT_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+YT_API_MAX = 15
 GNEWS_FEED = (
     "https://news.google.com/rss/search"
     "?q={query}&hl={lang}&gl={country}&ceid={country}:{lang}"
@@ -197,6 +200,62 @@ def resolve_channel_id(url, cache, problems=None, source_name=None):
     return channel_id
 
 
+def _uploads_playlist(channel_id):
+    """채널의 '업로드' 재생목록 ID. UC... -> UU... 로 앞 두 글자만 바뀐다."""
+    return "UU" + channel_id[2:]
+
+
+def _collect_via_api(channel_id, source_name, key, problems=None):
+    """YouTube Data API 로 최근 업로드를 가져온다.
+
+    RSS 엔드포인트(youtube.com/feeds/videos.xml)는 러너에서 404/500 을 돌려주고
+    같은 채널 ID에도 실행마다 결과가 달라, 안정적으로 쓸 수 없다. Data API 는
+    playlistItems 호출당 1 유닛이라 하루 두 번 × 채널 몇 개로는 쿼터에 여유가 많다.
+    """
+    params = {
+        "part": "snippet",
+        "playlistId": _uploads_playlist(channel_id),
+        "maxResults": YT_API_MAX,
+        "key": key,
+    }
+    try:
+        resp = requests.get(
+            YT_API, params=params, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"[collect] '{source_name}' Data API 요청 실패: {e}")
+        _note(problems, source_name, "YouTube Data API 요청 실패")
+        return []
+
+    items = []
+    for entry in data.get("items") or []:
+        snippet = entry.get("snippet") or {}
+        video_id = (snippet.get("resourceId") or {}).get("videoId")
+        title = _clean_title(snippet.get("title"))
+        if not video_id or not title:
+            continue
+        published = snippet.get("publishedAt") or ""
+        try:
+            when = datetime.fromisoformat(published.replace("Z", "+00:00"))
+        except ValueError:
+            when = datetime.now(timezone.utc)
+        items.append(
+            Item(
+                id=f"yt:video:{video_id}",
+                title=title,
+                url=f"https://www.youtube.com/watch?v={video_id}",
+                source=source_name,
+                kind="video",
+                published=when,
+                summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
+            )
+        )
+    print(f"[collect] '{source_name}' {len(items)}건 (Data API)")
+    return items
+
+
 def collect(config, channel_cache):
     """설정에 있는 모든 소스에서 항목을 모아 lookback 기간 내 것만 반환."""
     sources = config.get("sources") or {}
@@ -214,6 +273,10 @@ def collect(config, channel_cache):
     for src in sources.get("rss") or []:
         items += _parse_feed(src["url"], src["name"], "article", problems)
 
+    api_key = os.environ.get("YOUTUBE_API_KEY")
+    if (sources.get("youtube") or []) and not api_key:
+        print("[collect] YOUTUBE_API_KEY 가 없어 RSS 로 시도합니다 (404 가 잦습니다).")
+
     for src in sources.get("youtube") or []:
         name = src.get("name", "?")
         channel_id = src.get("channel_id")
@@ -222,9 +285,12 @@ def collect(config, channel_cache):
         if not channel_id:
             print(f"[collect] '{name}' 채널을 건너뜁니다 (ID 없음)")
             continue
-        items += _parse_feed(
-            YT_FEED.format(channel_id=channel_id), src["name"], "video", problems
-        )
+        if api_key:
+            items += _collect_via_api(channel_id, src["name"], api_key, problems)
+        else:
+            items += _parse_feed(
+                YT_FEED.format(channel_id=channel_id), src["name"], "video", problems
+            )
 
     if problems:
         print("\n[collect] 문제가 있는 소스 (config.yaml 에서 고치거나 지우세요):")

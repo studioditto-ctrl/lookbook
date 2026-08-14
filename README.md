@@ -53,7 +53,22 @@ Claude API 키를 Repository secrets 에 추가한다. 워크플로는
 `config.yaml` 의 `summary.enabled` 로 끄고 켤 수 있고, `summary.effort` 로
 비용과 품질을 조절한다 (`low` 기본값).
 
-### 4. 첫 발송 확인
+### 4. 유튜브 영상 켜기 (선택)
+
+채널 RSS(`youtube.com/feeds/videos.xml`)는 GitHub Actions 러너에서 404/500 을
+자주 돌려준다. 같은 채널 ID가 실행마다 다른 오류를 내므로 ID 문제가 아니라
+유튜브 쪽에서 러너를 막는 것으로 보인다. 영상을 안정적으로 받으려면
+YouTube Data API 키를 쓴다.
+
+1. Google Cloud Console 에서 프로젝트 생성 → **YouTube Data API v3** 사용 설정
+2. 사용자 인증 정보 → API 키 만들기 (결제 등록 불필요)
+3. Repository secrets 에 **`YOUTUBE_API_KEY`** 로 등록
+
+호출은 채널당 1 유닛이고 일일 쿼터는 10,000 이라, 채널 8개 × 하루 2회면
+16 유닛으로 여유가 크다. 키가 없으면 RSS 로 시도하고, 실패하면 영상 없이
+기사만 보낸다.
+
+### 5. 첫 발송 확인
 
 **Actions → 러닝 다이제스트 → Run workflow** 에서 수동 실행.
 `dry_run` 을 켜면 실제 전송 없이 로그로 메시지만 확인할 수 있다.
