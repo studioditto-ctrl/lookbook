@@ -21,29 +21,6 @@ jobs:
           python-version: '3.11'
           cache: pip
       - run: pip install -r requirements.txt
-      # 시크릿 '값'은 GitHub 이 가려주므로, 등록된 '이름'만 출력해
-      # 이름이 틀렸는지 아예 등록이 안 됐는지 구분한다.
-      - name: 등록된 시크릿 이름 확인
-        env:
-          SECRETS_JSON: ${{ toJSON(secrets) }}
-        run: |
-          python3 - <<'PY'
-          import json, os
-
-          names = sorted(json.loads(os.environ["SECRETS_JSON"]))
-          print("이 레포 Actions 에 등록된 시크릿 이름:")
-          for name in names:
-              print(f"  - {name}")
-
-          if "github_token" in names and len(names) == 1:
-              print("\n등록된 시크릿이 없습니다. (github_token 은 GitHub 이 자동 제공)")
-              print("Settings → Secrets and variables → Actions → Secrets 탭 →")
-              print("New repository secret 에서 TELEGRAM_BOT_TOKEN 을 추가하세요.")
-          elif "TELEGRAM_BOT_TOKEN" not in names:
-              print("\nTELEGRAM_BOT_TOKEN 이 목록에 없습니다.")
-              print("위 이름 중 오타가 있다면 지우고 정확한 이름으로 다시 등록하세요.")
-          PY
-
       - name: 시크릿 확인
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.RUNNING1978XIANAO_BOT }}
