@@ -20,6 +20,17 @@ from telegram import build_message, send, _link_preview_options  # noqa: E402
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
 
+HINTS = {
+    "TELEGRAM_BOT_TOKEN": (
+        "BotFather 가 준 토큰을 Settings → Secrets and variables → Actions 의 "
+        "Repository secrets 에 등록하세요."
+    ),
+    "TELEGRAM_CHAT_ID": (
+        "'chat_id 확인' 워크플로를 실행해 숫자를 확인한 뒤 Repository secrets 에 "
+        "등록하세요."
+    ),
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="러닝 뉴스·영상 텔레그램 다이제스트")
@@ -42,13 +53,21 @@ def main():
 
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    if not args.dry_run and not (token and chat_id):
-        print(
-            "TELEGRAM_BOT_TOKEN 과 TELEGRAM_CHAT_ID 가 필요합니다. "
-            "레포 Settings → Secrets and variables → Actions 에 등록하세요.",
-            file=sys.stderr,
-        )
-        return 1
+
+    missing = [
+        name
+        for name, value in (("TELEGRAM_BOT_TOKEN", token), ("TELEGRAM_CHAT_ID", chat_id))
+        if not value
+    ]
+
+    # 시크릿이 없다고 그냥 멈추면 수집이 되는지조차 알 수 없다.
+    # 전송만 건너뛰고 나머지는 그대로 돌려서 로그에 남긴다.
+    if missing and not args.dry_run:
+        for name in missing:
+            print(f"::error title={name} 이(가) 비어 있습니다::{HINTS[name]}")
+        print("전송은 건너뜁니다. 수집 결과만 아래에 출력합니다.\n")
+
+    dry_run = args.dry_run or bool(missing)
 
     channel_cache = state.load_channel_cache()
     items = collect(config, channel_cache)
@@ -59,14 +78,14 @@ def main():
 
     if not articles and not videos:
         print("[main] 보낼 새 항목이 없습니다. 이번 회차는 건너뜁니다.")
-        return 0
+        return 1 if missing else 0
 
     message = build_message(articles, videos, config, args.slot)
 
-    if args.dry_run:
-        print("--- dry run ---")
+    if dry_run:
+        print("--- 전송하지 않고 미리보기 ---")
         print(message)
-        return 0
+        return 1 if missing else 0
 
     send(token, chat_id, message, _link_preview_options(config, articles, videos))
 
