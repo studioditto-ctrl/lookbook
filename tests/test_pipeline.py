@@ -736,3 +736,54 @@ class TestNameOnlySourceWiring(unittest.TestCase):
             os.environ.pop("YOUTUBE_API_KEY", None)
         self.assertIn("search:런랜드 러닝", cache)
         self.assertNotIn("search:런랜드", cache)
+
+
+class TestLinkPreview(unittest.TestCase):
+    """썸네일은 첫 항목 하나만 — 텔레그램이 메시지당 하나만 허용한다."""
+
+    def setUp(self):
+        from telegram import _link_preview_options
+
+        self.options = _link_preview_options
+
+    def items(self, n, kind="article"):
+        return [
+            Item(id=f"id{i}", title=f"제목 {i}", url=f"https://ex.com/{i}",
+                 source="매체", kind=kind, published=NOW)
+            for i in range(n)
+        ]
+
+    def test_first_article_is_previewed(self):
+        opts = self.options({"link_preview": {"mode": "first"}}, self.items(3), self.items(2, "video"))
+        self.assertEqual(opts["url"], "https://ex.com/0")
+        self.assertTrue(opts["prefer_large_media"])
+        self.assertTrue(opts["show_above_text"])
+
+    def test_falls_back_to_first_video_when_no_articles(self):
+        videos = self.items(2, "video")
+        opts = self.options({"link_preview": {"mode": "first"}}, [], videos)
+        self.assertEqual(opts["url"], videos[0].url)
+
+    def test_small_and_inline_when_configured(self):
+        setting = {"mode": "first", "large": False, "above_text": False}
+        opts = self.options({"link_preview": setting}, self.items(1), [])
+        self.assertTrue(opts["prefer_small_media"])
+        self.assertNotIn("prefer_large_media", opts)
+        self.assertNotIn("show_above_text", opts)
+
+    def test_none_disables_preview(self):
+        opts = self.options({"link_preview": {"mode": "none"}}, self.items(1), [])
+        self.assertEqual(opts, {"is_disabled": True})
+
+    def test_string_form_still_works(self):
+        self.assertEqual(self.options({"link_preview": "none"}, self.items(1), []),
+                         {"is_disabled": True})
+        self.assertEqual(self.options({"link_preview": "first"}, self.items(1), [])["url"],
+                         "https://ex.com/0")
+
+    def test_missing_key_defaults_to_disabled(self):
+        self.assertEqual(self.options({}, self.items(1), []), {"is_disabled": True})
+
+    def test_no_items_disables_preview(self):
+        self.assertEqual(self.options({"link_preview": {"mode": "first"}}, [], []),
+                         {"is_disabled": True})

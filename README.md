@@ -115,6 +115,22 @@ sources:
       country: KR
 ```
 
+### 썸네일 (링크 미리보기)
+
+텔레그램은 메시지 하나에 미리보기를 **하나만** 붙일 수 있다. 그래서 첫 항목의
+링크로만 썸네일을 띄운다.
+
+```yaml
+link_preview:
+  mode: first        # none 이면 썸네일 없음
+  large: true        # false 면 작은 썸네일
+  above_text: true   # false 면 본문 아래
+```
+
+첫 항목이 Google 뉴스 링크(`news.google.com/rss/articles/...`)면 리다이렉트라
+미리보기가 안 뜰 수 있다. 그럴 때는 `mode: none` 으로 끄거나, 영상이 먼저
+오도록 슬롯 구성을 바꾼다.
+
 ### 관심사 반영
 
 `keywords` 의 가중치를 올리면 그 주제가 우선 선택되고, `exclude` 에 넣은

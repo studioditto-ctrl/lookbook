@@ -26,9 +26,16 @@ summary:
   # low | medium | high | xhigh | max — 번역·요약은 단순한 작업이라 low로 충분합니다.
   effort: low
 
-# 링크 미리보기: none | first
-# Google 뉴스 링크는 리다이렉트라 미리보기가 깨질 때가 있어 기본값은 none
-link_preview: none
+# 링크 미리보기(썸네일). 첫 항목 하나만 보여준다 — 텔레그램은 메시지당
+# 미리보기를 하나만 붙일 수 있다.
+#   mode:       none | first
+#   large:      true 면 큰 이미지, false 면 작은 썸네일
+#   above_text: true 면 본문 위에 표시
+# 첫 항목이 Google 뉴스 리다이렉트 링크면 미리보기가 안 뜰 수 있다.
+link_preview:
+  mode: first
+  large: true
+  above_text: true
 
 sources:
   # 구글 뉴스 RSS 검색. query 를 그대로 검색어로 씁니다.

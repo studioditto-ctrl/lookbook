@@ -70,12 +70,29 @@ def build_message(articles, videos, config, slot):
 
 
 def _link_preview_options(config, articles, videos):
-    mode = config.get("link_preview", "none")
-    if mode == "first":
-        first = (articles or videos or [None])[0]
-        if first is not None:
-            return {"url": first.url, "prefer_small_media": True}
-    return {"is_disabled": True}
+    """첫 항목의 링크 미리보기(썸네일) 설정.
+
+    문자열("none"/"first")과 딕셔너리 두 형태를 모두 받는다.
+    """
+    setting = config.get("link_preview", "none")
+    if isinstance(setting, str):
+        setting = {"mode": setting}
+
+    if setting.get("mode", "none") != "first":
+        return {"is_disabled": True}
+
+    first = next(iter(articles or videos or []), None)
+    if first is None:
+        return {"is_disabled": True}
+
+    options = {"url": first.url}
+    if setting.get("large", True):
+        options["prefer_large_media"] = True
+    else:
+        options["prefer_small_media"] = True
+    if setting.get("above_text", True):
+        options["show_above_text"] = True
+    return options
 
 
 def send(token, chat_id, message, preview_options, max_attempts=4):
