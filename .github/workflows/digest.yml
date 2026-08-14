@@ -61,6 +61,23 @@ jobs:
           python src/main.py --slot "${{ steps.slot.outputs.slot }}" \
             ${{ inputs.dry_run == true && '--dry-run' || '' }}
 
+      # 실패했을 때만. 시크릿 이름이 어긋났는지 바로 알 수 있게 한다.
+      - name: 등록된 시크릿 이름 (실패 시)
+        if: failure()
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+
+          names = sorted(json.loads(os.environ["SECRETS_JSON"]))
+          print("이 레포에 등록된 시크릿 이름:")
+          for name in names:
+              print(f"  - {name}")
+          print("\n워크플로가 찾는 이름: TELEGRAM_BOT_TOKEN (또는 RUNNING1978XIANAO_BOT),")
+          print("TELEGRAM_CHAT_ID. 위 목록과 다르면 이름을 맞춰 다시 등록하세요.")
+          PY
+
       - name: 발송 이력 커밋
         if: ${{ inputs.dry_run != true }}
         run: |
