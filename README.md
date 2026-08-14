@@ -43,7 +43,9 @@
 ### 3. 한국어 요약 켜기 (선택)
 
 영어 기사·영상의 제목을 한국어로 번역하고 1~2문장 요약을 붙이려면
-`ANTHROPIC_API_KEY` 를 Repository secrets 에 추가한다.
+Claude API 키를 Repository secrets 에 추가한다. 워크플로는
+`ANTHROPIC_API_KEY` 와 `RUNNING_API` 두 이름을 모두 받는다 (앞의 것이
+비어 있으면 뒤의 것을 쓴다).
 
 키가 없으면 요약 단계를 건너뛰고 제목과 링크만 보낸다. 발송 자체는
 실패하지 않는다. 요약 요청이 실패해도 마찬가지로 제목만 나간다.

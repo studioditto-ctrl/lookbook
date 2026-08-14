@@ -58,7 +58,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.RUNNING1978XIANAO_BOT }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           # 없으면 요약을 건너뛰고 제목만 보낸다 (발송 자체는 실패하지 않음)
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.RUNNING_API }}
         run: |
           python src/main.py --slot "${{ steps.slot.outputs.slot }}" \
             ${{ inputs.dry_run == true && '--dry-run' || '' }}
