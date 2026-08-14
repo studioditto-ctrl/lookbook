@@ -619,3 +619,58 @@ class TestYouTubeDataAPI(unittest.TestCase):
         problems = []
         self.assertEqual(self.collect._collect_via_api("UCx", "채널", "key", problems), [])
         self.assertEqual(len(problems), 1)
+
+
+class TestChannelSearch(unittest.TestCase):
+    """URL 없이 채널 이름만으로 등록하는 경로."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        hit = {"items": [{"id": {"channelId": "UCkoreanrunnerkoreanrun"},
+                          "snippet": {"title": "런랜드"}}]}
+        cls.server = FeedServer({
+            "hit.json": json.dumps(hit, ensure_ascii=False),
+            "empty.json": json.dumps({"items": []}),
+            "noid.json": json.dumps({"items": [{"snippet": {"title": "x"}}]}),
+        })
+        cls.saved = collect_module.YT_SEARCH_API
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.YT_SEARCH_API = cls.saved
+        cls.server.close()
+
+    def test_finds_and_caches_channel_id(self):
+        self.collect.YT_SEARCH_API = self.server.url("hit.json")
+        cache = {}
+        found = self.collect.search_channel_id("런랜드", cache, "key")
+        self.assertEqual(found, "UCkoreanrunnerkoreanrun")
+        self.assertEqual(cache["search:런랜드"], "UCkoreanrunnerkoreanrun")
+
+    def test_cache_hit_makes_no_request(self):
+        self.collect.YT_SEARCH_API = self.server.url("missing.json")  # 404 를 낼 주소
+        cache = {"search:런랜드": "UCcachedcachedcachedcac"}
+        self.assertEqual(
+            self.collect.search_channel_id("런랜드", cache, "key"), "UCcachedcachedcachedcac"
+        )
+
+    def test_empty_result_is_recorded(self):
+        self.collect.YT_SEARCH_API = self.server.url("empty.json")
+        problems = []
+        self.assertIsNone(self.collect.search_channel_id("없는채널", {}, "key", problems))
+        self.assertEqual(problems[0][0], "없는채널")
+
+    def test_result_without_channel_id_is_recorded(self):
+        self.collect.YT_SEARCH_API = self.server.url("noid.json")
+        problems = []
+        self.assertIsNone(self.collect.search_channel_id("x", {}, "key", problems))
+        self.assertEqual(len(problems), 1)
+
+    def test_request_failure_is_recorded_not_raised(self):
+        self.collect.YT_SEARCH_API = self.server.url("missing.json")
+        problems = []
+        self.assertIsNone(self.collect.search_channel_id("x", {}, "key", problems))
+        self.assertEqual(len(problems), 1)

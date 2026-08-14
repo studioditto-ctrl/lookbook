@@ -83,16 +83,26 @@ YouTube Data API 키를 쓴다.
 
 ### 유튜브 채널 추가
 
-채널 ID를 몰라도 된다. 채널 주소만 넣으면 자동으로 변환된다.
+세 가지 방법이 있고, 결과는 `state/channels.json` 에 캐시되므로 채널당 한 번만
+조회한다.
 
 ```yaml
 sources:
   youtube:
+    - name: 채널 이름                                   # 이름만 (API 키 필요)
     - name: 채널 이름
-      url: https://www.youtube.com/@handle
+      url: https://www.youtube.com/@handle              # 주소로
+    - name: 채널 이름
+      channel_id: UCxxxxxxxxxxxxxxxxxxxxxx              # ID를 알면 바로
 ```
 
-변환 결과는 `state/channels.json` 에 캐시되므로 매번 다시 조회하지 않는다.
+**이름만 적는 방법**은 `YOUTUBE_API_KEY` 가 있어야 하고, 검색이라 동명이인
+채널이 잡힐 수 있다. 로그에 `'런랜드' 검색 → '런랜드 RUNLAND' (UC...)` 처럼
+찾은 채널 이름이 찍히니 확인하고, 틀렸으면 `state/channels.json` 에서 해당
+줄을 지운 뒤 `search:` 로 검색어를 좁히거나 주소를 직접 넣는다.
+
+검색은 호출당 100 유닛으로 비싸지만 캐시되므로 채널당 한 번만 든다
+(10개 등록 = 1,000 유닛, 일일 쿼터 10,000).
 
 ### 뉴스 검색어 추가
 

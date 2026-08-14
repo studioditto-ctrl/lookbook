@@ -54,8 +54,18 @@ sources:
   # 유튜브 채널.
   # channel_id 를 알면 그대로 쓰고, 모르면 url 에 채널 주소(@핸들)만 넣으세요.
   # 핸들은 자동으로 channel_id 로 변환되어 state/channels.json 에 캐시됩니다.
-  # url 에 채널 주소만 넣으면 channel_id 는 실행 시점에 알아낸다.
-  # 핸들이 바뀌었거나 틀리면 로그에 '확인 실패'로 남고 그 채널만 건너뛴다.
+  # 세 가지 방법으로 채널을 지정할 수 있다. 결과는 state/channels.json 에 캐시된다.
+  #
+  #   1) channel_id 를 안다면 그대로:      channel_id: UCxxxxxxxxxxxxxxxxxxxxxx
+  #   2) 채널 주소만 알면:                  url: https://www.youtube.com/@handle
+  #   3) 이름만 알면 (YOUTUBE_API_KEY 필요): name 만 적으면 검색해서 찾는다.
+  #      다른 채널이 잡힐 수 있으니 로그의 "검색 → '찾은이름'" 을 확인한다.
+  #      이름이 흔하면 search: 로 검색어를 따로 줄 수 있다.
+  #
+  # 예) 이름만으로 등록:
+  #   - name: 런랜드
+  #   - name: 김러너
+  #     search: 김러너 러닝 마라톤
   youtube:
     - name: The Running Channel
       url: https://www.youtube.com/@TheRunningChannel

@@ -20,6 +20,7 @@ TIMEOUT = 20
 
 YT_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 YT_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+YT_SEARCH_API = "https://www.googleapis.com/youtube/v3/search"
 YT_API_MAX = 15
 GNEWS_FEED = (
     "https://news.google.com/rss/search"
@@ -200,6 +201,48 @@ def resolve_channel_id(url, cache, problems=None, source_name=None):
     return channel_id
 
 
+def search_channel_id(query, cache, key, problems=None, source_name=None):
+    """채널 이름으로 channel_id 를 찾는다. URL이나 핸들을 몰라도 등록할 수 있게.
+
+    search 호출은 100 유닛으로 비싸지만, 찾은 결과를 state/channels.json 에
+    캐시하므로 채널당 한 번만 든다. 검색이라 다른 채널이 잡힐 수 있어
+    찾은 채널 이름을 로그에 남긴다 — 틀렸으면 캐시에서 지우고 고치면 된다.
+    """
+    cache_key = f"search:{query}"
+    if cache_key in cache:
+        return cache[cache_key]
+
+    params = {"part": "snippet", "type": "channel", "q": query, "maxResults": 1, "key": key}
+    try:
+        resp = requests.get(
+            YT_SEARCH_API, params=params, timeout=TIMEOUT,
+            headers={"User-Agent": USER_AGENT},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"[collect] '{source_name or query}' 채널 검색 실패: {e}")
+        _note(problems, source_name or query, "채널 검색 실패")
+        return None
+
+    results = data.get("items") or []
+    if not results:
+        print(f"[collect] '{query}' 검색 결과가 없습니다.")
+        _note(problems, source_name or query, "검색 결과 없음")
+        return None
+
+    top = results[0]
+    channel_id = (top.get("id") or {}).get("channelId")
+    if not channel_id:
+        _note(problems, source_name or query, "검색 결과에 channel_id 없음")
+        return None
+
+    found = (top.get("snippet") or {}).get("title", "?")
+    print(f"[collect] '{query}' 검색 → '{found}' ({channel_id})")
+    cache[cache_key] = channel_id
+    return channel_id
+
+
 def _uploads_playlist(channel_id):
     """채널의 '업로드' 재생목록 ID. UC... -> UU... 로 앞 두 글자만 바뀐다."""
     return "UU" + channel_id[2:]
@@ -282,6 +325,11 @@ def collect(config, channel_cache):
         channel_id = src.get("channel_id")
         if not channel_id and src.get("url"):
             channel_id = resolve_channel_id(src["url"], channel_cache, problems, name)
+        # url 도 channel_id 도 없으면 이름(또는 search)으로 찾는다. API 키가 필요하다.
+        if not channel_id and api_key:
+            channel_id = search_channel_id(
+                src.get("search") or name, channel_cache, api_key, problems, name
+            )
         if not channel_id:
             print(f"[collect] '{name}' 채널을 건너뜁니다 (ID 없음)")
             continue
