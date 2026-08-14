@@ -83,6 +83,17 @@ def _clean_title(title):
     return re.sub(r"\s+-\s+[^-]{2,30}$", "", title)
 
 
+def _get_with_retry(url, attempts=2, delay=2):
+    """5xx 는 일시적인 경우가 많아 한 번 더 시도한다. 4xx 는 바로 포기한다."""
+    for attempt in range(1, attempts + 1):
+        resp = requests.get(url, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT})
+        if resp.status_code < 500 or attempt == attempts:
+            resp.raise_for_status()
+            return resp
+        time.sleep(delay)
+    raise requests.RequestException("재시도 후에도 실패")
+
+
 def _note(problems, source_name, reason):
     if problems is not None:
         problems.append((source_name, reason))
@@ -91,8 +102,7 @@ def _note(problems, source_name, reason):
 def _parse_feed(url, source_name, kind, problems=None):
     """피드 하나를 항목 리스트로. 실패해도 예외를 올리지 않는다."""
     try:
-        resp = requests.get(url, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT})
-        resp.raise_for_status()
+        resp = _get_with_retry(url)
     except requests.RequestException as e:
         print(f"[collect] '{source_name}' 피드 요청 실패: {e}")
         _note(problems, source_name, "피드 요청 실패")
@@ -126,7 +136,36 @@ def _parse_feed(url, source_name, kind, problems=None):
     return items
 
 
-_CHANNEL_ID_RE = re.compile(r'"(?:channelId|externalId)":"(UC[\w-]{22})"')
+_ID = r"(UC[\w-]{22})"
+_LINK_TAG_RE = re.compile(r"<link\b[^>]*>", re.I)
+_CANONICAL_HREF_RE = re.compile(r'href="[^"]*/channel/' + _ID)
+_ITEMPROP_RE = re.compile(r'<meta\b[^>]*itemprop="identifier"[^>]*content="' + _ID, re.I)
+_EXTERNAL_ID_RE = re.compile(r'"externalId":"' + _ID)
+_CHANNEL_ID_RE = re.compile(r'"channelId":"' + _ID)
+
+
+def _channel_id_from_page(page):
+    """채널 페이지에서 그 페이지 '자신'의 channel_id 를 뽑는다.
+
+    "channelId" 는 추천 채널이나 영상 소유자 정보로도 페이지에 여러 번 나온다.
+    먼저 매칭되는 것을 집으면 남의 채널 ID를 가져올 수 있으므로, 페이지 소유자를
+    가리키는 것이 확실한 표지부터 순서대로 확인한다.
+    """
+    for tag in _LINK_TAG_RE.findall(page):
+        if 'rel="canonical"' in tag.lower():
+            match = _CANONICAL_HREF_RE.search(tag)
+            if match:
+                return match.group(1), "canonical"
+
+    for regex, label in (
+        (_ITEMPROP_RE, "itemprop"),
+        (_EXTERNAL_ID_RE, "externalId"),
+        (_CHANNEL_ID_RE, "channelId"),
+    ):
+        match = regex.search(page)
+        if match:
+            return match.group(1), label
+    return None, None
 
 
 def resolve_channel_id(url, cache, problems=None, source_name=None):
@@ -134,7 +173,7 @@ def resolve_channel_id(url, cache, problems=None, source_name=None):
     if url in cache:
         return cache[url]
 
-    match = re.search(r"/channel/(UC[\w-]{22})", url)
+    match = re.search(r"/channel/" + _ID, url)
     if match:
         cache[url] = match.group(1)
         return cache[url]
@@ -147,14 +186,15 @@ def resolve_channel_id(url, cache, problems=None, source_name=None):
         _note(problems, source_name or url, "채널 주소를 열 수 없음 (핸들이 바뀌었을 수 있음)")
         return None
 
-    match = _CHANNEL_ID_RE.search(resp.text)
-    if not match:
+    channel_id, label = _channel_id_from_page(resp.text)
+    if not channel_id:
         print(f"[collect] 채널 ID를 페이지에서 찾지 못했습니다: {url}")
         _note(problems, source_name or url, "페이지에서 channel_id 를 찾지 못함")
         return None
 
-    cache[url] = match.group(1)
-    return cache[url]
+    print(f"[collect] '{source_name or url}' channel_id={channel_id} ({label})")
+    cache[url] = channel_id
+    return channel_id
 
 
 def collect(config, channel_cache):

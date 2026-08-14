@@ -508,3 +508,50 @@ class TestMessageWithSummaries(unittest.TestCase):
         # 잘려도 항목이 줄 단위로 쪼개지지 않는다
         self.assertFalse(message.endswith("   "))
         self.assertIn("🏃 오늘 아침 러닝 브리핑", message)
+
+
+class TestChannelIdExtraction(unittest.TestCase):
+    """채널 페이지에는 남의 channel_id 도 여러 번 등장한다."""
+
+    def setUp(self):
+        from collect import _channel_id_from_page
+
+        self.extract = _channel_id_from_page
+
+    def test_canonical_link_wins_over_other_ids(self):
+        page = """
+        <script>{"channelId":"UCwrongwrongwrongwrongw1"}</script>
+        <link rel="canonical" href="https://www.youtube.com/channel/UCrightrightrightrightrr">
+        <script>{"channelId":"UCwrongwrongwrongwrongw2"}</script>
+        """
+        self.assertEqual(self.extract(page), ("UCrightrightrightrightrr", "canonical"))
+
+    def test_canonical_with_reversed_attribute_order(self):
+        page = '<link href="https://www.youtube.com/channel/UCrightrightrightrightrr" rel="canonical">'
+        self.assertEqual(self.extract(page)[0], "UCrightrightrightrightrr")
+
+    def test_falls_back_to_itemprop(self):
+        page = """
+        <script>{"channelId":"UCwrongwrongwrongwrongw1"}</script>
+        <meta itemprop="identifier" content="UCrightrightrightrightrr">
+        """
+        self.assertEqual(self.extract(page), ("UCrightrightrightrightrr", "itemprop"))
+
+    def test_falls_back_to_external_id_before_channel_id(self):
+        page = '{"channelId":"UCwrongwrongwrongwrongw1","externalId":"UCrightrightrightrightrr"}'
+        self.assertEqual(self.extract(page), ("UCrightrightrightrightrr", "externalId"))
+
+    def test_channel_id_is_last_resort(self):
+        page = '{"channelId":"UClastlastlastlastlastlr"}'
+        self.assertEqual(self.extract(page), ("UClastlastlastlastlastlr", "channelId"))
+
+    def test_no_id_returns_none(self):
+        self.assertEqual(self.extract("<html>아무것도 없음</html>"), (None, None))
+
+    def test_canonical_pointing_elsewhere_is_ignored(self):
+        # /channel/ 이 아닌 canonical (예: /@handle) 은 무시하고 다음 표지로 넘어간다
+        page = """
+        <link rel="canonical" href="https://www.youtube.com/@handle">
+        <meta itemprop="identifier" content="UCrightrightrightrightrr">
+        """
+        self.assertEqual(self.extract(page), ("UCrightrightrightrightrr", "itemprop"))
