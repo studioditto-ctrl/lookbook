@@ -46,18 +46,18 @@ jobs:
 
       - name: 시크릿 확인
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.RUNNING1978XIANAO_BOT }}
         run: |
           missing=0
           if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            echo "::error title=TELEGRAM_BOT_TOKEN 이 비어 있습니다::Settings → Secrets and variables → Actions 의 'Repository secrets' 에 등록하세요. 'Variables' 탭이나 Codespaces/Dependabot 시크릿은 이 워크플로에서 읽히지 않습니다."
+            echo "::error title=봇 토큰 시크릿이 비어 있습니다::TELEGRAM_BOT_TOKEN 또는 RUNNING1978XIANAO_BOT 이름으로 Settings → Secrets and variables → Actions 의 Repository secrets 에 등록하세요."
             missing=1
           fi
           exit $missing
 
       - name: chat_id 조회
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.RUNNING1978XIANAO_BOT }}
         run: |
           python src/whoami.py \
             ${{ inputs.send_test_message == false && '--no-test-message' || '' }}

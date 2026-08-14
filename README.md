@@ -13,7 +13,13 @@
 2. 레포 **Settings → Secrets and variables → Actions → New repository secret**
    에 `TELEGRAM_BOT_TOKEN` 으로 등록
 
+워크플로는 `TELEGRAM_BOT_TOKEN` 과 `RUNNING1978XIANAO_BOT` 두 이름을 모두
+받는다. 앞의 것이 비어 있으면 뒤의 것을 쓴다. 새로 만들 때는
+`TELEGRAM_BOT_TOKEN` 을 권한다.
+
 토큰은 절대 `config.yaml` 이나 코드에 적지 않는다. Secrets 에만 넣는다.
+토큰이 노출됐다면 BotFather 에서 `/revoke` 로 폐기하고 새 토큰을 발급받아
+같은 시크릿의 값을 갱신한다. 봇과 설정은 그대로 유지된다.
 
 ### 2. chat_id 찾기
 
