@@ -63,18 +63,25 @@ def _clean_title(title):
     return re.sub(r"\s+-\s+[^-]{2,30}$", "", title)
 
 
-def _parse_feed(url, source_name, kind):
+def _note(problems, source_name, reason):
+    if problems is not None:
+        problems.append((source_name, reason))
+
+
+def _parse_feed(url, source_name, kind, problems=None):
     """피드 하나를 항목 리스트로. 실패해도 예외를 올리지 않는다."""
     try:
         resp = requests.get(url, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT})
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f"[collect] '{source_name}' 피드 요청 실패: {e}")
+        _note(problems, source_name, "피드 요청 실패")
         return []
 
     parsed = feedparser.parse(resp.content)
     if parsed.bozo and not parsed.entries:
         print(f"[collect] '{source_name}' 피드 파싱 실패: {parsed.bozo_exception}")
+        _note(problems, source_name, "피드 파싱 실패")
         return []
 
     items = []
@@ -101,7 +108,7 @@ def _parse_feed(url, source_name, kind):
 _CHANNEL_ID_RE = re.compile(r'"(?:channelId|externalId)":"(UC[\w-]{22})"')
 
 
-def resolve_channel_id(url, cache):
+def resolve_channel_id(url, cache, problems=None, source_name=None):
     """유튜브 채널 주소(@핸들 포함)를 channel_id 로 바꾼다. 결과는 캐시한다."""
     if url in cache:
         return cache[url]
@@ -116,11 +123,13 @@ def resolve_channel_id(url, cache):
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f"[collect] 채널 ID 확인 실패 ({url}): {e}")
+        _note(problems, source_name or url, "채널 주소를 열 수 없음 (핸들이 바뀌었을 수 있음)")
         return None
 
     match = _CHANNEL_ID_RE.search(resp.text)
     if not match:
         print(f"[collect] 채널 ID를 페이지에서 찾지 못했습니다: {url}")
+        _note(problems, source_name or url, "페이지에서 channel_id 를 찾지 못함")
         return None
 
     cache[url] = match.group(1)
@@ -131,6 +140,7 @@ def collect(config, channel_cache):
     """설정에 있는 모든 소스에서 항목을 모아 lookback 기간 내 것만 반환."""
     sources = config.get("sources") or {}
     items = []
+    problems = []
 
     for src in sources.get("google_news") or []:
         url = GNEWS_FEED.format(
@@ -138,19 +148,28 @@ def collect(config, channel_cache):
             lang=src.get("lang", "ko"),
             country=src.get("country", "KR"),
         )
-        items += _parse_feed(url, src["name"], "article")
+        items += _parse_feed(url, src["name"], "article", problems)
 
     for src in sources.get("rss") or []:
-        items += _parse_feed(src["url"], src["name"], "article")
+        items += _parse_feed(src["url"], src["name"], "article", problems)
 
     for src in sources.get("youtube") or []:
+        name = src.get("name", "?")
         channel_id = src.get("channel_id")
         if not channel_id and src.get("url"):
-            channel_id = resolve_channel_id(src["url"], channel_cache)
+            channel_id = resolve_channel_id(src["url"], channel_cache, problems, name)
         if not channel_id:
-            print(f"[collect] '{src.get('name', '?')}' 채널을 건너뜁니다 (ID 없음)")
+            print(f"[collect] '{name}' 채널을 건너뜁니다 (ID 없음)")
             continue
-        items += _parse_feed(YT_FEED.format(channel_id=channel_id), src["name"], "video")
+        items += _parse_feed(
+            YT_FEED.format(channel_id=channel_id), src["name"], "video", problems
+        )
+
+    if problems:
+        print("\n[collect] 문제가 있는 소스 (config.yaml 에서 고치거나 지우세요):")
+        for source_name, reason in problems:
+            print(f"  - {source_name}: {reason}")
+        print()
 
     cutoff = datetime.now(timezone.utc) - timedelta(
         hours=config.get("lookback_hours", 36)

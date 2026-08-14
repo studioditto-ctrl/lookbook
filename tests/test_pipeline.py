@@ -303,3 +303,45 @@ class TestWhoami(unittest.TestCase):
 
     def test_describe_falls_back_to_username(self):
         self.assertIn("runner", self.describe({"id": 1, "type": "private", "username": "runner"}))
+
+
+class TestProblemReporting(unittest.TestCase):
+    """소스가 죽었을 때 조용히 사라지지 않고 목록에 남는지."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = FeedServer({"ok.xml": rss_feed([("제목", "https://ex.com/1", NOW)])})
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.close()
+
+    def test_failed_feed_is_recorded(self):
+        problems = []
+        _parse_feed(self.server.url("gone.xml"), "없는피드", "article", problems)
+        self.assertEqual(len(problems), 1)
+        self.assertEqual(problems[0][0], "없는피드")
+
+    def test_healthy_feed_records_nothing(self):
+        problems = []
+        items = _parse_feed(self.server.url("ok.xml"), "정상피드", "article", problems)
+        self.assertEqual(problems, [])
+        self.assertEqual(len(items), 1)
+
+    def test_unreachable_channel_is_recorded(self):
+        from collect import resolve_channel_id
+
+        problems = []
+        result = resolve_channel_id(
+            self.server.url("no-such-channel"), {}, problems, "가짜채널"
+        )
+        self.assertIsNone(result)
+        self.assertEqual(problems[0][0], "가짜채널")
+
+    def test_channel_url_with_explicit_id_needs_no_network(self):
+        from collect import resolve_channel_id
+
+        cache = {}
+        url = "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv"
+        self.assertEqual(resolve_channel_id(url, cache), "UCabcdefghijklmnopqrstuv")
+        self.assertEqual(cache[url], "UCabcdefghijklmnopqrstuv")
