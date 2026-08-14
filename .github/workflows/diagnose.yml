@@ -1,0 +1,30 @@
+# 임시 진단용. 등록된 시크릿 '이름'만 출력한다. 값은 다루지 않는다.
+# 원인 파악이 끝나면 삭제한다.
+name: 시크릿 진단
+
+on: push
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 등록된 시크릿 이름
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+
+          names = sorted(json.loads(os.environ["SECRETS_JSON"]))
+          print("등록된 시크릿 이름:")
+          for name in names:
+              print(f"  - {name}")
+
+          user_secrets = [n for n in names if n != "github_token"]
+          if not user_secrets:
+              print("\nRESULT: NONE — 직접 등록한 시크릿이 하나도 없습니다.")
+          elif "TELEGRAM_BOT_TOKEN" in names:
+              print("\nRESULT: OK — TELEGRAM_BOT_TOKEN 이 등록되어 있습니다.")
+          else:
+              print(f"\nRESULT: MISMATCH — 등록된 이름: {user_secrets}")
+          PY
