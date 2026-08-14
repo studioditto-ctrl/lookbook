@@ -40,7 +40,18 @@
 된다. 대신 2번을 실행하면 봇이 확인 메시지를 한 번 보내주므로 연결이
 제대로 됐는지 텔레그램에서 눈으로 확인할 수 있다.
 
-### 3. 첫 발송 확인
+### 3. 한국어 요약 켜기 (선택)
+
+영어 기사·영상의 제목을 한국어로 번역하고 1~2문장 요약을 붙이려면
+`ANTHROPIC_API_KEY` 를 Repository secrets 에 추가한다.
+
+키가 없으면 요약 단계를 건너뛰고 제목과 링크만 보낸다. 발송 자체는
+실패하지 않는다. 요약 요청이 실패해도 마찬가지로 제목만 나간다.
+
+`config.yaml` 의 `summary.enabled` 로 끄고 켤 수 있고, `summary.effort` 로
+비용과 품질을 조절한다 (`low` 기본값).
+
+### 4. 첫 발송 확인
 
 **Actions → 러닝 다이제스트 → Run workflow** 에서 수동 실행.
 `dry_run` 을 켜면 실제 전송 없이 로그로 메시지만 확인할 수 있다.
@@ -110,6 +121,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... \
 .github/workflows/test.yml     푸시할 때마다 테스트
 src/collect.py                 RSS·유튜브 수집, 채널 ID 변환
 src/filter.py                  중복 제거, 키워드 점수, 슬롯별 선별
+src/summarize.py               한국어 번역·요약 (Claude API)
 src/telegram.py                메시지 포맷팅, 전송 (재시도 포함)
 src/state.py                   발송 이력 · 채널 캐시
 src/whoami.py                  chat_id 조회 도우미
@@ -161,3 +173,5 @@ state/seen.json                발송 이력 (자동 갱신, 90일 보관)
   매 발송마다 `state/seen.json` 을 커밋하므로 이 문제는 자연히 피해간다.
 - 피드 하나가 죽어도 나머지는 정상 발송된다. 실패한 소스는 로그에 남는다.
 - 보낼 새 항목이 없으면 메시지를 보내지 않고 조용히 넘어간다.
+- **요약은 선택한 항목에만, 한 번의 요청으로 처리한다.** 걸러낸 항목은
+  번역하지 않고, 항목마다 따로 호출하지도 않는다.

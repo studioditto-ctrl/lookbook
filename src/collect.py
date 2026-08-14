@@ -4,6 +4,7 @@
 채널당 최근 15개 영상을 주므로 하루 2회 폴링이면 놓치는 영상이 없다.
 """
 
+import html
 import re
 import time
 from dataclasses import dataclass
@@ -37,6 +38,8 @@ class Item:
     source: str
     kind: str  # "article" | "video"
     published: datetime
+    summary: str = ""      # 피드에서 가져온 원문 발췌
+    summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
     score: float = 0.0
 
 
@@ -55,6 +58,23 @@ def _published(entry):
         if parsed:
             return datetime.fromtimestamp(time.mktime(parsed), tz=timezone.utc)
     return datetime.now(timezone.utc)
+
+
+# 블록 태그는 공백으로 바꿔 문단을 분리하고, 인라인 태그는 지운다.
+# 인라인까지 공백으로 바꾸면 "<b>부상</b>을"이 "부상 을"이 되어 조사가 떨어진다.
+_BLOCK_TAG_RE = re.compile(r"</?(?:p|div|br|li|tr|h[1-6])\b[^>]*>", re.I)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _snippet(entry):
+    """피드 항목의 본문 발췌를 평문으로. 없으면 빈 문자열."""
+    raw = entry.get("summary") or entry.get("media_description") or ""
+    if not raw:
+        content = entry.get("content") or []
+        if content:
+            raw = content[0].get("value", "")
+    text = html.unescape(_TAG_RE.sub("", _BLOCK_TAG_RE.sub(" ", raw)))
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _clean_title(title):
@@ -99,6 +119,7 @@ def _parse_feed(url, source_name, kind, problems=None):
                 source=source_name,
                 kind=kind,
                 published=_published(entry),
+                summary=_snippet(entry),
             )
         )
     print(f"[collect] '{source_name}' {len(items)}건")

@@ -18,21 +18,28 @@ def _esc(text):
     return html.escape(text, quote=False)
 
 
-def _shorten(title):
-    if len(title) <= TITLE_MAX:
-        return title
-    return title[: TITLE_MAX - 1].rstrip() + "…"
+def _shorten(text, limit=TITLE_MAX):
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
 
 
-def _section(heading, items, start_index):
-    lines = [f"{heading}"]
+SUMMARY_MAX = 200
+
+
+def _blocks(heading, items, start_index):
+    """항목 하나를 줄 리스트 하나로 묶는다. 길이 초과 시 블록째 덜어내기 위해서."""
+    blocks = [[heading]]
     for offset, item in enumerate(items):
         number = start_index + offset
-        lines.append(
+        block = [
             f'{number}. <a href="{_esc(item.url)}">{_esc(_shorten(item.title))}</a>'
-        )
-        lines.append(f"   <i>{_esc(item.source)}</i>")
-    return lines
+        ]
+        if item.summary_ko:
+            block.append(f"   {_esc(_shorten(item.summary_ko, SUMMARY_MAX))}")
+        block.append(f"   <i>{_esc(item.source)}</i>")
+        blocks.append(block)
+    return blocks
 
 
 def build_message(articles, videos, config, slot):
@@ -46,23 +53,20 @@ def build_message(articles, videos, config, slot):
         f"<i>{now.month}월 {now.day}일 ({WEEKDAYS[now.weekday()]})</i>",
     ]
 
-    body = []
+    blocks = [header]
     if articles:
-        body.append("")
-        body += _section("📰 <b>읽을거리</b>", articles, 1)
+        blocks += [[""]] + _blocks("📰 <b>읽을거리</b>", articles, 1)
     if videos:
-        body.append("")
-        body += _section("🎬 <b>영상</b>", videos, len(articles) + 1)
+        blocks += [[""]] + _blocks("🎬 <b>영상</b>", videos, len(articles) + 1)
 
-    lines = header + body
-    message = "\n".join(lines)
+    def render(bs):
+        return "\n".join(line for block in bs for line in block)
 
-    # 상한을 넘으면 뒤에서부터 항목을 덜어낸다 (한 항목은 2줄)
-    while len(message) > MAX_LEN and len(lines) > len(header):
-        lines = lines[:-2]
-        message = "\n".join(lines)
+    # 상한을 넘으면 뒤에서부터 항목 블록째 덜어낸다
+    while len(render(blocks)) > MAX_LEN and len(blocks) > 1:
+        blocks = blocks[:-1]
 
-    return message
+    return render(blocks)
 
 
 def _link_preview_options(config, articles, videos):

@@ -345,3 +345,166 @@ class TestProblemReporting(unittest.TestCase):
         url = "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv"
         self.assertEqual(resolve_channel_id(url, cache), "UCabcdefghijklmnopqrstuv")
         self.assertEqual(cache[url], "UCabcdefghijklmnopqrstuv")
+
+
+class TestSummarize(unittest.TestCase):
+    """요약은 실패해도 다이제스트를 막지 않아야 한다."""
+
+    def setUp(self):
+        import summarize as summarize_module
+
+        self.mod = summarize_module
+
+    def items(self):
+        return [
+            Item(
+                id=f"id{n}",
+                title=f"English Title {n}",
+                url=f"https://ex.com/{n}",
+                source="Runner's World",
+                kind="article",
+                published=NOW,
+                summary=f"snippet {n}",
+            )
+            for n in range(3)
+        ]
+
+    def fake_client(self, text=None, stop_reason="end_turn", blocks=None):
+        from types import SimpleNamespace
+
+        if blocks is None:
+            blocks = [SimpleNamespace(type="text", text=text)]
+        response = SimpleNamespace(stop_reason=stop_reason, content=blocks)
+        captured = {}
+
+        def create(**kwargs):
+            captured.update(kwargs)
+            return response
+
+        return SimpleNamespace(messages=SimpleNamespace(create=create)), captured
+
+    def test_payload_carries_title_source_and_snippet(self):
+        payload = self.mod._payload(self.items())
+        self.assertEqual(payload[0]["index"], 0)
+        self.assertEqual(payload[0]["title"], "English Title 0")
+        self.assertEqual(payload[0]["snippet"], "snippet 0")
+        self.assertEqual(payload[0]["kind"], "기사")
+
+    def test_snippet_is_truncated(self):
+        items = self.items()
+        items[0].summary = "가" * 5000
+        self.assertEqual(len(self.mod._payload(items)[0]["snippet"]), self.mod.SNIPPET_MAX)
+
+    def test_apply_replaces_title_and_sets_summary(self):
+        items = self.items()
+        applied = self.mod._apply(
+            items,
+            {"items": [{"index": 0, "title_ko": "한국어 제목", "summary_ko": "요약."}]},
+        )
+        self.assertEqual(applied, 1)
+        self.assertEqual(items[0].title, "한국어 제목")
+        self.assertEqual(items[0].summary_ko, "요약.")
+        self.assertEqual(items[1].title, "English Title 1")  # 안 온 항목은 원문 유지
+
+    def test_apply_ignores_out_of_range_and_bad_indices(self):
+        items = self.items()
+        applied = self.mod._apply(
+            items,
+            {"items": [
+                {"index": 99, "title_ko": "x", "summary_ko": "y"},
+                {"index": "0", "title_ko": "x", "summary_ko": "y"},
+                {"title_ko": "x", "summary_ko": "y"},
+            ]},
+        )
+        self.assertEqual(applied, 0)
+        self.assertEqual(items[0].title, "English Title 0")
+
+    def test_apply_keeps_original_title_when_blank(self):
+        items = self.items()
+        self.mod._apply(items, {"items": [{"index": 0, "title_ko": "  ", "summary_ko": "요약."}]})
+        self.assertEqual(items[0].title, "English Title 0")
+        self.assertEqual(items[0].summary_ko, "요약.")
+
+    def test_request_sends_schema_and_effort(self):
+        client, captured = self.fake_client(text='{"items": []}')
+        self.mod._request(client, self.items(), "low")
+        self.assertEqual(captured["model"], "claude-opus-5")
+        self.assertEqual(captured["output_config"]["effort"], "low")
+        self.assertEqual(
+            captured["output_config"]["format"]["schema"]["required"], ["items"]
+        )
+
+    def test_request_raises_on_refusal(self):
+        client, _ = self.fake_client(text="{}", stop_reason="refusal")
+        with self.assertRaises(RuntimeError):
+            self.mod._request(client, self.items(), "low")
+
+    def test_request_raises_on_truncation(self):
+        client, _ = self.fake_client(text='{"items": []}', stop_reason="max_tokens")
+        with self.assertRaises(RuntimeError):
+            self.mod._request(client, self.items(), "low")
+
+    def test_request_skips_non_text_blocks(self):
+        from types import SimpleNamespace
+
+        blocks = [
+            SimpleNamespace(type="thinking", thinking=""),
+            SimpleNamespace(type="text", text='{"items": [{"index": 0, "title_ko": "제목", "summary_ko": "요약"}]}'),
+        ]
+        client, _ = self.fake_client(blocks=blocks)
+        parsed = self.mod._request(client, self.items(), "low")
+        self.assertEqual(parsed["items"][0]["title_ko"], "제목")
+
+    def test_disabled_in_config_skips(self):
+        items = self.items()
+        self.assertFalse(self.mod.summarize(items, {"summary": {"enabled": False}}))
+        self.assertEqual(items[0].title, "English Title 0")
+
+    def test_missing_api_key_skips_without_raising(self):
+        import os
+
+        saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+        try:
+            items = self.items()
+            self.assertFalse(self.mod.summarize(items, {}))
+            self.assertEqual(items[0].title, "English Title 0")
+        finally:
+            if saved is not None:
+                os.environ["ANTHROPIC_API_KEY"] = saved
+
+    def test_empty_item_list_skips(self):
+        self.assertFalse(self.mod.summarize([], {}))
+
+
+class TestMessageWithSummaries(unittest.TestCase):
+    def item(self, n, summary_ko=""):
+        return Item(
+            id=f"id{n}",
+            title=f"제목 {n}",
+            url=f"https://ex.com/{n}",
+            source=f"매체{n}",
+            kind="article",
+            published=NOW,
+            summary_ko=summary_ko,
+        )
+
+    def test_summary_line_is_rendered(self):
+        message = build_message([self.item(0, "무릎 부상을 예방하는 스트레칭 세 가지.")], [], CONFIG, "morning")
+        self.assertIn("무릎 부상을 예방하는 스트레칭 세 가지.", message)
+
+    def test_item_without_summary_still_renders(self):
+        message = build_message([self.item(0)], [], CONFIG, "morning")
+        self.assertIn("제목 0", message)
+        self.assertIn("매체0", message)
+
+    def test_summary_is_html_escaped(self):
+        message = build_message([self.item(0, "러닝 & <b>기록</b>")], [], CONFIG, "morning")
+        self.assertIn("러닝 &amp; &lt;b&gt;기록&lt;/b&gt;", message)
+
+    def test_long_summaries_trim_whole_items(self):
+        items = [self.item(n, "긴 요약 문장. " * 40) for n in range(60)]
+        message = build_message(items, [], CONFIG, "morning")
+        self.assertLessEqual(len(message), 4096)
+        # 잘려도 항목이 줄 단위로 쪼개지지 않는다
+        self.assertFalse(message.endswith("   "))
+        self.assertIn("🏃 오늘 아침 러닝 브리핑", message)

@@ -19,6 +19,13 @@ slots:
 # 한 번에 몇 시간 전까지의 항목을 후보로 볼지
 lookback_hours: 36
 
+# 한국어 번역·요약 (Claude API)
+# ANTHROPIC_API_KEY 시크릿이 없으면 자동으로 건너뛰고 제목만 보냅니다.
+summary:
+  enabled: true
+  # low | medium | high | xhigh | max — 번역·요약은 단순한 작업이라 low로 충분합니다.
+  effort: low
+
 # 링크 미리보기: none | first
 # Google 뉴스 링크는 리다이렉트라 미리보기가 깨질 때가 있어 기본값은 none
 link_preview: none

@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state  # noqa: E402
 from collect import collect  # noqa: E402
 from filter import select  # noqa: E402
+from summarize import summarize  # noqa: E402
 from telegram import build_message, send, _link_preview_options  # noqa: E402
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
@@ -79,6 +80,9 @@ def main():
     if not articles and not videos:
         print("[main] 보낼 새 항목이 없습니다. 이번 회차는 건너뜁니다.")
         return 1 if missing else 0
+
+    # 전송할 항목이 확정된 뒤에 요약한다. 버릴 항목까지 번역할 이유가 없다.
+    summarize(articles + videos, config)
 
     message = build_message(articles, videos, config, args.slot)
 
