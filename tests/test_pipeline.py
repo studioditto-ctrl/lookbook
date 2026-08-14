@@ -6,6 +6,7 @@
 import functools
 import http.server
 import json
+import os
 import socketserver
 import sys
 import tempfile
@@ -674,3 +675,64 @@ class TestChannelSearch(unittest.TestCase):
         problems = []
         self.assertIsNone(self.collect.search_channel_id("x", {}, "key", problems))
         self.assertEqual(len(problems), 1)
+
+
+class TestNameOnlySourceWiring(unittest.TestCase):
+    """이름만 적힌 채널이 collect() 에서 검색 경로를 타는지."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        search_hit = {"items": [{"id": {"channelId": "UCkoreanrunnerkoreanrun"},
+                                 "snippet": {"title": "런랜드"}}]}
+        uploads = {"items": [{"snippet": {
+            "title": "10km 페이스 잡기",
+            "description": "설명",
+            "publishedAt": NOW.isoformat().replace("+00:00", "Z"),
+            "resourceId": {"videoId": "vid999"},
+        }}]}
+        cls.server = FeedServer({
+            "search.json": json.dumps(search_hit, ensure_ascii=False),
+            "uploads.json": json.dumps(uploads, ensure_ascii=False),
+        })
+        cls.saved = (collect_module.YT_SEARCH_API, collect_module.YT_API)
+        collect_module.YT_SEARCH_API = cls.server.url("search.json")
+        collect_module.YT_API = cls.server.url("uploads.json")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.YT_SEARCH_API, cls.collect.YT_API = cls.saved
+        cls.server.close()
+
+    def config(self):
+        return {"lookback_hours": 36, "sources": {"youtube": [{"name": "런랜드"}]}}
+
+    def test_name_only_channel_is_resolved_and_collected(self):
+        os.environ["YOUTUBE_API_KEY"] = "key"
+        try:
+            cache = {}
+            items = self.collect.collect(self.config(), cache)
+        finally:
+            os.environ.pop("YOUTUBE_API_KEY", None)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].kind, "video")
+        self.assertEqual(items[0].source, "런랜드")
+        self.assertEqual(cache["search:런랜드"], "UCkoreanrunnerkoreanrun")
+
+    def test_name_only_channel_skipped_without_api_key(self):
+        os.environ.pop("YOUTUBE_API_KEY", None)
+        self.assertEqual(self.collect.collect(self.config(), {}), [])
+
+    def test_search_field_overrides_name_as_query(self):
+        os.environ["YOUTUBE_API_KEY"] = "key"
+        try:
+            cache = {}
+            config = self.config()
+            config["sources"]["youtube"][0]["search"] = "런랜드 러닝"
+            self.collect.collect(config, cache)
+        finally:
+            os.environ.pop("YOUTUBE_API_KEY", None)
+        self.assertIn("search:런랜드 러닝", cache)
+        self.assertNotIn("search:런랜드", cache)

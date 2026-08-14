@@ -67,6 +67,31 @@ sources:
   #   - name: 김러너
   #     search: 김러너 러닝 마라톤
   youtube:
+    # 국내 채널. 주소를 아는 곳은 url 로, 나머지는 이름 검색으로 찾는다.
+    # 검색 결과는 로그의 "검색 → '찾은이름'" 으로 확인하고, 틀렸으면
+    # state/channels.json 에서 해당 줄을 지운 뒤 search 를 좁히거나 url 을 넣는다.
+    - name: 민티런
+      url: https://www.youtube.com/@mintyrun
+    - name: 마라닉TV
+      search: 마라닉TV 러닝
+    - name: 지니코치
+      search: 지니코치 러닝 코치
+    - name: 런소영
+      search: 런소영 러닝
+    - name: 션과 함께
+      search: 션과 함께 러닝 마라톤
+    - name: 한스
+      search: 한스 HANS 러닝 마라톤
+    - name: 러너임바
+      search: 러너임바 러닝
+    - name: 러닝전도사 안정은
+      search: 러닝전도사 안정은
+    - name: 정두식 마라톤TV
+      search: 정두식 마라톤
+    - name: 메달사냥꾼
+      search: 메달사냥꾼 러닝
+
+    # 해외 채널
     - name: The Running Channel
       url: https://www.youtube.com/@TheRunningChannel
     - name: Ben Parkes
