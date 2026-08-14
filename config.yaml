@@ -87,9 +87,9 @@ sources:
     - name: 러닝전도사 안정은
       search: 러닝전도사 안정은
     - name: 정두식 마라톤TV
-      search: 정두식 마라톤
+      search: 정두식 마라톤 TV
     - name: 메달사냥꾼
-      search: 메달사냥꾼 러닝
+      search: 메달사냥꾼 Medal Hunter
 
     # 해외 채널
     # canonical 링크로 뽑은 ID가 RSS 200-0건, Data API 실패로 이어졌다.
