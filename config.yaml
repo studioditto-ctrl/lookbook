@@ -92,8 +92,10 @@ sources:
       search: 메달사냥꾼 러닝
 
     # 해외 채널
+    # canonical 링크로 뽑은 ID가 RSS 200-0건, Data API 실패로 이어졌다.
+    # 그 ID가 이 채널의 것이 아닌 것으로 보여 이름 검색으로 돌린다.
     - name: The Running Channel
-      url: https://www.youtube.com/@TheRunningChannel
+      search: The Running Channel running
     - name: Ben Parkes
       url: https://www.youtube.com/@BenParkes
     - name: kofuzi
