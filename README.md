@@ -186,6 +186,23 @@ date -u > .trigger && git commit -am "발송" && git push
 경로 필터가 걸려 있어 다른 파일만 바꾼 푸시로는 발송되지 않는다. 이 경로가
 필요 없으면 `digest.yml` 의 `push:` 블록을 지운다.
 
+## 구독 채널에서 골라 담기
+
+구독 목록에서 러닝·운동 채널만 뽑아 `config.yaml` 에 넣을 형태로 출력한다.
+
+1. YouTube 설정 → 개인정보 보호 → **'모든 구독 정보 비공개'를 끈다**
+   (구독 목록은 기본이 비공개이고, 비공개면 API 키로 읽을 수 없다)
+2. `.subs-trigger` 에 본인 핸들을 적고 푸시
+
+   ```bash
+   echo "@myhandle" > .subs-trigger && git commit -am "구독 확인" && git push
+   ```
+
+3. Actions 로그에서 후보 목록을 확인하고 `config.yaml` 에 옮긴다
+4. 끝나면 구독 정보를 다시 비공개로 되돌린다
+
+아무것도 전송하지 않고 로그에만 출력한다.
+
 ## 잘 안 될 때
 
 **`TELEGRAM_BOT_TOKEN 이 설정되어 있지 않습니다`**

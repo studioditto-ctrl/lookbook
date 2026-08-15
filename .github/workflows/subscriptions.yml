@@ -1,0 +1,34 @@
+name: 구독 채널 확인
+
+# .subs-trigger 파일에 유튜브 핸들(@handle)을 적고 푸시하면 실행된다.
+# 구독 목록에서 러닝·운동 채널을 골라 로그에 출력한다. 아무것도 전송하지 않는다.
+on:
+  push:
+    paths:
+      - '.subs-trigger'
+  workflow_dispatch:
+    inputs:
+      handle:
+        description: 유튜브 핸들 (@ 없이)
+        required: true
+
+jobs:
+  subscriptions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 구독 목록 조회
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          target="${{ inputs.handle }}"
+          if [ -z "$target" ]; then
+            target="$(head -1 .subs-trigger | tr -d '[:space:]')"
+          fi
+          echo "대상: $target"
+          python scripts/list_subscriptions.py "$target"

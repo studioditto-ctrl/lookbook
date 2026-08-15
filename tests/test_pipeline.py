@@ -825,3 +825,31 @@ class TestLinkPreviewPrefersVideo(unittest.TestCase):
         articles = self.items(1, "article", "news")
         videos = self.items(1, "video", "youtu")
         self.assertEqual(self.options(setting, articles, videos)["url"], "https://youtu.com/0")
+
+
+class TestSubscriptionKeywordMatch(unittest.TestCase):
+    """구독 목록에서 러닝·운동 채널을 골라내는 규칙."""
+
+    def setUp(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        from list_subscriptions import looks_relevant
+
+        self.match = looks_relevant
+
+    def test_korean_running_channel_matches(self):
+        self.assertTrue(self.match("마라닉TV", "러닝 브이로그"))
+
+    def test_english_running_channel_matches(self):
+        self.assertTrue(self.match("Ben Parkes", "Marathon training and racing"))
+
+    def test_workout_channel_matches(self):
+        self.assertTrue(self.match("피지컬갤러리", "홈트레이닝과 운동 과학"))
+
+    def test_description_alone_can_match(self):
+        self.assertTrue(self.match("어떤채널", "매일 달리기 기록을 남깁니다"))
+
+    def test_unrelated_channel_does_not_match(self):
+        self.assertFalse(self.match("먹방TV", "맛집 탐방과 리뷰"))
+
+    def test_match_is_case_insensitive(self):
+        self.assertTrue(self.match("RUNNING CHANNEL", ""))
