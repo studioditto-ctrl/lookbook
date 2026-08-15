@@ -102,6 +102,25 @@ sources:
     - name: 메달사냥꾼
       search: 메달사냥꾼 Medal Hunter
 
+    # 구독 목록(Takeout)에서 확인한 채널. channel_id 를 그대로 받았으므로
+    # 검색을 거치지 않는다 — 엉뚱한 채널이 잡힐 여지가 없다.
+    - name: 러닝라이프
+      channel_id: UC1qXTVKyjjgD_vHuoA9EQ9A
+    - name: 러너스하이
+      channel_id: UCCrxoMgLv52UwMYQYTEVnvA
+    - name: 보통러너 김보통
+      channel_id: UCGoDwIDnCanX76eJiINnWbA
+    - name: ND러너
+      channel_id: UCj9v_ThF9C97nrraZKlxKfg
+    - name: 진조크루
+      channel_id: UCDQc4MIHU0XO8nirP2Cu27g
+    - name: 엔듀로레이스
+      channel_id: UCJ6Rc1WZXhl_zU_RIaTlQag
+    - name: 헬스티비
+      channel_id: UCvBD3Pf9xmqM9kSXjGv_6-A
+    - name: 다이어트 과학자 최겸
+      channel_id: UChXDq9Izwq-pTzeUWzwXL3A
+
     # 해외 채널
     # canonical 링크로 뽑은 ID가 RSS 200-0건, Data API 실패로 이어졌다.
     # 그 ID가 이 채널의 것이 아닌 것으로 보여 이름 검색으로 돌린다.
