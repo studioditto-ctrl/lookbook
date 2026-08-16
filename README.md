@@ -181,10 +181,43 @@ Actions 화면을 열 수 없을 때는 `.trigger` 파일을 건드려 푸시하
 
 ```bash
 date -u > .trigger && git commit -am "발송" && git push
+
+# 다른 다이제스트를 보내려면 첫 줄에 <이름>:<슬롯> 을 적는다
+echo "lifestyle:lunch" > .trigger && git commit -am "발송" && git push
 ```
 
 경로 필터가 걸려 있어 다른 파일만 바꾼 푸시로는 발송되지 않는다. 이 경로가
 필요 없으면 `digest.yml` 의 `push:` 블록을 지운다.
+
+## 다이제스트 여러 개 운영하기
+
+설정 파일 하나가 다이제스트 하나다. 파이프라인·요약·썸네일은 공유하고
+발송 이력만 분리된다.
+
+| 설정 파일 | 주제 | 상태 | 슬롯 (KST) |
+|---|---|---|---|
+| `config.yaml` | 러닝 | `state/` | `morning` 08:00, `evening` 19:00 |
+| `config.lifestyle.yaml` | 패션·음식 | `state/lifestyle/` | `lunch` 12:30, `night` 21:30 |
+
+텔레그램 채팅방은 하나를 같이 쓴다.
+
+**시간대별로 다른 주제를 보내려면** 소스에 `tags` 를 달고 슬롯에서 고른다.
+슬롯에 `tags` 가 없으면 모든 소스를 쓴다.
+
+```yaml
+sources:
+  youtube:
+    - name: 어느 맛집 채널
+      channel_id: UC...
+      tags: [food]
+slots:
+  lunch:
+    tags: [food]     # 이 슬롯은 food 소스만 본다
+```
+
+새 다이제스트를 추가하려면 `config.<이름>.yaml` 을 만들고
+`digest.yml` 의 크론과 `case` 문에 한 줄씩 넣는다. 상태는
+`state/<이름>/` 에 자동으로 생긴다.
 
 ## 구독 채널에서 골라 담기
 

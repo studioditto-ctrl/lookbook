@@ -853,3 +853,77 @@ class TestSubscriptionKeywordMatch(unittest.TestCase):
 
     def test_match_is_case_insensitive(self):
         self.assertTrue(self.match("RUNNING CHANNEL", ""))
+
+
+class TestSlotTagFiltering(unittest.TestCase):
+    """한 채널 묶음에서 시간대별로 다른 주제를 보내는 규칙."""
+
+    def items(self):
+        def make(n, tag, kind="video"):
+            return Item(id=f"{tag}{n}", title=f"{tag} 제목 {n}",
+                        url=f"https://ex.com/{tag}{n}", source=f"{tag}채널",
+                        kind=kind, published=NOW, tags=(tag,))
+        return [make(n, "food") for n in range(3)] + [make(n, "fashion") for n in range(3)]
+
+    def config(self, tags):
+        slot = {"title": "t", "articles": 0, "videos": 3}
+        if tags is not None:
+            slot["tags"] = tags
+        return {"slots": {"s": slot}, "keywords": {}, "exclude": []}
+
+    def test_slot_keeps_only_its_tag(self):
+        _, videos = select(self.items(), {}, self.config(["food"]), "s")
+        self.assertTrue(videos)
+        self.assertTrue(all("food" in v.tags for v in videos))
+
+    def test_other_slot_gets_the_other_tag(self):
+        _, videos = select(self.items(), {}, self.config(["fashion"]), "s")
+        self.assertTrue(all("fashion" in v.tags for v in videos))
+
+    def test_no_tags_on_slot_keeps_everything(self):
+        _, videos = select(self.items(), {}, self.config(None), "s")
+        self.assertEqual(len({v.tags[0] for v in videos}), 2)
+
+    def test_untagged_item_is_dropped_by_a_tagged_slot(self):
+        items = self.items() + [
+            Item(id="x", title="분류 없음", url="https://ex.com/x", source="기타",
+                 kind="video", published=NOW)
+        ]
+        _, videos = select(items, {}, self.config(["food"]), "s")
+        self.assertNotIn("분류 없음", [v.title for v in videos])
+
+
+class TestStateNamespace(unittest.TestCase):
+    """다이제스트마다 발송 이력이 섞이지 않아야 한다."""
+
+    def setUp(self):
+        import state as state_module
+
+        self.state = state_module
+
+    def test_default_namespace_keeps_original_paths(self):
+        self.assertEqual(self.state.seen_path().name, "seen.json")
+        self.assertEqual(self.state.seen_path().parent.name, "state")
+
+    def test_named_namespace_gets_its_own_directory(self):
+        self.assertEqual(self.state.seen_path("lifestyle").parent.name, "lifestyle")
+        self.assertEqual(self.state.channels_path("lifestyle").parent.name, "lifestyle")
+
+    def test_namespaces_do_not_collide(self):
+        self.assertNotEqual(self.state.seen_path(), self.state.seen_path("lifestyle"))
+
+
+class TestConfigNamespaceDerivation(unittest.TestCase):
+    def setUp(self):
+        from main import namespace_for
+
+        self.derive = namespace_for
+
+    def test_default_config_has_no_namespace(self):
+        self.assertIsNone(self.derive("config.yaml"))
+
+    def test_named_config_derives_its_namespace(self):
+        self.assertEqual(self.derive("config.lifestyle.yaml"), "lifestyle")
+
+    def test_path_prefix_is_ignored(self):
+        self.assertEqual(self.derive("/repo/config.lifestyle.yaml"), "lifestyle")

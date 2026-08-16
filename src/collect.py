@@ -44,6 +44,7 @@ class Item:
     published: datetime
     summary: str = ""      # 피드에서 가져온 원문 발췌
     summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
+    tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
     score: float = 0.0
 
 
@@ -101,6 +102,12 @@ def _get_with_retry(url, attempts=2, delay=2):
 def _note(problems, source_name, reason):
     if problems is not None:
         problems.append((source_name, reason))
+
+
+def _tag(items, tags):
+    for item in items:
+        item.tags = tuple(tags or ())
+    return items
 
 
 def _parse_feed(url, source_name, kind, problems=None):
@@ -311,10 +318,12 @@ def collect(config, channel_cache):
             lang=src.get("lang", "ko"),
             country=src.get("country", "KR"),
         )
-        items += _parse_feed(url, src["name"], "article", problems)
+        items += _tag(_parse_feed(url, src["name"], "article", problems), src.get("tags"))
 
     for src in sources.get("rss") or []:
-        items += _parse_feed(src["url"], src["name"], "article", problems)
+        items += _tag(
+            _parse_feed(src["url"], src["name"], "article", problems), src.get("tags")
+        )
 
     api_key = os.environ.get("YOUTUBE_API_KEY")
     if (sources.get("youtube") or []) and not api_key:
@@ -334,11 +343,12 @@ def collect(config, channel_cache):
             print(f"[collect] '{name}' 채널을 건너뜁니다 (ID 없음)")
             continue
         if api_key:
-            items += _collect_via_api(channel_id, src["name"], api_key, problems)
+            fetched = _collect_via_api(channel_id, src["name"], api_key, problems)
         else:
-            items += _parse_feed(
+            fetched = _parse_feed(
                 YT_FEED.format(channel_id=channel_id), src["name"], "video", problems
             )
+        items += _tag(fetched, src.get("tags"))
 
     if problems:
         print("\n[collect] 문제가 있는 소스 (config.yaml 에서 고치거나 지우세요):")

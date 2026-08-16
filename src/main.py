@@ -19,7 +19,13 @@ from filter import select  # noqa: E402
 from summarize import summarize  # noqa: E402
 from telegram import build_message, send, _link_preview_options  # noqa: E402
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
+REPO = Path(__file__).resolve().parent.parent
+
+
+def namespace_for(config_path):
+    """config.yaml -> None(state/), config.lifestyle.yaml -> 'lifestyle'"""
+    stem = Path(config_path).stem  # config / config.lifestyle
+    return stem.split(".", 1)[1] if "." in stem else None
 
 HINTS = {
     "TELEGRAM_BOT_TOKEN": (
@@ -35,8 +41,9 @@ HINTS = {
 
 def parse_args():
     parser = argparse.ArgumentParser(description="러닝 뉴스·영상 텔레그램 다이제스트")
+    parser.add_argument("--slot", required=True, help="발송 슬롯 (config 의 slots 키)")
     parser.add_argument(
-        "--slot", choices=["morning", "evening"], required=True, help="발송 슬롯"
+        "--config", default="config.yaml", help="다이제스트 설정 파일 (기본 config.yaml)"
     )
     parser.add_argument(
         "--dry-run",
@@ -49,8 +56,24 @@ def parse_args():
 def main():
     args = parse_args()
 
-    with CONFIG_PATH.open(encoding="utf-8") as f:
+    config_path = REPO / args.config
+    if not config_path.exists():
+        print(f"설정 파일이 없습니다: {args.config}", file=sys.stderr)
+        return 1
+    with config_path.open(encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
+
+    slots = config.get("slots") or {}
+    if args.slot not in slots:
+        print(
+            f"'{args.slot}' 슬롯이 {args.config} 에 없습니다. "
+            f"사용 가능: {', '.join(slots)}",
+            file=sys.stderr,
+        )
+        return 1
+
+    ns = namespace_for(args.config)
+    print(f"[main] {args.config} / {args.slot} 슬롯" + (f" (state/{ns})" if ns else ""))
 
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
@@ -70,11 +93,11 @@ def main():
 
     dry_run = args.dry_run or bool(missing)
 
-    channel_cache = state.load_channel_cache()
+    channel_cache = state.load_channel_cache(ns)
     items = collect(config, channel_cache)
-    state.save_channel_cache(channel_cache)
+    state.save_channel_cache(channel_cache, ns)
 
-    seen = state.load_seen()
+    seen = state.load_seen(ns)
     articles, videos = select(items, seen, config, args.slot)
 
     if not articles and not videos:
@@ -93,7 +116,7 @@ def main():
 
     send(token, chat_id, message, _link_preview_options(config, articles, videos))
 
-    state.save_seen(state.mark_sent(seen, articles + videos))
+    state.save_seen(state.mark_sent(seen, articles + videos), ns)
     return 0
 
 

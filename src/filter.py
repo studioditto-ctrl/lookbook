@@ -53,9 +53,15 @@ def select(items, seen, config, slot):
     exclude = config.get("exclude") or []
     slot_config = (config.get("slots") or {}).get(slot) or {}
 
+    # 슬롯에 tags 가 있으면 그 분류의 소스만 쓴다.
+    # 같은 채널 묶음에서 시간대별로 다른 주제를 보낼 때 쓴다.
+    wanted = set(slot_config.get("tags") or [])
+
     fresh = []
     for item in items:
         if item.id in seen:
+            continue
+        if wanted and not (wanted & set(item.tags)):
             continue
         if _excluded(item, exclude):
             continue
