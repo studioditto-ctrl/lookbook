@@ -13,12 +13,6 @@ digests:
         enabled: true
         articles: 3
         videos: 2
-      - slot: evening
-        title: "🌙 퇴근길 러닝 브리핑"
-        send_at: "19:00"
-        enabled: true
-        articles: 1
-        videos: 4
     keywords:
       부상: 3
       통증: 3
