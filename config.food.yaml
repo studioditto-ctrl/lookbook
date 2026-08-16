@@ -1,0 +1,81 @@
+# 음식 다이제스트 (구독 채널 기반)
+#
+# 러닝 다이제스트와 같은 파이프라인을 쓰고, 상태만 state/food/ 로 분리된다.
+
+timezone: Asia/Seoul
+
+slots:
+  # 점심 무렵 — 먹을거리
+  lunch:
+    title: "🍜 점심 뭐 먹지"
+    articles: 1
+    videos: 4
+
+lookback_hours: 48
+
+summary:
+  enabled: true
+  effort: low
+
+link_preview:
+  mode: first
+  prefer: video
+  large: true
+  above_text: true
+
+sources:
+  google_news:
+    - name: 맛집·미식
+      query: 맛집 OR 미식 OR 레스토랑 신메뉴
+      lang: ko
+      country: KR
+
+  rss: []
+
+  # 구독 목록(Takeout)에서 확인한 channel_id. 검색을 거치지 않는다.
+  youtube:
+    - name: 맛집큐레이터 호랑
+      channel_id: UCqsGVxYCHJ_mIVx5Drdwcuw
+    - name: 푸딩 FOODING
+      channel_id: UCz1__nhtuF94sI3grQ-z8eA
+    - name: 레시피 읽어주는 여자
+      channel_id: UC4Icothd_W0M7jRzNyAszoA
+    - name: 로리키친
+      channel_id: UCBq9AjUsX1wjTSH1Eh2mpCA
+    - name: 쿠킹하루
+      channel_id: UCC8bTxyN2ZCfMzS_JAEClfA
+    - name: JunsKitchen
+      channel_id: UCRxAgfYexGLlu1WHGIMUDqw
+    - name: 코리아요리아트아카데미
+      channel_id: UCW2STcqZap2Znuamhb45b7Q
+    - name: Stumptown Coffee Roasters
+      channel_id: UC0yk_H5Np-uGvy98UM-jj6w
+    - name: 와인킹
+      channel_id: UCb7KNFvMuvQz9LPRK4xyzfA
+    - name: 와인여신
+      channel_id: UCUGOEAzA0OxeWzPS6T1giCQ
+    - name: 와인문
+      channel_id: UCXihJ_JgWidwTBhsxfDgq2g
+    - name: 와인디렉터 양갱
+      channel_id: UCohsv4KNeRzmj7E6ipE8COA
+    - name: 와인 좀 한해
+      channel_id: UCsTjitDbkUW20H3U20ITqaw
+    - name: 와인이야기
+      channel_id: UCxRgHV7dt9HNUDx227OA5PA
+
+keywords:
+  맛집: 3
+  레시피: 3
+  존맛: 2
+  신메뉴: 2
+  와인: 2
+  페어링: 2
+  디저트: 1
+  후기: 1
+
+exclude:
+  - 부고
+  - 채용
+  - 분양
+  - 협찬
+  - 광고

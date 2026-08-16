@@ -171,7 +171,11 @@ src/telegram.py                메시지 포맷팅, 전송 (재시도 포함)
 src/state.py                   발송 이력 · 채널 캐시
 src/whoami.py                  chat_id 조회 도우미
 src/main.py                    진입점
-config.yaml                    소스 · 키워드 · 항목 수
+config.yaml                    러닝 — 소스 · 키워드 · 항목 수
+config.food.yaml               음식 — 같은 형식
+config.fashion.yaml            패션 — 같은 형식
+settings.yaml                  어드민 페이지가 덮어쓰는 값 (시각 · 개수 · 키워드)
+docs/index.html                모바일 어드민 페이지
 state/seen.json                발송 이력 (자동 갱신, 90일 보관)
 ```
 
@@ -183,7 +187,7 @@ Actions 화면을 열 수 없을 때는 `.trigger` 파일을 건드려 푸시하
 date -u > .trigger && git commit -am "발송" && git push
 
 # 다른 다이제스트를 보내려면 첫 줄에 <이름>:<슬롯> 을 적는다
-echo "lifestyle:lunch" > .trigger && git commit -am "발송" && git push
+echo "food:lunch" > .trigger && git commit -am "발송" && git push
 ```
 
 경로 필터가 걸려 있어 다른 파일만 바꾼 푸시로는 발송되지 않는다. 이 경로가
@@ -196,18 +200,28 @@ echo "lifestyle:lunch" > .trigger && git commit -am "발송" && git push
 
 ### 켜기 (한 번)
 
-1. 저장소 **Settings → Pages → Source: Deploy from a branch**
-   → 브랜치 선택, 폴더 **`/docs`** → Save
-2. 몇 분 뒤 `https://<사용자>.github.io/lookbook/` 접속
-3. 페이지 맨 위 **먼저 GitHub 토큰을 넣어주세요** 카드에 fine-grained PAT 입력
+1. 저장소 **Settings → Pages → Source: GitHub Actions**
+2. **Actions → 어드민 페이지 배포 → Run workflow** (이후로는 `docs/` 가
+   바뀔 때마다 저절로 배포된다)
+3. `https://<사용자>.github.io/lookbook/` 접속 후 맨 위
+   **먼저 GitHub 토큰을 넣어주세요** 카드에 fine-grained PAT 입력
    (토큰이 저장되면 이 카드는 한 줄로 접힌다)
    - 이 저장소 하나만, **Contents: Read and write** 권한만
    - 브라우저 localStorage 에만 저장되고 커밋되지 않는다
 
 ### 쓰기
 
-시각을 바꾸고 **저장** 을 누르면 `settings.yaml` 이 커밋되고, 다음 30분
-확인 때부터 반영된다. 키워드는 칩으로 추가·삭제하고 숫자가 가중치다.
+화면은 위에서부터 **키워드 추가 → 주제별 카드 → 고급 설정** 순이다.
+
+- **키워드 추가** — 맨 위 칩에서 주제를 고르고 단어만 넣으면 끝이다.
+  가중치는 2로 들어간다.
+- **주제 카드** — 슬롯마다 발송 스위치·시각·기사 수·영상 수만 보인다.
+  키워드·검색어·채널 목록은 카드 아래 접힌 줄(`키워드 n · 검색어 n · 채널 n`)을
+  펴야 나온다. 평소 화면에는 나오지 않는다.
+- **고급 설정** — 새 주제 만들기, 구독 CSV 불러오기, 공통 제외어.
+
+바꾼 뒤 **저장** 을 누르면 `settings.yaml` 이 커밋되고, 다음 30분 확인
+때부터 반영된다.
 
 ### 새 주제 만들기
 
@@ -239,12 +253,15 @@ Takeout 의 `구독정보.csv` 는 페이지에서 읽어 **브라우저 localSt
 | 설정 파일 | 주제 | 상태 | 슬롯 (KST) |
 |---|---|---|---|
 | `config.yaml` | 러닝 | `state/` | `morning` 08:00, `evening` 19:00 |
-| `config.lifestyle.yaml` | 패션·음식 | `state/lifestyle/` | `lunch` 12:30, `night` 21:30 |
+| `config.food.yaml` | 음식 | `state/food/` | `lunch` 12:30 |
+| `config.fashion.yaml` | 패션 | `state/fashion/` | `night` 21:30 |
 
 텔레그램 채팅방은 하나를 같이 쓴다.
 
-**시간대별로 다른 주제를 보내려면** 소스에 `tags` 를 달고 슬롯에서 고른다.
-슬롯에 `tags` 가 없으면 모든 소스를 쓴다.
+**한 파일 안에서 슬롯마다 다른 소스를 쓰려면** 소스에 `tags` 를 달고
+슬롯에서 고른다. 슬롯에 `tags` 가 없으면 모든 소스를 쓴다. 주제가
+확실히 갈리면 태그 대신 파일을 나누는 편이 읽기 쉽다 — 패션과 음식도
+그래서 각자 파일을 쓴다.
 
 ```yaml
 sources:

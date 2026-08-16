@@ -65,7 +65,8 @@ jobs:
 
           if [ -n "$slot" ]; then
             case "$slot" in
-              lunch|night) config=config.lifestyle.yaml ;;
+              lunch)   config=config.food.yaml ;;
+              night)   config=config.fashion.yaml ;;
               morning|evening) config=config.yaml ;;
             esac
             mode="--config $config --slot $slot"

@@ -1,0 +1,69 @@
+# 패션 다이제스트 (구독 채널 기반)
+#
+# 러닝 다이제스트와 같은 파이프라인을 쓰고, 상태만 state/fashion/ 으로 분리된다.
+
+timezone: Asia/Seoul
+
+slots:
+  # 밤 — 옷·스타일
+  night:
+    title: "👕 오늘의 스타일"
+    articles: 1
+    videos: 4
+
+lookback_hours: 48
+
+summary:
+  enabled: true
+  effort: low
+
+link_preview:
+  mode: first
+  prefer: video
+  large: true
+  above_text: true
+
+sources:
+  google_news:
+    - name: 패션 트렌드
+      query: 패션 트렌드 OR 스타일링 OR 브랜드 신제품
+      lang: ko
+      country: KR
+
+  rss: []
+
+  # 구독 목록(Takeout)에서 확인한 channel_id. 검색을 거치지 않는다.
+  youtube:
+    - name: 코스모쓰 패션한짠
+      channel_id: UC-J1TDoV4mQTQkCZRKmV3Xg
+    - name: 깡스타일리스트
+      channel_id: UC8a6z7i9qypp9PqJ_0HhBrw
+    - name: 패션플래닛
+      channel_id: UC9vu2JsuE7g-1r9HkYkOopw
+    - name: 브랜드보이
+      channel_id: UCJw0YwcV3KX2s3AmTSHKTqg
+    - name: 와디의 신발장
+      channel_id: UCOHYlves6oxhyIQBRIIpPTQ
+    - name: AKIZSTYLE
+      channel_id: UCW08C__3dNJs1tiid-_9IWg
+    - name: The 40+ Style Guide
+      channel_id: UCeAQvTFp2Vn_La75CsUrSDA
+    - name: 29브랜드코멘터리
+      channel_id: UCefON5gtWgr_8WB8krNi_IQ
+
+keywords:
+  코디: 3
+  스타일링: 3
+  룩북: 2
+  하울: 2
+  신상: 2
+  브랜드: 2
+  가성비: 2
+  추천: 1
+
+exclude:
+  - 부고
+  - 채용
+  - 분양
+  - 협찬
+  - 광고

@@ -15,53 +15,80 @@
     :root{ --bg:#0f1115; --card:#171a21; --ink:#e8eaed; --muted:#98a2b3;
            --line:#272b33; --accent:#4a8bff; }
   }
-  *{box-sizing:border-box}
-  html,body{margin:0}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; overscroll-behavior-y:contain}
   body{
     background:var(--bg); color:var(--ink); font:16px/1.5 -apple-system,BlinkMacSystemFont,
     "Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
-    padding:0 0 96px; -webkit-text-size-adjust:100%;
+    padding:0 0 92px; -webkit-text-size-adjust:100%;
   }
   header{
     position:sticky; top:0; z-index:10; background:var(--bg);
-    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
     border-bottom:1px solid var(--line);
   }
-  h1{font-size:19px; margin:0}
-  .sub{color:var(--muted); font-size:13px; margin-top:2px}
-  main{padding:16px; max-width:640px; margin:0 auto}
+  h1{font-size:18px; margin:0}
+  .sub{color:var(--muted); font-size:13px}
+  main{padding:14px 16px; max-width:560px; margin:0 auto}
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-        padding:14px; margin-bottom:14px}
-  .card h2{font-size:16px; margin:0 0 10px}
-  .row{display:flex; gap:10px; align-items:center; margin-bottom:10px}
-  .row:last-child{margin-bottom:0}
-  label{font-size:13px; color:var(--muted); display:block; margin-bottom:4px}
+        padding:14px; margin-bottom:12px}
+  .card h2{font-size:16px; margin:0 0 4px}
+  .row{display:flex; gap:10px; align-items:center}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
   input,select{
     width:100%; padding:11px 12px; font-size:16px; color:var(--ink);
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
   }
   input[type=time]{font-variant-numeric:tabular-nums}
-  input[type=number]{text-align:center}
   button{
-    font:inherit; font-size:15px; padding:11px 14px; border-radius:10px;
+    font:inherit; font-size:15px; padding:10px 14px; border-radius:10px;
     border:1px solid var(--line); background:var(--card); color:var(--ink);
     cursor:pointer; min-height:44px;
   }
   button.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
   button.ghost{background:transparent}
-  button.tiny{min-height:36px; padding:6px 10px; font-size:14px}
-  .slot{border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px}
-  .slot .grid{display:grid; grid-template-columns:1fr 76px 76px; gap:8px}
+  button.tiny{min-height:38px; padding:6px 12px; font-size:14px}
+
+  /* 주제 선택 — 가로 스크롤 세그먼트 */
+  .seg{display:flex; gap:6px; overflow-x:auto; margin:10px 0 0; padding-bottom:2px; scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{flex:0 0 auto; border-radius:999px; padding:8px 15px; min-height:40px}
+  .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink);
+        border-color:transparent; font-weight:600}
+
+  .slot{border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px}
+  .slot .head{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .slot .head b{font-size:15px}
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+  .step{display:flex; align-items:center; background:var(--bg);
+        border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  .step button{flex:0 0 38px; min-height:42px; padding:0; border:0; background:none;
+        color:var(--accent); font-size:20px; line-height:1}
+  .step span{flex:1; text-align:center; font-variant-numeric:tabular-nums}
+
+  /* 켜기/끄기 스위치 */
+  .sw{position:relative; flex:0 0 50px; height:30px}
+  .sw input{position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0}
+  .sw i{position:absolute; inset:0; border-radius:999px; background:var(--line); transition:.15s}
+  .sw i::after{content:""; position:absolute; top:3px; left:3px; width:24px; height:24px;
+        border-radius:50%; background:#fff; transition:.15s}
+  .sw input:checked + i{background:var(--accent)}
+  .sw input:checked + i::after{transform:translateX(20px)}
+
   .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
-  .chip{display:inline-flex; align-items:center; gap:6px; padding:7px 10px;
+  .chip{display:inline-flex; align-items:center; gap:4px; padding:6px 6px 6px 12px;
         background:var(--bg); border:1px solid var(--line); border-radius:999px; font-size:14px}
-  .chip b{font-weight:600; font-variant-numeric:tabular-nums; color:var(--muted)}
-  .chip button{border:0; background:none; padding:0 2px; min-height:auto; color:var(--muted); font-size:17px; line-height:1}
+  .chip.plain{padding-right:12px}
+  .chip button{border:0; background:none; padding:0; min-height:28px; width:28px;
+        color:var(--muted); font-size:18px; line-height:1}
   .add{display:flex; gap:8px; margin-top:10px}
   .add input{flex:1}
-  .add input[type=number]{width:74px; flex:none}
-  .toggle{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted)}
-  .toggle input{width:auto; transform:scale(1.25); margin:0}
+  details{margin-top:12px}
+  details > summary{cursor:pointer; font-size:14px; color:var(--muted);
+        padding:10px 0; list-style:none; display:flex; justify-content:space-between}
+  details > summary::-webkit-details-marker{display:none}
+  details > summary::after{content:"▾"; transition:.15s}
+  details[open] > summary::after{transform:rotate(180deg)}
   footer{
     position:fixed; left:0; right:0; bottom:0; background:var(--card);
     border-top:1px solid var(--line); display:flex; gap:10px;
@@ -73,31 +100,44 @@
   .status.show{display:block}
   .status.ok{background:rgba(15,123,63,.12); color:var(--ok)}
   .status.err{background:rgba(192,57,43,.12); color:var(--danger)}
-  details summary{cursor:pointer; font-size:14px; color:var(--muted); padding:4px 0}
 </style>
 </head>
 <body>
 <header>
   <h1>다이제스트 설정</h1>
-  <div class="sub" id="repo">studioditto-ctrl/lookbook</div>
+  <div class="sub">studioditto-ctrl/lookbook</div>
 </header>
 
 <main>
   <div class="status" id="status"></div>
   <div id="tokenCard"></div>
-  <div id="digests"></div>
 
+  <!-- 맨 위: 키워드 추가 -->
   <div class="card">
-    <h2>새 주제 추가</h2>
-    <div class="sub">키워드를 넣으면 그 말로 인터넷을 검색하고, 구독 채널에서도 찾아 붙입니다.</div>
-    <div class="add" style="margin-top:10px">
-      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done">
-      <button class="tiny primary" onclick="addTopic()">만들기</button>
+    <h2>키워드 추가</h2>
+    <div class="sub">넣은 말이 제목에 있으면 먼저 골라 보냅니다.</div>
+    <div class="seg" id="topicSeg"></div>
+    <div class="add">
+      <input id="kwInput" placeholder="예: 인터벌" enterkeyhint="done"
+             autocapitalize="off" autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword()}">
+      <button class="primary" onclick="addKeyword()">추가</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>내 구독 채널</h2>
+  <div id="digests"></div>
+
+  <details class="card" id="advanced">
+    <summary>고급 설정</summary>
+
+    <label style="margin-top:8px">새 주제</label>
+    <div class="sub">키워드를 넣으면 그 말로 인터넷을 검색하고, 구독 채널에서도 찾아 붙입니다.</div>
+    <div class="add">
+      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done">
+      <button class="tiny primary" onclick="addTopic()">만들기</button>
+    </div>
+
+    <label style="margin-top:18px">내 구독 채널</label>
     <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
     <div class="note">
       Google Takeout 의 <b>구독정보.csv</b> 를 고르세요. 이 브라우저에만 저장되고
@@ -106,18 +146,17 @@
     <div class="row" style="margin-top:10px">
       <input type="file" id="subsFile" accept=".csv,text/csv" onchange="loadSubs(this)">
     </div>
-    <button class="tiny ghost" onclick="clearSubs()">지우기</button>
-  </div>
+    <button class="tiny ghost" style="margin-top:8px" onclick="clearSubs()">지우기</button>
 
-  <div class="card">
-    <h2>공통 제외어</h2>
+    <label style="margin-top:18px">공통 제외어</label>
     <div class="sub">제목에 이 단어가 있으면 보내지 않습니다.</div>
     <div class="chips" id="excludeChips"></div>
     <div class="add">
-      <input id="excludeInput" placeholder="예: 협찬" enterkeyhint="done">
+      <input id="excludeInput" placeholder="예: 협찬" enterkeyhint="done"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addExclude()}">
       <button class="tiny" onclick="addExclude()">추가</button>
     </div>
-  </div>
+  </details>
 
 </main>
 
@@ -130,10 +169,12 @@
 const REPO = "studioditto-ctrl/lookbook";
 const BRANCH = "claude/running-news-telegram-delivery-hgx53y";
 const FILE = "settings.yaml";
-let data = null, sha = null;
+let data = null, sha = null, topic = 0;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* 열어둔 상세 패널은 다시 그려도 열린 채로 둔다 */
+const open = new Set();
 
 function status(msg, kind){
   const el = $("status");
@@ -245,61 +286,76 @@ function fromYaml(text){
 const unq = s => (s.startsWith('"') && s.endsWith('"')) ? JSON.parse(s) : s;
 
 /* ---------- 렌더링 ---------- */
+const q = s => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+
+function stepper(di, si, key, val){
+  return `<div class="step">
+    <button onclick="bump(${di},${si},'${key}',-1)" aria-label="줄이기">−</button>
+    <span id="v${di}-${si}-${key}">${val}</span>
+    <button onclick="bump(${di},${si},'${key}',1)" aria-label="늘리기">+</button>
+  </div>`;
+}
+
 function render(){
+  if (topic >= data.digests.length) topic = 0;
+
+  $("topicSeg").innerHTML = data.digests.map((dg, i) =>
+    `<button aria-pressed="${i === topic}" onclick="pickTopic(${i})">${esc(dg.label)}</button>`
+  ).join("");
+
   $("digests").innerHTML = data.digests.map((dg, di) => `
     <div class="card">
       <h2>${esc(dg.label)}</h2>
       ${dg.slots.map((s, si) => `
         <div class="slot">
-          <div class="row" style="justify-content:space-between">
+          <div class="head">
             <b>${esc(s.title)}</b>
-            <span class="toggle">
+            <label class="sw" style="margin:0">
               <input type="checkbox" ${s.enabled ? "checked" : ""}
-                     onchange="set(${di},${si},'enabled',this.checked)"> 발송
-            </span>
+                     onchange="set(${di},${si},'enabled',this.checked)" aria-label="발송"><i></i>
+            </label>
           </div>
-          <div class="grid">
-            <div><label>시각</label>
-              <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)"></div>
-            <div><label>기사</label>
-              <input type="number" min="0" max="10" value="${s.articles}"
-                     onchange="set(${di},${si},'articles',+this.value)"></div>
-            <div><label>영상</label>
-              <input type="number" min="0" max="10" value="${s.videos}"
-                     onchange="set(${di},${si},'videos',+this.value)"></div>
+          <div style="margin-top:10px">
+            <label>보내는 시각</label>
+            <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)">
+          </div>
+          <div class="duo">
+            <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
+            <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
           </div>
         </div>`).join("")}
-      <label style="margin-top:12px">키워드 — 숫자가 클수록 우선 선택됩니다</label>
-      <div class="chips">
-        ${Object.entries(dg.keywords).map(([k, v]) => `
-          <span class="chip">${esc(k)} <b>${v}</b>
-            <button onclick="delKeyword(${di},'${esc(k).replace(/'/g,"\\'")}')" aria-label="삭제">×</button>
-          </span>`).join("")}
-      </div>
-      <div class="add">
-        <input id="kw${di}" placeholder="키워드" enterkeyhint="done">
-        <input id="kwv${di}" type="number" min="1" max="5" value="2">
-        <button class="tiny" onclick="addKeyword(${di})">추가</button>
-      </div>
 
-      <details style="margin-top:12px">
-        <summary>인터넷 검색어 ${(dg.queries || []).length}개 · 채널 ${(dg.channels || []).length}개</summary>
-        <label style="margin-top:10px">검색어 — 구글 뉴스에서 이 말로 찾습니다</label>
+      <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
+               ontoggle="panel('d${di}',this.open)">
+        <summary>키워드 ${Object.keys(dg.keywords).length} · 검색어 ${(dg.queries || []).length} · 채널 ${(dg.channels || []).length}</summary>
+
+        <label style="margin-top:6px">키워드 — 숫자가 클수록 먼저 골라집니다</label>
         <div class="chips">
-          ${(dg.queries || []).map((q, qi) => `
-            <span class="chip">${esc(q.query)}
-              <button onclick="delQuery(${di},${qi})" aria-label="삭제">×</button></span>`).join("") || '<span class="sub">없음</span>'}
+          ${Object.entries(dg.keywords).map(([k, v]) => `
+            <span class="chip">${esc(k)} ${v}
+              <button onclick="delKeyword(${di},${q(k)})" aria-label="삭제">×</button>
+            </span>`).join("") || '<span class="sub">없음</span>'}
+        </div>
+
+        <label style="margin-top:16px">검색어 — 구글 뉴스에서 이 말로 찾습니다</label>
+        <div class="chips">
+          ${(dg.queries || []).map((qq, qi) => `
+            <span class="chip">${esc(qq.query)}
+              <button onclick="delQuery(${di},${qi})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
         </div>
         <div class="add">
-          <input id="q${di}" placeholder="예: 스페셜티 커피" enterkeyhint="done">
+          <input id="q${di}" placeholder="예: 스페셜티 커피" enterkeyhint="done"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addQuery(${di})}">
           <button class="tiny" onclick="addQuery(${di})">추가</button>
         </div>
 
-        <label style="margin-top:12px">유튜브 채널</label>
+        <label style="margin-top:16px">유튜브 채널</label>
         <div class="chips">
           ${(dg.channels || []).map((c, ci) => `
             <span class="chip">${esc(c.name)}
-              <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("") || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+              <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
         </div>
         <div class="add">
           <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
@@ -311,16 +367,27 @@ function render(){
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
-      <button onclick="delExclude('${esc(w).replace(/'/g,"\\'")}')" aria-label="삭제">×</button>
+      <button onclick="delExclude(${q(w)})" aria-label="삭제">×</button>
     </span>`).join("");
 }
 
+function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
+function pickTopic(i){ topic = i; render(); }
 function set(di, si, key, val){ data.digests[di].slots[si][key] = val; }
-function addKeyword(di){
-  const k = $("kw" + di).value.trim(), v = +$("kwv" + di).value || 2;
+function bump(di, si, key, delta){
+  const slot = data.digests[di].slots[si];
+  slot[key] = Math.max(0, Math.min(10, (slot[key] || 0) + delta));
+  $(`v${di}-${si}-${key}`).textContent = slot[key];
+}
+
+function addKeyword(){
+  const el = $("kwInput"), k = el.value.trim();
   if (!k) return;
-  data.digests[di].keywords[k] = v;
-  $("kw" + di).value = ""; render();
+  const dg = data.digests[topic];
+  if (!dg) return;
+  dg.keywords[k] = dg.keywords[k] || 2;
+  el.value = ""; render();
+  status(`'${k}' 을(를) ${dg.label} 에 넣었습니다. 저장을 눌러야 반영됩니다.`, "ok");
 }
 function delKeyword(di, k){ delete data.digests[di].keywords[k]; render(); }
 function addExclude(){
@@ -365,29 +432,29 @@ function clearSubs(){
   status("구독 목록을 지웠습니다.", "ok");
 }
 function searchSubs(di){
-  const q = $("cs" + di).value.trim().toLowerCase();
+  const needle = $("cs" + di).value.trim().toLowerCase();
   const box = $("cr" + di);
-  if (!q){ box.innerHTML = ""; return; }
+  if (!needle){ box.innerHTML = ""; return; }
   if (!subs.length){ box.innerHTML = '<span class="sub">먼저 구독 CSV 를 불러오세요.</span>'; return; }
   const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
-  const hits = subs.filter(s => s.title.toLowerCase().includes(q) && !taken.has(s.id)).slice(0, 12);
+  const hits = subs.filter(s => s.title.toLowerCase().includes(needle) && !taken.has(s.id)).slice(0, 12);
   box.innerHTML = hits.length
-    ? hits.map(h => `<span class="chip"><button onclick="pickChannel(${di},'${h.id}')"
-        style="font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
+    ? hits.map(h => `<span class="chip plain"><button onclick="pickChannel(${di},'${h.id}')"
+        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
     : '<span class="sub">일치하는 채널이 없습니다.</span>';
 }
 function pickChannel(di, id){
   const hit = subs.find(s => s.id === id);
   if (!hit) return;
   (data.digests[di].channels ||= []).push({name: hit.title, channel_id: hit.id});
-  $("cs" + di).value = ""; render();
+  render();
 }
 function delChannel(di, ci){ data.digests[di].channels.splice(ci, 1); render(); }
 function addQuery(di){
-  const q = $("q" + di).value.trim();
-  if (!q) return;
-  (data.digests[di].queries ||= []).push({name: q, query: q});
-  $("q" + di).value = ""; render();
+  const text = $("q" + di).value.trim();
+  if (!text) return;
+  (data.digests[di].queries ||= []).push({name: text, query: text});
+  render();
 }
 function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); }
 
@@ -404,7 +471,9 @@ function addTopic(){
     channels: subs.filter(s => s.title.includes(label)).slice(0, 8)
                   .map(s => ({name: s.title, channel_id: s.id})),
   });
-  $("newTopic").value = ""; render();
+  $("newTopic").value = "";
+  topic = data.digests.length - 1;
+  render();
   status(`'${label}' 주제를 만들었습니다. 채널과 시각을 확인한 뒤 저장하세요.`, "ok");
 }
 
@@ -414,9 +483,9 @@ const token = () => localStorage.getItem("gh_token") || "";
 function renderToken(){
   const has = !!token();
   $("tokenCard").innerHTML = has ? `
-    <div class="card">
-      <div class="row" style="justify-content:space-between;margin:0">
-        <span style="color:var(--ok)">✓ 저장 준비됨 — GitHub 토큰 등록됨</span>
+    <div class="card" style="padding:10px 14px">
+      <div class="row" style="justify-content:space-between">
+        <span class="sub" style="color:var(--ok)">✓ GitHub 토큰 등록됨</span>
         <button class="tiny ghost" onclick="clearToken()">지우기</button>
       </div>
     </div>` : `
@@ -425,9 +494,10 @@ function renderToken(){
       <div class="sub">이걸 넣어야 <b>저장</b> 버튼이 동작합니다. 이 기기에만 저장됩니다.</div>
       <div class="row" style="margin-top:10px">
         <input id="token" type="password" placeholder="github_pat_..."
-               autocomplete="off" enterkeyhint="done">
+               autocomplete="off" enterkeyhint="done"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();saveToken()}">
       </div>
-      <button class="primary" style="width:100%" onclick="saveToken()">토큰 저장</button>
+      <button class="primary" style="width:100%;margin-top:10px" onclick="saveToken()">토큰 저장</button>
       <div class="note">
         <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
            rel="noopener" style="color:var(--accent)">토큰 만들러 가기 →</a><br>
