@@ -124,6 +124,7 @@
 
 <main>
   <div id="tokenCard"></div>
+  <div id="driveSetup"></div>
 
   <!-- 맨 위: 주제 추가 -->
   <div class="card">
@@ -226,7 +227,8 @@ function toYaml(d){
   for (const dg of d.digests){
     out += "  - " + (dg.config ? `config: ${dg.config}\n` : `key: ${quote(dg.key)}\n`);
     if (dg.config && dg.key) out += `    key: ${quote(dg.key)}\n`;
-    out += `    label: ${quote(dg.label)}\n    slots:\n`;
+    out += `    label: ${quote(dg.label)}\n`;
+    out += dg.slots.length ? "    slots:\n" : "    slots: []\n";
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
       out += `        title: ${JSON.stringify(s.title)}\n`;
@@ -278,7 +280,7 @@ function fromYaml(text){
     if (!dg) continue;
     if (indent === 4 && t.startsWith("key:")){ dg.key = unq(t.slice(4).trim()); continue; }
     if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
-    if (indent === 4 && t === "slots:"){ dg._in = "slots"; continue; }
+    if (indent === 4 && t.startsWith("slots:")){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
     if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
     if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
@@ -400,6 +402,9 @@ function render(){
                  oninput="searchSubs(${di})" enterkeyhint="search">
         </div>
         <div class="chips" id="cr${di}"></div>
+
+        <button class="tiny wide danger" style="margin-top:16px"
+                onclick="delTopic(${di})">'${esc(dg.label)}' 주제 삭제</button>
       </details>
     </div>`).join("");
 
@@ -438,10 +443,24 @@ function nextHour(send_at){
 }
 function delSlot(di, si){
   const dg = data.digests[di], s = dg.slots[si];
+  // 하나뿐인 시간을 지우면 보낼 일이 없는 주제가 남는다. 그때는 주제째 묻는다.
+  if (dg.slots.length === 1){
+    if (!confirm(`'${dg.label}' 의 마지막 시간입니다. 주제째 지울까요?`)) return;
+    return delTopic(di, true);
+  }
   if (!confirm(`'${s.title}' (${s.send_at}) 을(를) 지울까요?`)) return;
   dg.slots.splice(si, 1);
   render(); touch();
   toast(`'${esc(s.title)}' 을(를) 지웠습니다.`, "busy");
+}
+function delTopic(di, confirmed){
+  const dg = data.digests[di];
+  if (!confirmed && !confirm(`'${dg.label}' 주제를 통째로 지울까요?`)) return;
+  data.digests.splice(di, 1);
+  open.delete("d" + di);
+  render(); touch();
+  toast(`'${esc(dg.label)}' 주제를 지웠습니다.`
+    + (dg.config ? ` (${esc(dg.config)} 파일은 그대로 둡니다)` : ""), "busy");
 }
 function set(di, si, key, val){ data.digests[di].slots[si][key] = val; touch(); }
 function bump(di, si, key, delta){
@@ -517,25 +536,36 @@ function subsInfo(){
 
 function renderDrive(){
   const cid = localStorage.getItem("g_client_id");
+
+  // 연결 전에는 맨 위에 띄운다. 고급 설정 안에 두면 찾지 못한다.
+  $("driveSetup").innerHTML = cid ? "" : `
+    <div class="card" style="border-color:var(--accent)">
+      <h2>구독 채널 불러오기</h2>
+      <div class="sub">Google Drive 에 있는 Takeout 파일을 읽어옵니다.
+        주제를 만들 때 채널이 자동으로 붙습니다.</div>
+      <div class="note">
+        한 번만 준비하면 됩니다. 구글 OAuth <b>클라이언트 ID</b> 는 비밀값이
+        아니고 이 기기에만 둡니다.
+        <ol style="margin:8px 0 0; padding-left:18px">
+          <li><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com"
+                 target="_blank" rel="noopener" style="color:var(--accent)">Drive API 사용 설정</a></li>
+          <li><a href="https://console.cloud.google.com/apis/credentials/oauthclient"
+                 target="_blank" rel="noopener" style="color:var(--accent)">OAuth 클라이언트 ID 만들기</a>
+              → 유형 <b>웹 애플리케이션</b></li>
+          <li>승인된 자바스크립트 출처에 <b>${location.origin}</b> 추가</li>
+          <li><b>여기</b>에 만들어진 ID 붙여넣기 ↓</li>
+        </ol>
+      </div>
+      <div class="add">
+        <input id="gcid" placeholder="....apps.googleusercontent.com" enterkeyhint="done"
+               autocapitalize="off" autocomplete="off"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();saveClientId()}">
+        <button class="primary" onclick="saveClientId()">저장</button>
+      </div>
+    </div>`;
+
   $("driveBox").innerHTML = !cid ? `
-    <div class="note">
-      Drive 에서 바로 읽으려면 구글 OAuth <b>클라이언트 ID</b> 가 한 번 필요합니다.
-      비밀값이 아니라 이 기기에만 둡니다.
-      <ol style="margin:8px 0 0; padding-left:18px">
-        <li><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com"
-               target="_blank" rel="noopener" style="color:var(--accent)">Drive API 사용 설정</a></li>
-        <li><a href="https://console.cloud.google.com/apis/credentials/oauthclient"
-               target="_blank" rel="noopener" style="color:var(--accent)">OAuth 클라이언트 ID 만들기</a>
-            → 유형 <b>웹 애플리케이션</b></li>
-        <li>승인된 자바스크립트 출처에 <b>${location.origin}</b> 추가</li>
-      </ol>
-    </div>
-    <div class="add">
-      <input id="gcid" placeholder="....apps.googleusercontent.com" enterkeyhint="done"
-             autocapitalize="off" autocomplete="off"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();saveClientId()}">
-      <button class="tiny primary" onclick="saveClientId()">저장</button>
-    </div>` : `
+    <div class="note">맨 위 <b>구독 채널 불러오기</b> 카드에서 먼저 연결해 주세요.</div>` : `
     <div class="duo" style="margin-top:10px">
       <button class="tiny primary" onclick="driveOpen()">Drive 에서 고르기</button>
       <button class="tiny" onclick="driveResync()" ${subsMeta ? "" : "disabled"}>다시 동기화</button>
@@ -555,7 +585,9 @@ function saveClientId(){
   const v = ($("gcid") || {}).value?.trim();
   if (!v){ toast("클라이언트 ID 를 붙여넣어 주세요.", "err"); return; }
   localStorage.setItem("g_client_id", v); renderDrive();
-  toast("저장했습니다. 'Drive 에서 고르기' 를 눌러주세요.", "ok");
+  $("advanced").open = true;
+  toast("연결했습니다. Drive 에서 파일을 고르는 중…", "busy");
+  driveOpen();
 }
 function clearClientId(){
   localStorage.removeItem("g_client_id"); gToken = null; renderDrive();

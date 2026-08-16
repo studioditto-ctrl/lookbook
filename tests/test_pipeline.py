@@ -931,6 +931,30 @@ class TestConfigNamespaceDerivation(unittest.TestCase):
         self.assertEqual(self.derive("/repo/config.lifestyle.yaml"), "lifestyle")
 
 
+class TestEmptySlots(unittest.TestCase):
+    """시간이 하나도 없는 주제가 남아도 다른 회차를 막지 않아야 한다."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.settings_module = settings_module
+        self.data = {"digests": [
+            {"key": "빈주제", "label": "IT", "slots": None, "keywords": {"IT": 3}},
+            {"config": "config.yaml", "label": "러닝", "slots": [
+                {"slot": "morning", "send_at": "08:00", "enabled": True},
+            ]},
+        ]}
+
+    def test_due_skips_it_and_keeps_going(self):
+        now = datetime(2026, 8, 17, 8, 5, tzinfo=ZoneInfo("Asia/Seoul"))
+        ready = self.settings_module.due(self.data, now=now, state={})
+        self.assertEqual([(c, s) for c, s, _, _ in ready], [("config.yaml", "morning")])
+
+    def test_lookup_returns_no_slot(self):
+        digest, slot = self.settings_module.for_slot(self.data, "빈주제", "daily")
+        self.assertIsNone(slot)
+
+
 class TestIgnoreSeenFlag(unittest.TestCase):
     """테스트 발송은 이미 보낸 항목도 다시 골라야 한다."""
 

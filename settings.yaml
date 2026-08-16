@@ -69,7 +69,7 @@ digests:
       추천: 1
   - key: tmsvw38ie
     label: IT
-    slots:
+    slots: []
     keywords:
       IT: 3
     queries:

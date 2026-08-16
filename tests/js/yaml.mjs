@@ -9,7 +9,8 @@ function toYaml(d){
   for (const dg of d.digests){
     out += "  - " + (dg.config ? `config: ${dg.config}\n` : `key: ${quote(dg.key)}\n`);
     if (dg.config && dg.key) out += `    key: ${quote(dg.key)}\n`;
-    out += `    label: ${quote(dg.label)}\n    slots:\n`;
+    out += `    label: ${quote(dg.label)}\n`;
+    out += dg.slots.length ? "    slots:\n" : "    slots: []\n";
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
       out += `        title: ${JSON.stringify(s.title)}\n`;
@@ -61,7 +62,7 @@ function fromYaml(text){
     if (!dg) continue;
     if (indent === 4 && t.startsWith("key:")){ dg.key = unq(t.slice(4).trim()); continue; }
     if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
-    if (indent === 4 && t === "slots:"){ dg._in = "slots"; continue; }
+    if (indent === 4 && t.startsWith("slots:")){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
     if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
     if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
