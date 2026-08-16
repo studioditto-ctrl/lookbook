@@ -57,7 +57,9 @@
 
   .slot{border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px}
   .slot .head{display:flex; align-items:center; justify-content:space-between; gap:10px}
-  .slot .head b{font-size:15px}
+  .slot .head input.title{flex:1; padding:8px 10px; font-size:15px; font-weight:600}
+  button.danger{color:var(--danger)}
+  button.dashed{border-style:dashed; color:var(--muted)}
   .duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
   .step{display:flex; align-items:center; background:var(--bg);
         border:1px solid var(--line); border-radius:10px; overflow:hidden}
@@ -332,7 +334,8 @@ function render(){
       ${dg.slots.map((s, si) => `
         <div class="slot">
           <div class="head">
-            <b>${esc(s.title)}</b>
+            <input class="title" value="${esc(s.title)}" aria-label="메시지 제목"
+                   onchange="set(${di},${si},'title',this.value)">
             <label class="sw" style="margin:0">
               <input type="checkbox" ${s.enabled ? "checked" : ""}
                      onchange="set(${di},${si},'enabled',this.checked)" aria-label="발송"><i></i>
@@ -346,8 +349,12 @@ function render(){
             <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
             <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
           </div>
-          <button class="tiny wide ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
+          <div class="duo">
+            <button class="tiny ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
+            <button class="tiny danger" onclick="delSlot(${di},${si})">이 시간 삭제</button>
+          </div>
         </div>`).join("")}
+      <button class="tiny wide dashed" onclick="addSlot(${di})">＋ 보낼 시간 추가</button>
 
       <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
                ontoggle="panel('d${di}',this.open)">
@@ -402,6 +409,39 @@ function render(){
 }
 
 function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
+
+/* 한 주제에 시간을 몇 개든 둘 수 있다. 회차 이름은 겹치지 않게 만든다. */
+function addSlot(di){
+  const dg = data.digests[di];
+  const used = new Set(dg.slots.map(s => s.slot));
+  let name;
+  do { name = "s" + Math.random().toString(36).slice(2, 7); } while (used.has(name));
+
+  const last = dg.slots[dg.slots.length - 1];
+  dg.slots.push({
+    slot: name,
+    title: `${dg.label} 브리핑`,
+    send_at: nextHour(last && last.send_at),
+    enabled: true,
+    articles: last ? last.articles : 1,
+    videos: last ? last.videos : 3,
+  });
+  render(); touch();
+  toast(`${esc(dg.label)} 에 보낼 시간을 하나 더 넣었습니다. 시각과 제목을 정해주세요.`, "busy");
+}
+/* 마지막 시각 다음의 정시. 없으면 09:00 */
+function nextHour(send_at){
+  if (!send_at) return "09:00";
+  const h = (parseInt(send_at.slice(0, 2), 10) + 1) % 24;
+  return String(h).padStart(2, "0") + ":00";
+}
+function delSlot(di, si){
+  const dg = data.digests[di], s = dg.slots[si];
+  if (!confirm(`'${s.title}' (${s.send_at}) 을(를) 지울까요?`)) return;
+  dg.slots.splice(si, 1);
+  render(); touch();
+  toast(`'${esc(s.title)}' 을(를) 지웠습니다.`, "busy");
+}
 function set(di, si, key, val){ data.digests[di].slots[si][key] = val; touch(); }
 function bump(di, si, key, delta){
   const slot = data.digests[di].slots[si];

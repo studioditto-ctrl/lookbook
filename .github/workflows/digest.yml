@@ -15,10 +15,13 @@ on:
   workflow_dispatch:
     inputs:
       slot:
-        description: 발송 슬롯
-        type: choice
-        options: [morning, evening, lunch, night]
+        description: 발송 슬롯 (settings.yaml 의 slot 이름)
+        type: string
         default: morning
+      config:
+        description: 설정 파일 또는 주제 key (비우면 슬롯 이름으로 정한다)
+        type: string
+        default: ''
       dry_run:
         description: 전송하지 않고 메시지만 확인
         type: boolean
@@ -55,6 +58,7 @@ jobs:
 
           if [ -n "${{ inputs.slot }}" ]; then
             slot="${{ inputs.slot }}"
+            name="${{ inputs.config }}"
           elif [ "${{ github.event_name }}" = "push" ] && [ -f .trigger ]; then
             # 첫 줄: <슬롯> 또는 <설정>:<슬롯>
             #   evening / food:lunch / config.food.yaml:lunch / <settings.yaml 의 key>:daily

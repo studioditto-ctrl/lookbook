@@ -1099,6 +1099,19 @@ class TestSettingsOverlay(unittest.TestCase):
         merged = self.apply(self.config, self.settings, "config.yaml", "morning")
         self.assertEqual(merged["sources"], self.config["sources"])
 
+    def test_slot_only_in_settings_is_created(self):
+        """페이지에서 시간을 더 넣으면 config 에 없는 슬롯이 생긴다."""
+        settings = dict(self.settings)
+        settings["digests"] = [dict(
+            self.settings["digests"][0],
+            slots=[{"slot": "sab12x", "title": "야식 브리핑", "articles": 2, "videos": 5}],
+        )]
+        merged = self.apply(self.config, settings, "config.yaml", "sab12x")
+        self.assertEqual(merged["slots"]["sab12x"],
+                         {"title": "야식 브리핑", "articles": 2, "videos": 5})
+        # 원래 있던 슬롯은 그대로 남는다
+        self.assertIn("morning", merged["slots"])
+
     def test_unknown_slot_leaves_config_untouched(self):
         merged = self.apply(self.config, self.settings, "config.yaml", "없는슬롯")
         self.assertEqual(merged, self.config)
