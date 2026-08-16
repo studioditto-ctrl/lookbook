@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import unittest.mock
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from pathlib import Path
@@ -928,6 +929,52 @@ class TestConfigNamespaceDerivation(unittest.TestCase):
 
     def test_path_prefix_is_ignored(self):
         self.assertEqual(self.derive("/repo/config.lifestyle.yaml"), "lifestyle")
+
+
+class TestIgnoreSeenFlag(unittest.TestCase):
+    """테스트 발송은 이미 보낸 항목도 다시 골라야 한다."""
+
+    def setUp(self):
+        from collect import Item
+        from filter import select
+
+        self.select = select
+        now = datetime.now(timezone.utc)
+        self.items = [
+            Item(id="a1", title="인터벌 훈련법", url="https://a.test/1",
+                 source="테스트", published=now, kind="article"),
+        ]
+        self.config = {"slots": {"morning": {"articles": 3, "videos": 0}}}
+
+    def test_seen_items_are_dropped_by_default(self):
+        seen = {"a1": "2026-01-01"}
+        articles, _ = self.select(self.items, seen, self.config, "morning")
+        self.assertEqual(articles, [])
+
+    def test_empty_seen_brings_them_back(self):
+        # --ignore-seen 은 seen 대신 빈 딕셔너리를 넘긴다
+        articles, _ = self.select(self.items, {}, self.config, "morning")
+        self.assertEqual([a.url for a in articles], ["https://a.test/1"])
+
+
+class TestTriggerArguments(unittest.TestCase):
+    """어드민 페이지의 테스트 발송이 넘기는 인자를 파서가 받아야 한다."""
+
+    def test_ignore_seen_is_parsed(self):
+        import main
+
+        argv = ["main.py", "--config", "config.food.yaml", "--slot", "lunch", "--ignore-seen"]
+        with unittest.mock.patch.object(sys, "argv", argv):
+            args = main.parse_args()
+        self.assertTrue(args.ignore_seen)
+        self.assertEqual((args.config, args.slot), ("config.food.yaml", "lunch"))
+
+    def test_ignore_seen_defaults_off(self):
+        import main
+
+        with unittest.mock.patch.object(sys, "argv", ["main.py", "--due"]):
+            args = main.parse_args()
+        self.assertFalse(args.ignore_seen)
 
 
 class TestAdminYamlRoundTrip(unittest.TestCase):

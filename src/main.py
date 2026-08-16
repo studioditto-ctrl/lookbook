@@ -52,6 +52,11 @@ def parse_args():
         "--config", default="config.yaml", help="다이제스트 설정 파일 (기본 config.yaml)"
     )
     parser.add_argument(
+        "--ignore-seen",
+        action="store_true",
+        help="이미 보낸 항목도 다시 보낸다. 설정을 바꾸고 바로 확인할 때 쓴다.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="전송하지 않고 메시지만 출력한다. 발송 이력도 남기지 않는다.",
@@ -59,7 +64,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_one(config_name, slot_name, dry_run):
+def run_one(config_name, slot_name, dry_run, ignore_seen=False):
     """다이제스트 한 회차를 처리한다. 종료 코드를 돌려준다."""
     settings = settings_module.load()
     digest = settings_module.find(settings, config_name)
@@ -109,7 +114,8 @@ def run_one(config_name, slot_name, dry_run):
     state.save_channel_cache(channel_cache, ns)
 
     seen = state.load_seen(ns)
-    articles, videos = select(items, seen, config, slot_name)
+    # 테스트 발송은 이력을 무시하고 고르되, 보낸 기록은 그대로 남긴다.
+    articles, videos = select(items, {} if ignore_seen else seen, config, slot_name)
 
     if not articles and not videos:
         print("[main] 보낼 새 항목이 없습니다. 이번 회차는 건너뜁니다.")
@@ -141,7 +147,7 @@ def main():
 
         worst = 0
         for config_name, slot_name, key, today in ready:
-            code = run_one(config_name, slot_name, args.dry_run)
+            code = run_one(config_name, slot_name, args.dry_run, args.ignore_seen)
             worst = max(worst, code)
             if code == 0 and not args.dry_run:
                 schedule_state[key] = today
@@ -152,7 +158,7 @@ def main():
     if not args.slot:
         print("--slot 또는 --due 중 하나가 필요합니다.", file=sys.stderr)
         return 1
-    return run_one(args.config, args.slot, args.dry_run)
+    return run_one(args.config, args.slot, args.dry_run, args.ignore_seen)
 
 
 if __name__ == "__main__":

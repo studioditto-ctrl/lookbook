@@ -26,16 +26,20 @@
     position:sticky; top:0; z-index:10; background:var(--bg);
     padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
     border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
   }
   h1{font-size:18px; margin:0}
   .sub{color:var(--muted); font-size:13px}
+  #saveState{font-size:13px; color:var(--muted); text-align:right; white-space:nowrap}
+  #saveState.busy{color:var(--accent)}
+  #saveState.dirty{color:var(--danger)}
   main{padding:14px 16px; max-width:560px; margin:0 auto}
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
         padding:14px; margin-bottom:12px}
   .card h2{font-size:16px; margin:0 0 4px}
   .row{display:flex; gap:10px; align-items:center}
   label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
-  input,select{
+  input{
     width:100%; padding:11px 12px; font-size:16px; color:var(--ink);
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
   }
@@ -45,16 +49,11 @@
     border:1px solid var(--line); background:var(--card); color:var(--ink);
     cursor:pointer; min-height:44px;
   }
+  button:disabled{opacity:.5}
   button.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
   button.ghost{background:transparent}
   button.tiny{min-height:38px; padding:6px 12px; font-size:14px}
-
-  /* 주제 선택 — 가로 스크롤 세그먼트 */
-  .seg{display:flex; gap:6px; overflow-x:auto; margin:10px 0 0; padding-bottom:2px; scrollbar-width:none}
-  .seg::-webkit-scrollbar{display:none}
-  .seg button{flex:0 0 auto; border-radius:999px; padding:8px 15px; min-height:40px}
-  .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink);
-        border-color:transparent; font-weight:600}
+  button.wide{width:100%; margin-top:10px}
 
   .slot{border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px}
   .slot .head{display:flex; align-items:center; justify-content:space-between; gap:10px}
@@ -89,39 +88,49 @@
   details > summary::-webkit-details-marker{display:none}
   details > summary::after{content:"▾"; transition:.15s}
   details[open] > summary::after{transform:rotate(180deg)}
+
   footer{
     position:fixed; left:0; right:0; bottom:0; background:var(--card);
     border-top:1px solid var(--line); display:flex; gap:10px;
     padding:10px 16px calc(10px + env(safe-area-inset-bottom));
   }
   footer button{flex:1}
+  /* 눌렀는지 항상 보이도록 화면 아래에 띄운다 — 스크롤 위치와 무관하게 */
+  .toast{
+    position:fixed; left:12px; right:12px; z-index:20; display:none;
+    bottom:calc(74px + env(safe-area-inset-bottom));
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; font-size:14px; box-shadow:0 8px 28px rgba(0,0,0,.22);
+  }
+  .toast.show{display:block}
+  .toast.ok{border-color:var(--ok); color:var(--ok)}
+  .toast.err{border-color:var(--danger); color:var(--danger)}
+  .toast.busy{border-color:var(--accent); color:var(--accent)}
+  .toast a{color:var(--accent)}
   .note{font-size:13px; color:var(--muted); margin-top:8px}
-  .status{padding:10px 12px; border-radius:10px; font-size:14px; margin-bottom:12px; display:none}
-  .status.show{display:block}
-  .status.ok{background:rgba(15,123,63,.12); color:var(--ok)}
-  .status.err{background:rgba(192,57,43,.12); color:var(--danger)}
 </style>
 </head>
 <body>
 <header>
-  <h1>다이제스트 설정</h1>
-  <div class="sub">studioditto-ctrl/lookbook</div>
+  <div>
+    <h1>다이제스트 설정</h1>
+    <div class="sub">studioditto-ctrl/lookbook</div>
+  </div>
+  <div id="saveState">불러오는 중…</div>
 </header>
 
 <main>
-  <div class="status" id="status"></div>
   <div id="tokenCard"></div>
 
-  <!-- 맨 위: 키워드 추가 -->
+  <!-- 맨 위: 주제 추가 -->
   <div class="card">
-    <h2>키워드 추가</h2>
-    <div class="sub">넣은 말이 제목에 있으면 먼저 골라 보냅니다.</div>
-    <div class="seg" id="topicSeg"></div>
+    <h2>주제 추가</h2>
+    <div class="sub">넣은 말로 구글 뉴스를 찾고, 불러온 구독 목록에서 이름이 맞는 채널을 붙입니다.</div>
     <div class="add">
-      <input id="kwInput" placeholder="예: 인터벌" enterkeyhint="done"
+      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done"
              autocapitalize="off" autocomplete="off"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword()}">
-      <button class="primary" onclick="addKeyword()">추가</button>
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addTopic()}">
+      <button class="primary" onclick="addTopic()">만들기</button>
     </div>
   </div>
 
@@ -130,14 +139,7 @@
   <details class="card" id="advanced">
     <summary>고급 설정</summary>
 
-    <label style="margin-top:8px">새 주제</label>
-    <div class="sub">키워드를 넣으면 그 말로 인터넷을 검색하고, 구독 채널에서도 찾아 붙입니다.</div>
-    <div class="add">
-      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done">
-      <button class="tiny primary" onclick="addTopic()">만들기</button>
-    </div>
-
-    <label style="margin-top:18px">내 구독 채널</label>
+    <label style="margin-top:8px">내 구독 채널</label>
     <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
     <div class="note">
       Google Takeout 의 <b>구독정보.csv</b> 를 고르세요. 이 브라우저에만 저장되고
@@ -160,8 +162,10 @@
 
 </main>
 
+<div class="toast" id="toast"></div>
+
 <footer>
-  <button class="ghost" onclick="load()">다시 불러오기</button>
+  <button class="ghost" id="reloadBtn" onclick="load()">새로고침</button>
   <button class="primary" id="saveBtn" onclick="save()">저장</button>
 </footer>
 
@@ -169,18 +173,43 @@
 const REPO = "studioditto-ctrl/lookbook";
 const BRANCH = "claude/running-news-telegram-delivery-hgx53y";
 const FILE = "settings.yaml";
-let data = null, sha = null, topic = 0;
+const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
+
+let data = null, sha = null;
+let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hhmm = d => d.toTimeString().slice(0, 5);
 /* 열어둔 상세 패널은 다시 그려도 열린 채로 둔다 */
 const open = new Set();
 
-function status(msg, kind){
-  const el = $("status");
-  el.textContent = msg;
-  el.className = "status show " + (kind || "");
-  if (kind === "ok") setTimeout(() => el.className = "status", 4000);
+let toastTimer = null;
+function toast(msg, kind, keep){
+  const el = $("toast");
+  el.innerHTML = msg;
+  el.className = "toast show " + (kind || "");
+  clearTimeout(toastTimer);
+  if (kind === "ok" && !keep) toastTimer = setTimeout(() => el.className = "toast", 4000);
+  if (keep) toastTimer = setTimeout(() => el.className = "toast", 12000);
+}
+
+function showState(){
+  const el = $("saveState");
+  if (saving)      { el.textContent = "저장하는 중…";              el.className = "busy"; }
+  else if (dirty)  { el.textContent = "바뀜 — 곧 저장됩니다";      el.className = "dirty"; }
+  else if (savedAt){ el.textContent = "저장됨 " + hhmm(savedAt);   el.className = ""; }
+  else if (loadedAt){el.textContent = "불러옴 " + hhmm(loadedAt);  el.className = ""; }
+  const busy = saving || !data;
+  $("saveBtn").disabled = busy;
+  $("reloadBtn").disabled = busy;
+}
+
+/* 어떤 값이든 바뀌면 곧바로 저장까지 간다 — 저장 버튼을 안 눌러도 반영된다 */
+function touch(){
+  dirty = true; showState();
+  clearTimeout(timer);
+  timer = setTimeout(() => save(), 1200);
 }
 
 /* ---------- YAML (이 파일의 구조에 한정한 최소 구현) ---------- */
@@ -286,7 +315,7 @@ function fromYaml(text){
 const unq = s => (s.startsWith('"') && s.endsWith('"')) ? JSON.parse(s) : s;
 
 /* ---------- 렌더링 ---------- */
-const q = s => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+const arg = s => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
 function stepper(di, si, key, val){
   return `<div class="step">
@@ -297,12 +326,6 @@ function stepper(di, si, key, val){
 }
 
 function render(){
-  if (topic >= data.digests.length) topic = 0;
-
-  $("topicSeg").innerHTML = data.digests.map((dg, i) =>
-    `<button aria-pressed="${i === topic}" onclick="pickTopic(${i})">${esc(dg.label)}</button>`
-  ).join("");
-
   $("digests").innerHTML = data.digests.map((dg, di) => `
     <div class="card">
       <h2>${esc(dg.label)}</h2>
@@ -323,6 +346,7 @@ function render(){
             <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
             <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
           </div>
+          <button class="tiny wide ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
         </div>`).join("")}
 
       <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
@@ -333,8 +357,14 @@ function render(){
         <div class="chips">
           ${Object.entries(dg.keywords).map(([k, v]) => `
             <span class="chip">${esc(k)} ${v}
-              <button onclick="delKeyword(${di},${q(k)})" aria-label="삭제">×</button>
+              <button onclick="delKeyword(${di},${arg(k)})" aria-label="삭제">×</button>
             </span>`).join("") || '<span class="sub">없음</span>'}
+        </div>
+        <div class="add">
+          <input id="kw${di}" placeholder="키워드" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
+          <button class="tiny" onclick="addKeyword(${di})">추가</button>
         </div>
 
         <label style="margin-top:16px">검색어 — 구글 뉴스에서 이 말로 찾습니다</label>
@@ -367,35 +397,55 @@ function render(){
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
-      <button onclick="delExclude(${q(w)})" aria-label="삭제">×</button>
+      <button onclick="delExclude(${arg(w)})" aria-label="삭제">×</button>
     </span>`).join("");
 }
 
 function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
-function pickTopic(i){ topic = i; render(); }
-function set(di, si, key, val){ data.digests[di].slots[si][key] = val; }
+function set(di, si, key, val){ data.digests[di].slots[si][key] = val; touch(); }
 function bump(di, si, key, delta){
   const slot = data.digests[di].slots[si];
   slot[key] = Math.max(0, Math.min(10, (slot[key] || 0) + delta));
   $(`v${di}-${si}-${key}`).textContent = slot[key];
+  touch();
 }
 
-function addKeyword(){
-  const el = $("kwInput"), k = el.value.trim();
+function addKeyword(di){
+  const el = $("kw" + di), k = el.value.trim();
   if (!k) return;
-  const dg = data.digests[topic];
-  if (!dg) return;
-  dg.keywords[k] = dg.keywords[k] || 2;
-  el.value = ""; render();
-  status(`'${k}' 을(를) ${dg.label} 에 넣었습니다. 저장을 눌러야 반영됩니다.`, "ok");
+  const dg = data.digests[di];
+  if (dg.keywords[k]){ toast(`'${k}' 은(는) 이미 있습니다.`, "err"); return; }
+  dg.keywords[k] = 2;
+  el.value = "";
+  open.add("d" + di);            // 넣은 칩이 바로 보이도록 패널을 연 채로 둔다
+  render(); touch();
+  toast(`'${esc(k)}' 을(를) ${esc(dg.label)} 에 넣었습니다. 저장하는 중…`, "busy");
 }
-function delKeyword(di, k){ delete data.digests[di].keywords[k]; render(); }
+function delKeyword(di, k){ delete data.digests[di].keywords[k]; render(); touch(); }
 function addExclude(){
   const w = $("excludeInput").value.trim();
   if (!w || data.exclude.includes(w)) return;
-  data.exclude.push(w); $("excludeInput").value = ""; render();
+  data.exclude.push(w); $("excludeInput").value = ""; render(); touch();
 }
-function delExclude(w){ data.exclude = data.exclude.filter(x => x !== w); render(); }
+function delExclude(w){ data.exclude = data.exclude.filter(x => x !== w); render(); touch(); }
+
+function addTopic(){
+  const label = $("newTopic").value.trim();
+  if (!label) return;
+  const key = "t" + Date.now().toString(36);
+  data.digests.push({
+    config: "", key, label,
+    slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
+             enabled: true, articles: 2, videos: 3}],
+    keywords: {[label]: 3},
+    queries: [{name: label, query: label}],
+    channels: subs.filter(s => s.title.includes(label)).slice(0, 8)
+                  .map(s => ({name: s.title, channel_id: s.id})),
+  });
+  $("newTopic").value = "";
+  render(); touch();
+  toast(`'${esc(label)}' 주제를 만들었습니다. 아래에서 시각과 채널을 확인하세요.`, "busy");
+}
 
 /* ---------- 구독 채널 (브라우저에만 보관) ---------- */
 let subs = JSON.parse(localStorage.getItem("subs") || "[]");
@@ -419,23 +469,23 @@ function loadSubs(input){
       const title = cols.slice(2).join(",").trim();
       if (/^UC[\w-]{22}$/.test(id) && title) parsed.push({id, title});
     }
-    if (!parsed.length){ status("채널을 찾지 못했습니다. 구독정보.csv 가 맞는지 확인하세요.", "err"); return; }
+    if (!parsed.length){ toast("채널을 찾지 못했습니다. 구독정보.csv 가 맞는지 확인하세요.", "err"); return; }
     subs = parsed;
     localStorage.setItem("subs", JSON.stringify(subs));
-    subsInfo(); render();
-    status(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
+    subsInfo();
+    toast(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
   };
   reader.readAsText(file, "utf-8");
 }
 function clearSubs(){
-  subs = []; localStorage.removeItem("subs"); subsInfo(); render();
-  status("구독 목록을 지웠습니다.", "ok");
+  subs = []; localStorage.removeItem("subs"); subsInfo();
+  toast("구독 목록을 지웠습니다.", "ok");
 }
 function searchSubs(di){
   const needle = $("cs" + di).value.trim().toLowerCase();
   const box = $("cr" + di);
   if (!needle){ box.innerHTML = ""; return; }
-  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 구독 CSV 를 불러오세요.</span>'; return; }
+  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 고급 설정에서 구독 CSV 를 불러오세요.</span>'; return; }
   const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
   const hits = subs.filter(s => s.title.toLowerCase().includes(needle) && !taken.has(s.id)).slice(0, 12);
   box.innerHTML = hits.length
@@ -447,38 +497,46 @@ function pickChannel(di, id){
   const hit = subs.find(s => s.id === id);
   if (!hit) return;
   (data.digests[di].channels ||= []).push({name: hit.title, channel_id: hit.id});
-  render();
+  open.add("d" + di);
+  render(); touch();
 }
-function delChannel(di, ci){ data.digests[di].channels.splice(ci, 1); render(); }
+function delChannel(di, ci){ data.digests[di].channels.splice(ci, 1); render(); touch(); }
 function addQuery(di){
   const text = $("q" + di).value.trim();
   if (!text) return;
   (data.digests[di].queries ||= []).push({name: text, query: text});
-  render();
+  open.add("d" + di);
+  render(); touch();
 }
-function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); }
-
-function addTopic(){
-  const label = $("newTopic").value.trim();
-  if (!label) return;
-  const key = "t" + Date.now().toString(36);
-  data.digests.push({
-    config: "", key, label,
-    slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
-             enabled: true, articles: 2, videos: 3}],
-    keywords: {[label]: 3},
-    queries: [{name: label, query: label}],
-    channels: subs.filter(s => s.title.includes(label)).slice(0, 8)
-                  .map(s => ({name: s.title, channel_id: s.id})),
-  });
-  $("newTopic").value = "";
-  topic = data.digests.length - 1;
-  render();
-  status(`'${label}' 주제를 만들었습니다. 채널과 시각을 확인한 뒤 저장하세요.`, "ok");
-}
+function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); touch(); }
 
 /* ---------- GitHub ---------- */
 const token = () => localStorage.getItem("gh_token") || "";
+const api = path => `https://api.github.com/repos/${REPO}/contents/${path}`;
+const headers = () => ({Authorization: "Bearer " + token(), Accept: "application/vnd.github+json"});
+const enc = t => btoa(unescape(encodeURIComponent(t)));
+const dec = c => decodeURIComponent(escape(atob(c.replace(/\n/g, ""))));
+
+async function getFile(path){
+  const h = {Accept: "application/vnd.github+json"};
+  if (token()) h.Authorization = "Bearer " + token();
+  const r = await fetch(`${api(path)}?ref=${encodeURIComponent(BRANCH)}`, {headers: h, cache: "no-store"});
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+async function putFile(path, text, shaRef, message){
+  const body = {message, content: enc(text), branch: BRANCH};
+  if (shaRef) body.sha = shaRef;
+  const r = await fetch(api(path), {method: "PUT", headers: headers(), body: JSON.stringify(body)});
+  if (!r.ok){
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`${r.status} ${j.message || r.statusText}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
 
 function renderToken(){
   const has = !!token();
@@ -491,74 +549,100 @@ function renderToken(){
     </div>` : `
     <div class="card" style="border-color:var(--accent)">
       <h2>먼저 GitHub 토큰을 넣어주세요</h2>
-      <div class="sub">이걸 넣어야 <b>저장</b> 버튼이 동작합니다. 이 기기에만 저장됩니다.</div>
+      <div class="sub">이걸 넣어야 바꾼 값이 저장됩니다. 이 기기에만 저장됩니다.</div>
       <div class="row" style="margin-top:10px">
         <input id="token" type="password" placeholder="github_pat_..."
                autocomplete="off" enterkeyhint="done"
                onkeydown="if(event.key==='Enter'){event.preventDefault();saveToken()}">
       </div>
-      <button class="primary" style="width:100%;margin-top:10px" onclick="saveToken()">토큰 저장</button>
+      <button class="primary wide" onclick="saveToken()">토큰 저장</button>
       <div class="note">
         <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
            rel="noopener" style="color:var(--accent)">토큰 만들러 가기 →</a><br>
         Repository access 는 <b>이 저장소만</b>, 권한은 <b>Contents: Read and write</b> 하나면 됩니다.
       </div>
     </div>`;
-  const saveBtn = $("saveBtn");
-  if (saveBtn) saveBtn.textContent = has ? "저장" : "저장 (토큰 필요)";
 }
 
 function saveToken(){
   const v = ($("token") || {}).value?.trim();
-  if (!v){ status("토큰을 붙여넣어 주세요.", "err"); return; }
+  if (!v){ toast("토큰을 붙여넣어 주세요.", "err"); return; }
   localStorage.setItem("gh_token", v);
   renderToken();
-  status("토큰을 이 기기에 저장했습니다. 이제 저장할 수 있습니다.", "ok");
+  toast("토큰을 이 기기에 저장했습니다.", "ok");
+  if (dirty) save();
 }
 function clearToken(){
   localStorage.removeItem("gh_token"); renderToken();
-  status("토큰을 지웠습니다.", "ok");
+  toast("토큰을 지웠습니다.", "ok");
 }
 
 async function load(){
-  status("불러오는 중…");
+  clearTimeout(timer); timer = null;
+  toast("불러오는 중…", "busy");
   try{
-    const headers = {Accept: "application/vnd.github+json"};
-    if (token()) headers.Authorization = "Bearer " + token();
-    const r = await fetch(
-      `https://api.github.com/repos/${REPO}/contents/${FILE}?ref=${encodeURIComponent(BRANCH)}`,
-      {headers, cache: "no-store"});
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    const j = await r.json();
+    const j = await getFile(FILE);
+    if (!j) throw new Error("settings.yaml 이 없습니다.");
     sha = j.sha;
-    data = fromYaml(decodeURIComponent(escape(atob(j.content.replace(/\n/g, "")))));
-    render();
-    status("불러왔습니다.", "ok");
-  }catch(e){ status("불러오지 못했습니다: " + e.message, "err"); }
+    data = fromYaml(dec(j.content));
+    dirty = false; savedAt = null; loadedAt = new Date();
+    render(); showState();
+    toast("최신 설정을 불러왔습니다.", "ok");
+  }catch(e){ toast("불러오지 못했습니다: " + esc(e.message), "err"); showState(); }
 }
 
 async function save(){
-  if (!token()){ status("먼저 GitHub 토큰을 저장하세요.", "err"); return; }
-  status("저장하는 중…");
+  clearTimeout(timer); timer = null;
+  if (!data || !dirty) return true;
+  if (!token()){ toast("먼저 맨 위에 GitHub 토큰을 넣어주세요. 넣으면 바로 저장됩니다.", "err"); return false; }
+  if (saving) return false;
+
+  saving = true; showState();
+  const text = toYaml(data);
   try{
-    const body = {
-      message: "설정 변경 (모바일 어드민)",
-      content: btoa(unescape(encodeURIComponent(toYaml(data)))),
-      sha, branch: BRANCH,
-    };
-    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
-      method: "PUT",
-      headers: {Authorization: "Bearer " + token(), Accept: "application/vnd.github+json"},
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(`${r.status} ${(await r.json()).message || r.statusText}`);
-    sha = (await r.json()).content.sha;
-    status("저장했습니다. 다음 발송부터 반영됩니다.", "ok");
-  }catch(e){ status("저장하지 못했습니다: " + e.message, "err"); }
+    let r;
+    try{
+      r = await putFile(FILE, text, sha, "설정 변경 (모바일 어드민)");
+    }catch(e){
+      // 다른 곳에서 먼저 바뀌면 sha 가 어긋난다. 최신 sha 로 한 번 다시 민다.
+      if (e.status !== 409 && e.status !== 422) throw e;
+      const cur = await getFile(FILE);
+      sha = cur && cur.sha;
+      r = await putFile(FILE, text, sha, "설정 변경 (모바일 어드민)");
+    }
+    sha = r.content.sha;
+    dirty = false; savedAt = new Date();
+    toast("저장했습니다. 다음 발송부터 반영됩니다.", "ok");
+    return true;
+  }catch(e){
+    toast("저장하지 못했습니다: " + esc(e.message), "err");
+    return false;
+  }finally{ saving = false; showState(); }
 }
+
+async function testSend(di, si){
+  const dg = data.digests[di], s = dg.slots[si];
+  if (!token()){ toast("먼저 맨 위에 GitHub 토큰을 넣어주세요.", "err"); return; }
+  if (dirty && !(await save())) return;
+
+  toast(`'${esc(s.title)}' 발송을 요청하는 중…`, "busy");
+  try{
+    const cur = await getFile(".trigger");
+    // 첫 줄이 회차, 둘째 줄 force 는 이미 보낸 항목도 다시 보내라는 뜻이다.
+    const line = `${dg.config || dg.key}:${s.slot}`;
+    const body = `${line}\nforce\n${new Date().toISOString()}\n`;
+    await putFile(".trigger", body, cur && cur.sha, `테스트 발송 ${line}`);
+    toast(`보내는 중입니다. 1~2분 뒤 텔레그램을 확인하세요.
+           <a href="${RUNS}" target="_blank" rel="noopener">실행 기록 보기 →</a>`, "ok", true);
+  }catch(e){ toast("발송을 요청하지 못했습니다: " + esc(e.message), "err"); }
+}
+
+/* 저장이 끝나기 전에 화면을 닫으면 알려준다 */
+addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
 
 renderToken();
 subsInfo();
+showState();
 load();
 </script>
 </body>

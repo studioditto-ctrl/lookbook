@@ -51,25 +51,36 @@ jobs:
         run: |
           # 정기 실행은 settings.yaml 을 보고 스스로 판단한다(--due).
           mode="--due"
-          config=""; slot=""
+          name=""; slot=""; force=""
 
           if [ -n "${{ inputs.slot }}" ]; then
             slot="${{ inputs.slot }}"
           elif [ "${{ github.event_name }}" = "push" ] && [ -f .trigger ]; then
+            # 첫 줄: <슬롯> 또는 <설정>:<슬롯>
+            #   evening / food:lunch / config.food.yaml:lunch / <settings.yaml 의 key>:daily
             want="$(head -1 .trigger | tr -d '[:space:]')"
             case "$want" in
-              *:*) config="config.${want%%:*}.yaml"; slot="${want##*:}" ;;
-              *)   slot=morning ;;
+              *:*) name="${want%%:*}"; slot="${want##*:}" ;;
+              *)   slot="$want" ;;
             esac
+            # 둘째 줄이 force 면 이미 보낸 항목도 다시 보낸다 (어드민 페이지의 테스트 발송)
+            if [ "$(sed -n 2p .trigger | tr -d '[:space:]')" = "force" ]; then
+              force=" --ignore-seen"
+            fi
           fi
 
           if [ -n "$slot" ]; then
-            case "$slot" in
-              lunch)   config=config.food.yaml ;;
-              night)   config=config.fashion.yaml ;;
-              morning|evening) config=config.yaml ;;
-            esac
-            mode="--config $config --slot $slot"
+            if   [ -n "$name" ] && [ -f "$name" ];             then config="$name"
+            elif [ -n "$name" ] && [ -f "config.$name.yaml" ]; then config="config.$name.yaml"
+            elif [ -n "$name" ];                              then config="$name"   # config 없는 주제
+            else
+              case "$slot" in
+                lunch) config=config.food.yaml ;;
+                night) config=config.fashion.yaml ;;
+                *)     config=config.yaml ;;
+              esac
+            fi
+            mode="--config $config --slot $slot$force"
           fi
 
           echo "args=$mode" >> "$GITHUB_OUTPUT"
