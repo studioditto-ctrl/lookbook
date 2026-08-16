@@ -15,6 +15,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -927,3 +928,134 @@ class TestConfigNamespaceDerivation(unittest.TestCase):
 
     def test_path_prefix_is_ignored(self):
         self.assertEqual(self.derive("/repo/config.lifestyle.yaml"), "lifestyle")
+
+
+class TestAdminYamlRoundTrip(unittest.TestCase):
+    """어드민 페이지가 저장한 YAML 을 파이썬이 그대로 읽어야 한다.
+
+    여기가 어긋나면 저장 버튼이 설정을 조용히 망가뜨린다.
+    """
+
+    def test_round_trip_preserves_values(self):
+        import shutil
+        import subprocess
+        import tempfile
+
+        import yaml as yaml_module
+
+        if not shutil.which("node"):
+            self.skipTest("node 없음")
+
+        repo = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "rt.mjs"
+            script.write_text(
+                'import {readFileSync} from "node:fs";\n'
+                f'import {{toYaml, fromYaml}} from "{repo}/tests/js/yaml.mjs";\n'
+                f'const t = readFileSync("{repo}/settings.yaml", "utf8");\n'
+                "process.stdout.write(toYaml(fromYaml(toYaml(fromYaml(t)))));\n",
+                encoding="utf-8",
+            )
+            out = subprocess.run(
+                ["node", str(script)], capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(out.returncode, 0, out.stderr)
+
+        original = yaml_module.safe_load((repo / "settings.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(yaml_module.safe_load(out.stdout), original)
+
+
+class TestScheduleDue(unittest.TestCase):
+    """발송 시각이 데이터가 됐으니, 언제 보낼지 판단하는 규칙."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.settings_module = settings_module
+        self.tz = ZoneInfo("Asia/Seoul")
+        self.conf = {
+            "digests": [
+                {"config": "a.yaml", "slots": [
+                    {"slot": "morning", "send_at": "08:00"},
+                    {"slot": "off", "send_at": "09:00", "enabled": False},
+                ]}
+            ]
+        }
+
+    def at(self, hour, minute=0):
+        return datetime(2026, 8, 16, hour, minute, tzinfo=self.tz)
+
+    def keys(self, now, state=None):
+        return [k for _, _, k, _ in self.settings_module.due(self.conf, now, state)]
+
+    def test_not_due_before_the_hour(self):
+        self.assertEqual(self.keys(self.at(7, 59)), [])
+
+    def test_due_right_after_the_hour(self):
+        self.assertEqual(self.keys(self.at(8, 1)), ["a.yaml:morning"])
+
+    def test_still_due_when_the_run_is_late(self):
+        self.assertEqual(self.keys(self.at(10, 30)), ["a.yaml:morning"])
+
+    def test_skipped_once_too_late(self):
+        self.assertEqual(self.keys(self.at(23, 0)), [])
+
+    def test_not_repeated_after_sending_today(self):
+        state = {"a.yaml:morning": "2026-08-16"}
+        self.assertEqual(self.keys(self.at(9, 0), state), [])
+
+    def test_sends_again_the_next_day(self):
+        state = {"a.yaml:morning": "2026-08-15"}
+        self.assertEqual(self.keys(self.at(9, 0), state), ["a.yaml:morning"])
+
+    def test_disabled_slot_never_fires(self):
+        self.assertNotIn("a.yaml:off", self.keys(self.at(9, 30)))
+
+    def test_bad_time_is_skipped_not_raised(self):
+        conf = {"digests": [{"config": "a.yaml", "slots": [{"slot": "x", "send_at": "아침"}]}]}
+        self.assertEqual(self.settings_module.due(conf, self.at(12)), [])
+
+
+class TestSettingsOverlay(unittest.TestCase):
+    """settings.yaml 값이 config 위에 덮이는지."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.apply = settings_module.apply
+        self.settings = {
+            "digests": [{
+                "config": "config.yaml",
+                "slots": [{"slot": "morning", "title": "새 제목", "articles": 9, "videos": 8}],
+                "keywords": {"부상": 5},
+            }],
+            "exclude": ["광고"],
+        }
+        self.config = {
+            "slots": {"morning": {"title": "옛 제목", "articles": 3, "videos": 2}},
+            "keywords": {"훈련": 1},
+            "exclude": ["부고"],
+            "sources": {"youtube": [{"name": "채널"}]},
+        }
+
+    def test_slot_fields_are_overridden(self):
+        merged = self.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["slots"]["morning"]["title"], "새 제목")
+        self.assertEqual(merged["slots"]["morning"]["articles"], 9)
+
+    def test_keywords_and_exclude_are_replaced(self):
+        merged = self.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["keywords"], {"부상": 5})
+        self.assertEqual(merged["exclude"], ["광고"])
+
+    def test_sources_are_left_alone(self):
+        merged = self.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["sources"], self.config["sources"])
+
+    def test_unknown_slot_leaves_config_untouched(self):
+        merged = self.apply(self.config, self.settings, "config.yaml", "없는슬롯")
+        self.assertEqual(merged, self.config)
+
+    def test_original_config_is_not_mutated(self):
+        self.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(self.config["slots"]["morning"]["title"], "옛 제목")

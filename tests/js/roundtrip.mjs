@@ -1,0 +1,13 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { toYaml, fromYaml } from "./yaml.mjs";
+
+const original = readFileSync("settings.yaml", "utf8");
+const parsed = fromYaml(original);
+const rewritten = toYaml(parsed);
+writeFileSync("/tmp/claude-0/-home-user-lookbook/972dc8cb-c6dd-53d9-b818-7f6067fe31f7/scratchpad/settings.rewritten.yaml", rewritten);
+
+// 편집을 흉내 낸 두 번째 왕복 — 파서가 자기 출력도 읽을 수 있어야 한다
+const reparsed = fromYaml(rewritten);
+writeFileSync("/tmp/claude-0/-home-user-lookbook/972dc8cb-c6dd-53d9-b818-7f6067fe31f7/scratchpad/settings.twice.yaml", toYaml(reparsed));
+console.log("다이제스트", parsed.digests.length, "| 슬롯",
+  parsed.digests.map(d => d.slots.length).join(","), "| 제외어", parsed.exclude.length);

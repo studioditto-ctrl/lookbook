@@ -76,3 +76,17 @@ def load_channel_cache(namespace=None):
 
 def save_channel_cache(cache, namespace=None):
     _save(channels_path(namespace), cache)
+
+
+def schedule_path():
+    return STATE_DIR / "schedule.json"
+
+
+def load_schedule():
+    """{'config.yaml:morning': '2026-08-16'} — 회차별 마지막 발송 날짜."""
+    data = _load(schedule_path(), {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_schedule(schedule):
+    _save(schedule_path(), schedule)

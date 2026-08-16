@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>다이제스트 설정</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#14171a; --muted:#667085; --line:#e4e7ec;
+    --accent:#1f6feb; --accent-ink:#fff; --danger:#c0392b; --ok:#0f7b3f;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0f1115; --card:#171a21; --ink:#e8eaed; --muted:#98a2b3;
+           --line:#272b33; --accent:#4a8bff; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); font:16px/1.5 -apple-system,BlinkMacSystemFont,
+    "Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    padding:0 0 96px; -webkit-text-size-adjust:100%;
+  }
+  header{
+    position:sticky; top:0; z-index:10; background:var(--bg);
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    border-bottom:1px solid var(--line);
+  }
+  h1{font-size:19px; margin:0}
+  .sub{color:var(--muted); font-size:13px; margin-top:2px}
+  main{padding:16px; max-width:640px; margin:0 auto}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+        padding:14px; margin-bottom:14px}
+  .card h2{font-size:16px; margin:0 0 10px}
+  .row{display:flex; gap:10px; align-items:center; margin-bottom:10px}
+  .row:last-child{margin-bottom:0}
+  label{font-size:13px; color:var(--muted); display:block; margin-bottom:4px}
+  input,select{
+    width:100%; padding:11px 12px; font-size:16px; color:var(--ink);
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+  }
+  input[type=time]{font-variant-numeric:tabular-nums}
+  input[type=number]{text-align:center}
+  button{
+    font:inherit; font-size:15px; padding:11px 14px; border-radius:10px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    cursor:pointer; min-height:44px;
+  }
+  button.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600}
+  button.ghost{background:transparent}
+  button.tiny{min-height:36px; padding:6px 10px; font-size:14px}
+  .slot{border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px}
+  .slot .grid{display:grid; grid-template-columns:1fr 76px 76px; gap:8px}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:7px 10px;
+        background:var(--bg); border:1px solid var(--line); border-radius:999px; font-size:14px}
+  .chip b{font-weight:600; font-variant-numeric:tabular-nums; color:var(--muted)}
+  .chip button{border:0; background:none; padding:0 2px; min-height:auto; color:var(--muted); font-size:17px; line-height:1}
+  .add{display:flex; gap:8px; margin-top:10px}
+  .add input{flex:1}
+  .add input[type=number]{width:74px; flex:none}
+  .toggle{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted)}
+  .toggle input{width:auto; transform:scale(1.25); margin:0}
+  footer{
+    position:fixed; left:0; right:0; bottom:0; background:var(--card);
+    border-top:1px solid var(--line); display:flex; gap:10px;
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  footer button{flex:1}
+  .note{font-size:13px; color:var(--muted); margin-top:8px}
+  .status{padding:10px 12px; border-radius:10px; font-size:14px; margin-bottom:12px; display:none}
+  .status.show{display:block}
+  .status.ok{background:rgba(15,123,63,.12); color:var(--ok)}
+  .status.err{background:rgba(192,57,43,.12); color:var(--danger)}
+  details summary{cursor:pointer; font-size:14px; color:var(--muted); padding:4px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>다이제스트 설정</h1>
+  <div class="sub" id="repo">studioditto-ctrl/lookbook</div>
+</header>
+
+<main>
+  <div class="status" id="status"></div>
+  <div id="digests"></div>
+
+  <div class="card">
+    <h2>공통 제외어</h2>
+    <div class="sub">제목에 이 단어가 있으면 보내지 않습니다.</div>
+    <div class="chips" id="excludeChips"></div>
+    <div class="add">
+      <input id="excludeInput" placeholder="예: 협찬" enterkeyhint="done">
+      <button class="tiny" onclick="addExclude()">추가</button>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>저장용 GitHub 토큰</summary>
+    <div class="note">
+      이 기기에만 저장됩니다(localStorage). 이 저장소에 대한
+      <b>Contents: Read and write</b> 권한만 있는 fine-grained 토큰을 권합니다.
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="token" type="password" placeholder="github_pat_...">
+    </div>
+    <button class="tiny ghost" onclick="saveToken()">토큰 저장</button>
+    <button class="tiny ghost" onclick="clearToken()">지우기</button>
+  </details>
+</main>
+
+<footer>
+  <button class="ghost" onclick="load()">다시 불러오기</button>
+  <button class="primary" onclick="save()">저장</button>
+</footer>
+
+<script>
+const REPO = "studioditto-ctrl/lookbook";
+const BRANCH = "claude/running-news-telegram-delivery-hgx53y";
+const FILE = "settings.yaml";
+let data = null, sha = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function status(msg, kind){
+  const el = $("status");
+  el.textContent = msg;
+  el.className = "status show " + (kind || "");
+  if (kind === "ok") setTimeout(() => el.className = "status", 4000);
+}
+
+/* ---------- YAML (이 파일의 구조에 한정한 최소 구현) ---------- */
+function quote(s){
+  s = String(s);
+  return /^[\w가-힣ㄱ-ㅎ][\w가-힣ㄱ-ㅎ .·&+-]*$/.test(s) ? s : JSON.stringify(s);
+}
+function toYaml(d){
+  let out = "# 모바일 어드민 페이지가 저장한 파일입니다.\n";
+  out += "# 채널 목록은 config*.yaml 에 있습니다.\n\ndigests:\n";
+  for (const dg of d.digests){
+    out += `  - config: ${dg.config}\n    label: ${quote(dg.label)}\n    slots:\n`;
+    for (const s of dg.slots){
+      out += `      - slot: ${s.slot}\n`;
+      out += `        title: ${JSON.stringify(s.title)}\n`;
+      out += `        send_at: ${JSON.stringify(s.send_at)}\n`;
+      out += `        enabled: ${s.enabled ? "true" : "false"}\n`;
+      out += `        articles: ${s.articles}\n        videos: ${s.videos}\n`;
+    }
+    out += "    keywords:\n";
+    for (const [k, v] of Object.entries(dg.keywords)) out += `      ${quote(k)}: ${v}\n`;
+  }
+  out += "\nexclude:\n";
+  for (const w of d.exclude) out += `  - ${quote(w)}\n`;
+  return out;
+}
+/* 우리가 쓰는 모양만 읽는 파서 — 들여쓰기와 키가 위 형식과 같다고 가정한다 */
+function fromYaml(text){
+  const out = {digests: [], exclude: []};
+  let dg = null, slot = null, mode = null;
+  for (const raw of text.split("\n")){
+    const line = raw.replace(/\t/g, "  ");
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+    const indent = line.length - line.trimStart().length;
+    const t = line.trim();
+    if (t === "digests:"){ mode = "digests"; continue; }
+    if (t === "exclude:"){ mode = "exclude"; continue; }
+    if (mode === "exclude" && t.startsWith("- ")){ out.exclude.push(unq(t.slice(2))); continue; }
+    if (mode !== "digests") continue;
+
+    if (indent === 2 && t.startsWith("- config:")){
+      dg = {config: t.split(":").slice(1).join(":").trim(), label: "", slots: [], keywords: {}};
+      out.digests.push(dg); slot = null; continue;
+    }
+    if (!dg) continue;
+    if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
+    if (indent === 4 && t === "slots:"){ dg._in = "slots"; continue; }
+    if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
+    if (dg._in === "slots" && t.startsWith("- slot:")){
+      slot = {slot: t.slice(7).trim(), title: "", send_at: "08:00", enabled: true, articles: 1, videos: 1};
+      dg.slots.push(slot); continue;
+    }
+    if (dg._in === "slots" && slot){
+      const [k, ...rest] = t.split(":");
+      const v = rest.join(":").trim();
+      if (k === "title") slot.title = unq(v);
+      else if (k === "send_at") slot.send_at = unq(v);
+      else if (k === "enabled") slot.enabled = v === "true";
+      else if (k === "articles") slot.articles = +v;
+      else if (k === "videos") slot.videos = +v;
+      continue;
+    }
+    if (dg._in === "keywords" && indent >= 6){
+      const i = t.lastIndexOf(":");
+      dg.keywords[unq(t.slice(0, i).trim())] = +t.slice(i + 1).trim();
+    }
+  }
+  out.digests.forEach(d => delete d._in);
+  return out;
+}
+const unq = s => (s.startsWith('"') && s.endsWith('"')) ? JSON.parse(s) : s;
+
+/* ---------- 렌더링 ---------- */
+function render(){
+  $("digests").innerHTML = data.digests.map((dg, di) => `
+    <div class="card">
+      <h2>${esc(dg.label)}</h2>
+      ${dg.slots.map((s, si) => `
+        <div class="slot">
+          <div class="row" style="justify-content:space-between">
+            <b>${esc(s.title)}</b>
+            <span class="toggle">
+              <input type="checkbox" ${s.enabled ? "checked" : ""}
+                     onchange="set(${di},${si},'enabled',this.checked)"> 발송
+            </span>
+          </div>
+          <div class="grid">
+            <div><label>시각</label>
+              <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)"></div>
+            <div><label>기사</label>
+              <input type="number" min="0" max="10" value="${s.articles}"
+                     onchange="set(${di},${si},'articles',+this.value)"></div>
+            <div><label>영상</label>
+              <input type="number" min="0" max="10" value="${s.videos}"
+                     onchange="set(${di},${si},'videos',+this.value)"></div>
+          </div>
+        </div>`).join("")}
+      <label style="margin-top:12px">키워드 — 숫자가 클수록 우선 선택됩니다</label>
+      <div class="chips">
+        ${Object.entries(dg.keywords).map(([k, v]) => `
+          <span class="chip">${esc(k)} <b>${v}</b>
+            <button onclick="delKeyword(${di},'${esc(k).replace(/'/g,"\\'")}')" aria-label="삭제">×</button>
+          </span>`).join("")}
+      </div>
+      <div class="add">
+        <input id="kw${di}" placeholder="키워드" enterkeyhint="done">
+        <input id="kwv${di}" type="number" min="1" max="5" value="2">
+        <button class="tiny" onclick="addKeyword(${di})">추가</button>
+      </div>
+    </div>`).join("");
+
+  $("excludeChips").innerHTML = data.exclude.map(w => `
+    <span class="chip">${esc(w)}
+      <button onclick="delExclude('${esc(w).replace(/'/g,"\\'")}')" aria-label="삭제">×</button>
+    </span>`).join("");
+}
+
+function set(di, si, key, val){ data.digests[di].slots[si][key] = val; }
+function addKeyword(di){
+  const k = $("kw" + di).value.trim(), v = +$("kwv" + di).value || 2;
+  if (!k) return;
+  data.digests[di].keywords[k] = v;
+  $("kw" + di).value = ""; render();
+}
+function delKeyword(di, k){ delete data.digests[di].keywords[k]; render(); }
+function addExclude(){
+  const w = $("excludeInput").value.trim();
+  if (!w || data.exclude.includes(w)) return;
+  data.exclude.push(w); $("excludeInput").value = ""; render();
+}
+function delExclude(w){ data.exclude = data.exclude.filter(x => x !== w); render(); }
+
+/* ---------- GitHub ---------- */
+const token = () => localStorage.getItem("gh_token") || "";
+function saveToken(){
+  localStorage.setItem("gh_token", $("token").value.trim());
+  $("token").value = "";
+  status("토큰을 이 기기에 저장했습니다.", "ok");
+}
+function clearToken(){ localStorage.removeItem("gh_token"); status("토큰을 지웠습니다.", "ok"); }
+
+async function load(){
+  status("불러오는 중…");
+  try{
+    const headers = {Accept: "application/vnd.github+json"};
+    if (token()) headers.Authorization = "Bearer " + token();
+    const r = await fetch(
+      `https://api.github.com/repos/${REPO}/contents/${FILE}?ref=${encodeURIComponent(BRANCH)}`,
+      {headers, cache: "no-store"});
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    const j = await r.json();
+    sha = j.sha;
+    data = fromYaml(decodeURIComponent(escape(atob(j.content.replace(/\n/g, "")))));
+    render();
+    status("불러왔습니다.", "ok");
+  }catch(e){ status("불러오지 못했습니다: " + e.message, "err"); }
+}
+
+async function save(){
+  if (!token()){ status("먼저 GitHub 토큰을 저장하세요.", "err"); return; }
+  status("저장하는 중…");
+  try{
+    const body = {
+      message: "설정 변경 (모바일 어드민)",
+      content: btoa(unescape(encodeURIComponent(toYaml(data)))),
+      sha, branch: BRANCH,
+    };
+    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${FILE}`, {
+      method: "PUT",
+      headers: {Authorization: "Bearer " + token(), Accept: "application/vnd.github+json"},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`${r.status} ${(await r.json()).message || r.statusText}`);
+    sha = (await r.json()).content.sha;
+    status("저장했습니다. 다음 발송부터 반영됩니다.", "ok");
+  }catch(e){ status("저장하지 못했습니다: " + e.message, "err"); }
+}
+
+load();
+</script>
+</body>
+</html>

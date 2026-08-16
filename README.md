@@ -189,6 +189,32 @@ echo "lifestyle:lunch" > .trigger && git commit -am "발송" && git push
 경로 필터가 걸려 있어 다른 파일만 바꾼 푸시로는 발송되지 않는다. 이 경로가
 필요 없으면 `digest.yml` 의 `push:` 블록을 지운다.
 
+## 모바일 어드민 페이지
+
+발송 시각·항목 수·키워드·제외어를 휴대폰에서 고친다. 채널 목록은
+`config*.yaml` 에 그대로 두고, 페이지는 `settings.yaml` 만 덮어쓴다.
+
+### 켜기 (한 번)
+
+1. 저장소 **Settings → Pages → Source: Deploy from a branch**
+   → 브랜치 선택, 폴더 **`/docs`** → Save
+2. 몇 분 뒤 `https://<사용자>.github.io/lookbook/` 접속
+3. 페이지 하단 **저장용 GitHub 토큰** 에 fine-grained PAT 입력
+   - 이 저장소 하나만, **Contents: Read and write** 권한만
+   - 브라우저 localStorage 에만 저장되고 커밋되지 않는다
+
+### 쓰기
+
+시각을 바꾸고 **저장** 을 누르면 `settings.yaml` 이 커밋되고, 다음 30분
+확인 때부터 반영된다. 키워드는 칩으로 추가·삭제하고 숫자가 가중치다.
+
+### 발송 시각이 데이터인 이유
+
+크론에 시각을 박아두면 페이지에서 바꿀 수 없다. 그래서 워크플로는
+30분마다 깨어나 `settings.yaml` 을 보고 **지금 보낼 회차가 있는지**만
+판단한다(`--due`). 이미 보낸 회차는 `state/schedule.json` 의 날짜로
+걸러지므로 중복 발송되지 않고, 크론이 밀려도 3시간 안이면 따라잡는다.
+
 ## 다이제스트 여러 개 운영하기
 
 설정 파일 하나가 다이제스트 하나다. 파이프라인·요약·썸네일은 공유하고

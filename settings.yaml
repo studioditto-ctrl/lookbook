@@ -1,0 +1,91 @@
+# 모바일 어드민 페이지가 소유하는 파일. 저장할 때 통째로 덮어쓴다.
+#
+# 채널 목록은 config*.yaml 에 그대로 두고, 여기서는 자주 바뀌는 것만 다룬다.
+# 발송 시간(KST), 항목 수, 키워드 가중치, 제외어.
+
+digests:
+  - config: config.yaml
+    label: 러닝
+    slots:
+      - slot: morning
+        title: "🏃 오늘 아침 러닝 브리핑"
+        send_at: "08:00"
+        enabled: true
+        articles: 3
+        videos: 2
+      - slot: evening
+        title: "🌙 퇴근길 러닝 브리핑"
+        send_at: "19:00"
+        enabled: true
+        articles: 1
+        videos: 4
+    keywords:
+      부상: 3
+      통증: 3
+      훈련: 2
+      루틴: 2
+      페이스: 2
+      기록: 2
+      마라톤: 2
+      러닝화: 2
+      스트레칭: 2
+      자세: 2
+      초보: 1
+      호흡: 1
+      injury: 3
+      training: 2
+      workout: 2
+      pace: 2
+      recovery: 2
+      shoes: 2
+      beginner: 1
+
+  - config: config.lifestyle.yaml
+    label: 패션·음식
+    slots:
+      - slot: lunch
+        title: "🍜 점심 뭐 먹지"
+        send_at: "12:30"
+        enabled: true
+        articles: 1
+        videos: 4
+      - slot: night
+        title: "👕 오늘의 스타일"
+        send_at: "21:30"
+        enabled: true
+        articles: 1
+        videos: 4
+    keywords:
+      코디: 3
+      스타일링: 3
+      맛집: 3
+      레시피: 3
+      룩북: 2
+      하울: 2
+      신상: 2
+      브랜드: 2
+      가성비: 2
+      존맛: 2
+      신메뉴: 2
+      와인: 2
+      페어링: 2
+      디저트: 1
+      후기: 1
+      추천: 1
+
+# 모든 다이제스트에 공통으로 적용되는 제외어
+exclude:
+  - 부고
+  - 채용
+  - 분양
+  - 협찬
+  - 광고
+  - 할인
+  - 특가
+  - 쿠폰
+  - sale
+  - deal
+  - discount
+  - coupon
+  - prime day
+  - black friday
