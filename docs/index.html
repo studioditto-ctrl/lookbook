@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <title>다이제스트 설정</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#f6f7f9; --card:#fff; --ink:#14171a; --muted:#667085; --line:#e4e7ec;
@@ -141,16 +142,9 @@
   <details class="card" id="advanced">
     <summary>고급 설정</summary>
 
-    <label style="margin-top:8px">내 구독 채널</label>
+    <label style="margin-top:8px">내 구독 채널 (Google Drive)</label>
     <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
-    <div class="note">
-      Google Takeout 의 <b>구독정보.csv</b> 를 고르세요. 이 브라우저에만 저장되고
-      저장소에는 올라가지 않습니다. 주제에 넣은 채널만 커밋됩니다.
-    </div>
-    <div class="row" style="margin-top:10px">
-      <input type="file" id="subsFile" accept=".csv,text/csv" onchange="loadSubs(this)">
-    </div>
-    <button class="tiny ghost" style="margin-top:8px" onclick="clearSubs()">지우기</button>
+    <div id="driveBox"></div>
 
     <label style="margin-top:18px">공통 제외어</label>
     <div class="sub">제목에 이 단어가 있으면 보내지 않습니다.</div>
@@ -476,6 +470,14 @@ function addExclude(){
 }
 function delExclude(w){ data.exclude = data.exclude.filter(x => x !== w); render(); touch(); }
 
+/* 주제 이름이 채널명에 들어 있으면 붙인다. 대소문자는 무시한다. */
+function matchChannels(label){
+  const needle = label.toLowerCase();
+  return subs.filter(s => s.title.toLowerCase().includes(needle))
+             .slice(0, 8)
+             .map(s => ({name: s.title, channel_id: s.id}));
+}
+
 function addTopic(){
   const label = $("newTopic").value.trim();
   if (!label) return;
@@ -486,53 +488,240 @@ function addTopic(){
              enabled: true, articles: 2, videos: 3}],
     keywords: {[label]: 3},
     queries: [{name: label, query: label}],
-    channels: subs.filter(s => s.title.includes(label)).slice(0, 8)
-                  .map(s => ({name: s.title, channel_id: s.id})),
+    channels: matchChannels(label),
   });
   $("newTopic").value = "";
+  open.add("d" + (data.digests.length - 1));   // 붙은 채널을 바로 볼 수 있게
   render(); touch();
-  toast(`'${esc(label)}' 주제를 만들었습니다. 아래에서 시각과 채널을 확인하세요.`, "busy");
+  const n = data.digests[data.digests.length - 1].channels.length;
+  toast(n
+    ? `'${esc(label)}' 주제를 만들고 구독 채널 ${n}개를 붙였습니다. 아래에서 확인하세요.`
+    : `'${esc(label)}' 주제를 만들었습니다. 이름이 맞는 구독 채널이 없어 검색어만 넣었습니다.`,
+    "busy");
 }
 
-/* ---------- 구독 채널 (브라우저에만 보관) ---------- */
+/* ---------- 구독 채널 — Google Drive 에서 읽어 이 브라우저에만 보관 ---------- */
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 let subs = JSON.parse(localStorage.getItem("subs") || "[]");
+let subsMeta = JSON.parse(localStorage.getItem("subs_meta") || "null");
+let gToken = null, gTokenAt = 0;
 
 function subsInfo(){
-  $("subsInfo").textContent = subs.length
-    ? `${subs.length}개 채널을 이 브라우저에 보관 중입니다.`
+  const el = $("subsInfo");
+  if (!el) return;
+  el.textContent = subs.length
+    ? `${subs.length}개 채널 · ${subsMeta ? subsMeta.name : "출처 미상"}`
+      + (subsMeta ? ` (${new Date(subsMeta.at).toLocaleString("ko-KR")})` : "")
     : "아직 불러오지 않았습니다.";
 }
-function loadSubs(input){
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const lines = reader.result.split(/\r?\n/).filter(Boolean);
-    const parsed = [];
-    for (const line of lines.slice(1)){
-      const cols = line.split(",");
-      if (cols.length < 3) continue;
-      const id = cols[0].trim();
-      const title = cols.slice(2).join(",").trim();
-      if (/^UC[\w-]{22}$/.test(id) && title) parsed.push({id, title});
-    }
-    if (!parsed.length){ toast("채널을 찾지 못했습니다. 구독정보.csv 가 맞는지 확인하세요.", "err"); return; }
-    subs = parsed;
-    localStorage.setItem("subs", JSON.stringify(subs));
-    subsInfo();
-    toast(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
-  };
-  reader.readAsText(file, "utf-8");
+
+function renderDrive(){
+  const cid = localStorage.getItem("g_client_id");
+  $("driveBox").innerHTML = !cid ? `
+    <div class="note">
+      Drive 에서 바로 읽으려면 구글 OAuth <b>클라이언트 ID</b> 가 한 번 필요합니다.
+      비밀값이 아니라 이 기기에만 둡니다.
+      <ol style="margin:8px 0 0; padding-left:18px">
+        <li><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com"
+               target="_blank" rel="noopener" style="color:var(--accent)">Drive API 사용 설정</a></li>
+        <li><a href="https://console.cloud.google.com/apis/credentials/oauthclient"
+               target="_blank" rel="noopener" style="color:var(--accent)">OAuth 클라이언트 ID 만들기</a>
+            → 유형 <b>웹 애플리케이션</b></li>
+        <li>승인된 자바스크립트 출처에 <b>${location.origin}</b> 추가</li>
+      </ol>
+    </div>
+    <div class="add">
+      <input id="gcid" placeholder="....apps.googleusercontent.com" enterkeyhint="done"
+             autocapitalize="off" autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();saveClientId()}">
+      <button class="tiny primary" onclick="saveClientId()">저장</button>
+    </div>` : `
+    <div class="duo" style="margin-top:10px">
+      <button class="tiny primary" onclick="driveOpen()">Drive 에서 고르기</button>
+      <button class="tiny" onclick="driveResync()" ${subsMeta ? "" : "disabled"}>다시 동기화</button>
+    </div>
+    <div class="chips" id="driveList"></div>
+    <div class="duo" style="margin-top:10px">
+      <button class="tiny ghost" onclick="clearSubs()">목록 지우기</button>
+      <button class="tiny ghost" onclick="clearClientId()">클라이언트 ID 바꾸기</button>
+    </div>
+    <div class="note">
+      읽기 전용으로 연결하고, 받은 목록은 이 브라우저에만 둡니다.
+      저장소는 공개라 주제에 실제로 넣은 채널만 커밋됩니다.
+    </div>`;
+  subsInfo();
 }
+function saveClientId(){
+  const v = ($("gcid") || {}).value?.trim();
+  if (!v){ toast("클라이언트 ID 를 붙여넣어 주세요.", "err"); return; }
+  localStorage.setItem("g_client_id", v); renderDrive();
+  toast("저장했습니다. 'Drive 에서 고르기' 를 눌러주세요.", "ok");
+}
+function clearClientId(){
+  localStorage.removeItem("g_client_id"); gToken = null; renderDrive();
+}
+
+/* 구글 토큰. 한 번 허락하면 다음부터는 창 없이 조용히 받아온다. */
+function googleToken(interactive){
+  return new Promise((resolve, reject) => {
+    if (gToken && Date.now() - gTokenAt < 50 * 60 * 1000) return resolve(gToken);
+    const oauth = window.google && google.accounts && google.accounts.oauth2;
+    if (!oauth) return reject(new Error("구글 스크립트를 불러오지 못했습니다. 새로고침해 주세요."));
+    const client_id = localStorage.getItem("g_client_id");
+    if (!client_id) return reject(new Error("먼저 클라이언트 ID 를 넣어주세요."));
+    oauth.initTokenClient({
+      client_id, scope: DRIVE_SCOPE,
+      callback: r => {
+        if (!r || !r.access_token) return reject(new Error(r && r.error || "권한을 받지 못했습니다."));
+        gToken = r.access_token; gTokenAt = Date.now();
+        resolve(gToken);
+      },
+      error_callback: e => reject(new Error((e && e.type) === "popup_closed"
+        ? "창을 닫았습니다." : "권한 요청이 막혔습니다. 팝업 차단을 풀어주세요.")),
+    }).requestAccessToken({prompt: interactive ? "consent" : ""});
+  });
+}
+async function drive(path){
+  const r = await fetch("https://www.googleapis.com/drive/v3/" + path,
+                        {headers: {Authorization: "Bearer " + gToken}});
+  if (!r.ok){
+    const j = await r.json().catch(() => ({}));
+    throw new Error(`${r.status} ${(j.error && j.error.message) || r.statusText}`);
+  }
+  return r;
+}
+
+/* Takeout 은 zip 으로도, 풀어놓은 csv 로도 있을 수 있어 둘 다 받는다 */
+const DRIVE_Q = "trashed=false and (mimeType='text/csv' or mimeType='application/zip'"
+  + " or mimeType='application/x-zip-compressed'"
+  + " or mimeType='application/vnd.google-apps.spreadsheet')";
+
+async function driveOpen(){
+  try{
+    toast("구글 계정에 연결하는 중…", "busy");
+    await googleToken(false);
+    toast("Drive 를 찾는 중…", "busy");
+    const r = await drive("files?" + new URLSearchParams({
+      q: DRIVE_Q, orderBy: "modifiedTime desc", pageSize: "25",
+      fields: "files(id,name,mimeType,modifiedTime)",
+    }));
+    const files = (await r.json()).files || [];
+    if (!files.length){ toast("Drive 에서 csv·zip 파일을 찾지 못했습니다.", "err"); return; }
+    $("driveList").innerHTML = files.map(f => `
+      <span class="chip plain"><button style="width:auto;padding:0;font-size:14px;color:var(--accent)"
+        onclick="drivePick('${f.id}','${esc(f.name).replace(/'/g, "&#39;")}','${f.mimeType}')"
+        >${esc(f.name)}</button></span>`).join("");
+    toast("불러올 파일을 골라주세요.", "ok");
+  }catch(e){ toast("Drive 를 열지 못했습니다: " + esc(e.message), "err", true); }
+}
+
+async function drivePick(id, name, mimeType){
+  try{
+    toast(`${esc(name)} 을(를) 읽는 중…`, "busy");
+    const text = await driveText(id, name, mimeType);
+    useSubs(text, {id, name, mimeType});
+    $("driveList").innerHTML = "";
+  }catch(e){ toast("읽지 못했습니다: " + esc(e.message), "err", true); }
+}
+async function driveResync(){
+  if (!subsMeta) return;
+  try{
+    toast("다시 동기화하는 중…", "busy");
+    await googleToken(false);
+    const text = await driveText(subsMeta.id, subsMeta.name, subsMeta.mimeType);
+    useSubs(text, subsMeta);
+  }catch(e){ toast("동기화하지 못했습니다: " + esc(e.message), "err", true); }
+}
+
+async function driveText(id, name, mimeType){
+  if (mimeType === "application/vnd.google-apps.spreadsheet"){
+    const r = await drive(`files/${id}/export?mimeType=text/csv`);
+    return r.text();
+  }
+  const r = await drive(`files/${id}?alt=media`);
+  const buf = await r.arrayBuffer();
+  const zip = /\.zip$/i.test(name) || mimeType.includes("zip");
+  return zip ? unzipSubscriptions(buf) : new TextDecoder("utf-8").decode(buf);
+}
+
+function useSubs(text, meta){
+  const parsed = parseSubs(text);
+  if (!parsed.length){
+    toast("채널을 찾지 못했습니다. 유튜브 구독정보가 든 파일이 맞는지 확인해 주세요.", "err", true);
+    return;
+  }
+  subs = parsed;
+  subsMeta = {id: meta.id, name: meta.name, mimeType: meta.mimeType, at: Date.now()};
+  localStorage.setItem("subs", JSON.stringify(subs));
+  localStorage.setItem("subs_meta", JSON.stringify(subsMeta));
+  renderDrive();
+  toast(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
+}
+
+/* 채널 ID 열의 자리가 언어판마다 달라 값으로 찾는다 */
+function parseSubs(text){
+  const out = [], seen = new Set();
+  for (const line of text.split(/\r?\n/)){
+    if (!line.trim()) continue;
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    const id = cols.find(c => /^UC[\w-]{22}$/.test(c));
+    if (!id || seen.has(id)) continue;
+    const title = cols.filter(c => c !== id && c && !/^https?:/i.test(c)).pop();
+    if (!title) continue;
+    seen.add(id); out.push({id, title});
+  }
+  return out;
+}
+
+/* zip 안의 구독정보 csv 하나만 꺼낸다. 라이브러리 없이 중앙 디렉터리를 읽는다. */
+async function unzipSubscriptions(buf){
+  const view = new DataView(buf), u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--){
+    if (view.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("zip 을 읽지 못했습니다.");
+  const count = view.getUint16(eocd + 10, true);
+  let off = view.getUint32(eocd + 16, true);
+  if (off === 0xffffffff) throw new Error("4GB 가 넘는 zip 은 못 읽습니다. csv 만 따로 올려주세요.");
+
+  const dec = new TextDecoder("utf-8");
+  for (let n = 0; n < count; n++){
+    if (view.getUint32(off, true) !== 0x02014b50) break;
+    const method = view.getUint16(off + 10, true);
+    const csize  = view.getUint32(off + 20, true);
+    const nameLen = view.getUint16(off + 28, true);
+    const extraLen = view.getUint16(off + 30, true);
+    const cmtLen = view.getUint16(off + 32, true);
+    const local = view.getUint32(off + 42, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nameLen));
+
+    if (/\.csv$/i.test(name) && /(subscriptions|구독)/i.test(name)){
+      const lNameLen = view.getUint16(local + 26, true);
+      const lExtraLen = view.getUint16(local + 28, true);
+      const start = local + 30 + lNameLen + lExtraLen;
+      const data = u8.subarray(start, start + csize);
+      if (method === 0) return dec.decode(data);
+      if (method !== 8) throw new Error("이 zip 의 압축 방식은 못 풉니다.");
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return new Response(stream).text();
+    }
+    off += 46 + nameLen + extraLen + cmtLen;
+  }
+  throw new Error("zip 안에서 구독정보 csv 를 찾지 못했습니다.");
+}
+
 function clearSubs(){
-  subs = []; localStorage.removeItem("subs"); subsInfo();
+  subs = []; subsMeta = null;
+  localStorage.removeItem("subs"); localStorage.removeItem("subs_meta");
+  renderDrive();
   toast("구독 목록을 지웠습니다.", "ok");
 }
 function searchSubs(di){
   const needle = $("cs" + di).value.trim().toLowerCase();
   const box = $("cr" + di);
   if (!needle){ box.innerHTML = ""; return; }
-  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 고급 설정에서 구독 CSV 를 불러오세요.</span>'; return; }
+  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 고급 설정에서 Drive 구독 목록을 불러오세요.</span>'; return; }
   const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
   const hits = subs.filter(s => s.title.toLowerCase().includes(needle) && !taken.has(s.id)).slice(0, 12);
   box.innerHTML = hits.length
@@ -802,7 +991,7 @@ async function testSend(di, si){
 addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
 
 renderToken();
-subsInfo();
+renderDrive();
 showState();
 load();
 </script>
