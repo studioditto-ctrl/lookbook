@@ -1,7 +1,5 @@
-# 모바일 어드민 페이지가 소유하는 파일. 저장할 때 통째로 덮어쓴다.
-#
-# 채널 목록은 config*.yaml 에 그대로 두고, 여기서는 자주 바뀌는 것만 다룬다.
-# 발송 시간(KST), 항목 수, 키워드 가중치, 제외어.
+# 모바일 어드민 페이지가 저장한 파일입니다.
+# 채널 목록은 config*.yaml 에 있습니다.
 
 digests:
   - config: config.yaml
@@ -33,7 +31,6 @@ digests:
       recovery: 2
       shoes: 2
       beginner: 1
-
   - config: config.food.yaml
     label: 음식
     slots:
@@ -52,7 +49,6 @@ digests:
       페어링: 2
       디저트: 1
       후기: 1
-
   - config: config.fashion.yaml
     label: 패션
     slots:
@@ -71,8 +67,21 @@ digests:
       브랜드: 2
       가성비: 2
       추천: 1
+  - key: tmsvw38ie
+    label: IT
+    slots:
+      - slot: daily
+        title: "IT 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      IT: 3
+    queries:
+      - name: IT
+        query: "IT"
 
-# 모든 다이제스트에 공통으로 적용되는 제외어
 exclude:
   - 부고
   - 채용
