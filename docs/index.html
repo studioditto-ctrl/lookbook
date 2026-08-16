@@ -585,35 +585,94 @@ async function putFile(path, text, shaRef, message){
   return r.json();
 }
 
-/* 401·403 이 왜 났는지 토큰에 직접 물어본다. 화면에 답을 적어주기 위함. */
-async function tokenTrouble(){
+/* GET /repos 의 permissions 는 '내가' 이 저장소에 갖는 권한이라 토큰이 무엇을
+   받았는지는 알려주지 않는다. 공개 저장소라 읽기는 누구나 되므로, 토큰이
+   무엇을 못 하는지 확인할 수 있는 건 계정뿐이다. 나머지는 짚어만 준다. */
+const OWNER = REPO.split("/")[0];
+let authProblem = null;
+
+async function tokenOwner(){
   try{
-    const r = await fetch(`https://api.github.com/repos/${REPO}`, {headers: headers()});
-    if (r.status === 401)
-      return {ok: false, text: "토큰이 만료됐거나 잘못됐습니다. 새로 발급해 다시 넣어주세요."};
-    if (r.status === 404)
-      return {ok: false, text: `이 토큰은 ${REPO} 에 접근할 수 없습니다. 토큰 설정의 `
-        + "<b>Repository access</b> 에서 이 저장소를 골라주세요."};
-    if (!r.ok)
-      return {ok: false, text: `저장소를 확인하지 못했습니다 (${r.status}).`};
-    const j = await r.json();
-    if (!j.permissions || !j.permissions.push)
-      return {ok: false, text: "토큰에 쓰기 권한이 없습니다. 토큰 설정의 "
-        + "<b>Repository permissions → Contents</b> 를 <b>Read and write</b> 로 바꿔주세요. "
-        + "(Read-only 로는 저장되지 않습니다)"};
-    return {ok: true, text: "토큰 정상 — 이 저장소에 쓸 수 있습니다."};
-  }catch(e){ return {ok: false, text: "확인하지 못했습니다: " + e.message}; }
+    const r = await fetch("https://api.github.com/user", {headers: headers()});
+    if (r.status === 401) return {bad: "토큰이 만료됐거나 잘못됐습니다. 새로 발급해 넣어주세요."};
+    if (!r.ok) return {bad: `계정을 확인하지 못했습니다 (${r.status}).`};
+    return {login: (await r.json()).login};
+  }catch(e){ return {bad: "계정을 확인하지 못했습니다: " + e.message}; }
 }
+
+/* 403 은 fine-grained 토큰이 이 저장소에 대해 Contents 쓰기를 못 받았다는 뜻이다.
+   원인이 두 가지뿐이라 둘 다 짚어주고, 계정만 실제로 확인해 준다. */
+async function showAuthProblem(detail){
+  const who = await tokenOwner();
+  authProblem = {
+    detail,
+    account: who.bad
+      ? {bad: true, text: who.bad}
+      : who.login === OWNER
+        ? {bad: false, text: `토큰 계정 ${who.login} — 저장소 주인과 같습니다.`}
+        : {bad: true, text: `토큰이 <b>${esc(who.login)}</b> 계정 것입니다. `
+            + `${esc(OWNER)} 계정으로 다시 발급해 주세요.`},
+  };
+  renderToken();
+}
+function clearAuthProblem(){ if (authProblem){ authProblem = null; renderToken(); } }
 
 async function checkToken(){
   if (!token()){ toast("먼저 토큰을 넣어주세요.", "err"); return; }
   toast("토큰을 확인하는 중…", "busy");
-  const r = await tokenTrouble();
-  toast(r.text, r.ok ? "ok" : "err", !r.ok);
+  const who = await tokenOwner();
+  if (who.bad){ await showAuthProblem(who.bad); toast(who.bad, "err", true); return; }
+  if (who.login !== OWNER){
+    await showAuthProblem("토큰 계정이 저장소 주인과 다릅니다.");
+    toast(`토큰이 ${esc(who.login)} 계정 것입니다.`, "err", true);
+    return;
+  }
+  // 쓰기 권한은 실제로 써 봐야만 알 수 있다 — 내용을 그대로 다시 올려 확인한다.
+  try{
+    const cur = await getFile(FILE);
+    const r = await putFile(FILE, dec(cur.content), cur.sha, "설정 확인 (모바일 어드민)");
+    sha = r.content.sha;
+    clearAuthProblem();
+    toast("토큰 정상 — 방금 실제로 써 봤고 됩니다.", "ok");
+  }catch(e){
+    await showAuthProblem(`${e.status || ""} ${e.message}`.trim());
+    toast("쓰지 못했습니다. 아래 안내를 확인해 주세요.", "err");
+  }
+}
+
+function authProblemCard(){
+  const a = authProblem;
+  return `
+    <div class="card" style="border-color:var(--danger)">
+      <h2 style="color:var(--danger)">저장 권한이 없습니다</h2>
+      <div class="sub">${esc(a.detail)}</div>
+      <div class="note" style="color:${a.account.bad ? "var(--danger)" : "var(--ok)"}">
+        ${a.account.bad ? "⚠" : "✓"} ${a.account.text}
+      </div>
+      <div class="note">
+        읽기는 공개 저장소라 토큰 없이도 됩니다. 그래서 화면은 멀쩡히 보이다가
+        저장할 때 처음 막힙니다. 토큰 설정에서 <b>둘 다</b> 확인해 주세요.
+        <ol style="margin:8px 0 0; padding-left:18px">
+          <li><b>Repository access</b> → Only select repositories 에
+              <b>${esc(REPO)}</b> 가 들어 있는지</li>
+          <li><b>Repository permissions → Contents</b> 가
+              <b>Read and write</b> 인지 (Read-only 면 저장되지 않습니다)</li>
+        </ol>
+        고친 뒤 <b>Update</b> 를 눌러야 적용됩니다. 새 토큰을 만들 필요는 없습니다.
+      </div>
+      <a class="note" style="display:block;color:var(--accent)"
+         href="https://github.com/settings/personal-access-tokens" target="_blank"
+         rel="noopener">내 토큰 목록 열기 →</a>
+      <div class="duo" style="margin-top:12px">
+        <button class="tiny" onclick="checkToken()">고쳤어요, 다시 확인</button>
+        <button class="tiny ghost" onclick="clearToken()">다른 토큰 넣기</button>
+      </div>
+    </div>`;
 }
 
 function renderToken(){
   const has = !!token();
+  if (has && authProblem){ $("tokenCard").innerHTML = authProblemCard(); return; }
   $("tokenCard").innerHTML = has ? `
     <div class="card" style="padding:10px 14px">
       <div class="row" style="justify-content:space-between">
@@ -652,7 +711,7 @@ function saveToken(){
   if (dirty) save();
 }
 function clearToken(){
-  localStorage.removeItem("gh_token"); renderToken();
+  localStorage.removeItem("gh_token"); authProblem = null; renderToken();
   toast("토큰을 지웠습니다.", "ok");
 }
 
@@ -704,15 +763,20 @@ async function save(){
     sha = r.content.sha;
     dirty = false; savedAt = new Date();
     localStorage.removeItem(DRAFT);
+    clearAuthProblem();
     toast("저장했습니다. 다음 발송부터 반영됩니다.", "ok");
     return true;
   }catch(e){
     // 고친 값은 DRAFT 에 남아 있다. 새로고침해도 되살아난다.
-    let why = "";
-    if (e.status === 401 || e.status === 403) why = " — " + (await tokenTrouble()).text;
-    toast(`저장하지 못했습니다 (${esc(e.message)})${why}
-           <div style="margin-top:6px"><a href="#" onclick="save();return false">다시 시도</a>
-           — 고친 값은 이 기기에 남아 있으니 없어지지 않습니다.</div>`, "err", true);
+    if (e.status === 401 || e.status === 403){
+      await showAuthProblem(e.message);
+      toast(`저장하지 못했습니다 — 맨 위 안내를 봐주세요.
+             고친 값은 이 기기에 남아 있으니 없어지지 않습니다.`, "err", true);
+    } else {
+      toast(`저장하지 못했습니다 (${esc(e.message)})
+             <div style="margin-top:6px"><a href="#" onclick="save();return false">다시 시도</a>
+             — 고친 값은 이 기기에 남아 있으니 없어지지 않습니다.</div>`, "err", true);
+    }
     return false;
   }finally{ saving = false; showState(); }
 }

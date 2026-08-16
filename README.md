@@ -327,22 +327,28 @@ slots:
 
 **어드민 페이지에서 `저장하지 못했습니다 403`**
 
-토큰은 살아 있는데 쓸 권한이 없다는 뜻이다. 거의 항상 fine-grained PAT 의
-**Repository permissions → Contents** 가 `Read-only` 로 되어 있는 경우다.
-`Read and write` 로 바꾸면 된다. 읽기는 공개 저장소라 토큰 없이도 되기
-때문에, 화면이 정상으로 보이다가 저장할 때 처음 막힌다.
+`Resource not accessible by personal access token` — fine-grained PAT 가 이
+저장소에 대해 Contents 쓰기를 못 받았다는 뜻이다. 원인은 둘 중 하나다.
 
-페이지의 **점검** 버튼이 토큰에 직접 물어보고 뭐가 빠졌는지 알려준다.
+1. **Repository access** 의 Only select repositories 목록에 이 저장소가 없다
+2. **Repository permissions → Contents** 가 `Read-only` 다
+
+읽기는 공개 저장소라 토큰 없이도 되기 때문에, 화면은 정상으로 보이다가
+저장할 때 처음 막힌다. 고친 뒤 **Update** 를 누르면 되고 새 토큰을 만들
+필요는 없다.
+
+`GET /repos/{owner}/{repo}` 의 `permissions.push` 로는 판별할 수 없다.
+그 값은 **토큰이 아니라 사용자가** 저장소에 갖는 권한이라, 본인 저장소면
+언제나 `true` 다. 페이지의 **점검** 버튼은 그래서 같은 내용을 그대로 다시
+올려보는 식으로 확인한다 — 실제로 써 봐야만 알 수 있다.
 
 | 응답 | 뜻 | 할 일 |
 |---|---|---|
 | 401 | 토큰 만료·오타 | 새로 발급해 다시 입력 |
-| 403 | 쓰기 권한 없음 | Contents 를 Read and write 로 |
-| 404 | 이 저장소에 접근 불가 | Repository access 에서 저장소 선택 |
+| 403 | 이 저장소에 대한 Contents 쓰기 없음 | 위 1·2 확인 |
 
-저장에 실패해도 고친 값은 브라우저에 남는다. 권한을 고치고 **다시 시도**
-를 누르거나, 새로고침하면 되살아난다.
-
+저장에 실패해도 고친 값은 브라우저에 남는다. 권한을 고치고 **다시 확인**
+을 누르거나, 새로고침하면 되살아난다.
 
 **`TELEGRAM_BOT_TOKEN 이 설정되어 있지 않습니다`**
 
