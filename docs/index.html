@@ -176,6 +176,8 @@ const REPO = "studioditto-ctrl/lookbook";
 const BRANCH = "claude/running-news-telegram-delivery-hgx53y";
 const FILE = "settings.yaml";
 const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
+// 저장에 실패해도 고친 값을 잃지 않도록 이 기기에 남겨둔다
+const DRAFT = "settings_draft";
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -210,8 +212,13 @@ function showState(){
 /* 어떤 값이든 바뀌면 곧바로 저장까지 간다 — 저장 버튼을 안 눌러도 반영된다 */
 function touch(){
   dirty = true; showState();
+  try{ localStorage.setItem(DRAFT, toYaml(data)); }catch(e){ /* 용량 초과는 무시 */ }
   clearTimeout(timer);
   timer = setTimeout(() => save(), 1200);
+}
+function discardDraft(){
+  localStorage.removeItem(DRAFT); dirty = false;
+  load();
 }
 
 /* ---------- YAML (이 파일의 구조에 한정한 최소 구현) ---------- */
@@ -578,13 +585,43 @@ async function putFile(path, text, shaRef, message){
   return r.json();
 }
 
+/* 401·403 이 왜 났는지 토큰에 직접 물어본다. 화면에 답을 적어주기 위함. */
+async function tokenTrouble(){
+  try{
+    const r = await fetch(`https://api.github.com/repos/${REPO}`, {headers: headers()});
+    if (r.status === 401)
+      return {ok: false, text: "토큰이 만료됐거나 잘못됐습니다. 새로 발급해 다시 넣어주세요."};
+    if (r.status === 404)
+      return {ok: false, text: `이 토큰은 ${REPO} 에 접근할 수 없습니다. 토큰 설정의 `
+        + "<b>Repository access</b> 에서 이 저장소를 골라주세요."};
+    if (!r.ok)
+      return {ok: false, text: `저장소를 확인하지 못했습니다 (${r.status}).`};
+    const j = await r.json();
+    if (!j.permissions || !j.permissions.push)
+      return {ok: false, text: "토큰에 쓰기 권한이 없습니다. 토큰 설정의 "
+        + "<b>Repository permissions → Contents</b> 를 <b>Read and write</b> 로 바꿔주세요. "
+        + "(Read-only 로는 저장되지 않습니다)"};
+    return {ok: true, text: "토큰 정상 — 이 저장소에 쓸 수 있습니다."};
+  }catch(e){ return {ok: false, text: "확인하지 못했습니다: " + e.message}; }
+}
+
+async function checkToken(){
+  if (!token()){ toast("먼저 토큰을 넣어주세요.", "err"); return; }
+  toast("토큰을 확인하는 중…", "busy");
+  const r = await tokenTrouble();
+  toast(r.text, r.ok ? "ok" : "err", !r.ok);
+}
+
 function renderToken(){
   const has = !!token();
   $("tokenCard").innerHTML = has ? `
     <div class="card" style="padding:10px 14px">
       <div class="row" style="justify-content:space-between">
         <span class="sub" style="color:var(--ok)">✓ GitHub 토큰 등록됨</span>
-        <button class="tiny ghost" onclick="clearToken()">지우기</button>
+        <span class="row" style="gap:6px">
+          <button class="tiny ghost" onclick="checkToken()">점검</button>
+          <button class="tiny ghost" onclick="clearToken()">지우기</button>
+        </span>
       </div>
     </div>` : `
     <div class="card" style="border-color:var(--accent)">
@@ -599,7 +636,9 @@ function renderToken(){
       <div class="note">
         <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
            rel="noopener" style="color:var(--accent)">토큰 만들러 가기 →</a><br>
-        Repository access 는 <b>이 저장소만</b>, 권한은 <b>Contents: Read and write</b> 하나면 됩니다.
+        Repository access 는 <b>Only select repositories → ${REPO}</b>,<br>
+        Repository permissions 의 <b>Contents</b> 를 <b>Read and write</b> 로.
+        (Read-only 면 저장할 때 403 이 납니다)
       </div>
     </div>`;
 }
@@ -625,7 +664,19 @@ async function load(){
     if (!j) throw new Error("settings.yaml 이 없습니다.");
     sha = j.sha;
     data = fromYaml(dec(j.content));
-    dirty = false; savedAt = null; loadedAt = new Date();
+    loadedAt = new Date(); savedAt = null;
+
+    const draft = localStorage.getItem(DRAFT);
+    if (draft && draft !== toYaml(data)){
+      data = fromYaml(draft);
+      dirty = true;
+      render(); showState();
+      toast(`저장하지 못한 변경이 남아 있어 되살렸습니다.
+             <a href="#" onclick="save();return false">지금 저장</a> ·
+             <a href="#" onclick="discardDraft();return false">버리고 서버 값 쓰기</a>`, "err", true);
+      return;
+    }
+    dirty = false;
     render(); showState();
     toast("최신 설정을 불러왔습니다.", "ok");
   }catch(e){ toast("불러오지 못했습니다: " + esc(e.message), "err"); showState(); }
@@ -652,10 +703,16 @@ async function save(){
     }
     sha = r.content.sha;
     dirty = false; savedAt = new Date();
+    localStorage.removeItem(DRAFT);
     toast("저장했습니다. 다음 발송부터 반영됩니다.", "ok");
     return true;
   }catch(e){
-    toast("저장하지 못했습니다: " + esc(e.message), "err");
+    // 고친 값은 DRAFT 에 남아 있다. 새로고침해도 되살아난다.
+    let why = "";
+    if (e.status === 401 || e.status === 403) why = " — " + (await tokenTrouble()).text;
+    toast(`저장하지 못했습니다 (${esc(e.message)})${why}
+           <div style="margin-top:6px"><a href="#" onclick="save();return false">다시 시도</a>
+           — 고친 값은 이 기기에 남아 있으니 없어지지 않습니다.</div>`, "err", true);
     return false;
   }finally{ saving = false; showState(); }
 }
