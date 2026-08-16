@@ -87,6 +87,28 @@
   <div id="digests"></div>
 
   <div class="card">
+    <h2>새 주제 추가</h2>
+    <div class="sub">키워드를 넣으면 그 말로 인터넷을 검색하고, 구독 채널에서도 찾아 붙입니다.</div>
+    <div class="add" style="margin-top:10px">
+      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done">
+      <button class="tiny primary" onclick="addTopic()">만들기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>내 구독 채널</h2>
+    <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
+    <div class="note">
+      Google Takeout 의 <b>구독정보.csv</b> 를 고르세요. 이 브라우저에만 저장되고
+      저장소에는 올라가지 않습니다. 주제에 넣은 채널만 커밋됩니다.
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="file" id="subsFile" accept=".csv,text/csv" onchange="loadSubs(this)">
+    </div>
+    <button class="tiny ghost" onclick="clearSubs()">지우기</button>
+  </div>
+
+  <div class="card">
     <h2>공통 제외어</h2>
     <div class="sub">제목에 이 단어가 있으면 보내지 않습니다.</div>
     <div class="chips" id="excludeChips"></div>
@@ -140,7 +162,9 @@ function toYaml(d){
   let out = "# 모바일 어드민 페이지가 저장한 파일입니다.\n";
   out += "# 채널 목록은 config*.yaml 에 있습니다.\n\ndigests:\n";
   for (const dg of d.digests){
-    out += `  - config: ${dg.config}\n    label: ${quote(dg.label)}\n    slots:\n`;
+    out += "  - " + (dg.config ? `config: ${dg.config}\n` : `key: ${quote(dg.key)}\n`);
+    if (dg.config && dg.key) out += `    key: ${quote(dg.key)}\n`;
+    out += `    label: ${quote(dg.label)}\n    slots:\n`;
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
       out += `        title: ${JSON.stringify(s.title)}\n`;
@@ -150,6 +174,20 @@ function toYaml(d){
     }
     out += "    keywords:\n";
     for (const [k, v] of Object.entries(dg.keywords)) out += `      ${quote(k)}: ${v}\n`;
+    if ((dg.queries || []).length){
+      out += "    queries:\n";
+      for (const q of dg.queries){
+        out += `      - name: ${quote(q.name)}\n        query: ${JSON.stringify(q.query)}\n`;
+        if (q.tags && q.tags.length) out += `        tags: [${q.tags.join(", ")}]\n`;
+      }
+    }
+    if ((dg.channels || []).length){
+      out += "    channels:\n";
+      for (const c of dg.channels){
+        out += `      - name: ${quote(c.name)}\n        channel_id: ${c.channel_id}\n`;
+        if (c.tags && c.tags.length) out += `        tags: [${c.tags.join(", ")}]\n`;
+      }
+    }
   }
   out += "\nexclude:\n";
   for (const w of d.exclude) out += `  - ${quote(w)}\n`;
@@ -169,14 +207,30 @@ function fromYaml(text){
     if (mode === "exclude" && t.startsWith("- ")){ out.exclude.push(unq(t.slice(2))); continue; }
     if (mode !== "digests") continue;
 
-    if (indent === 2 && t.startsWith("- config:")){
-      dg = {config: t.split(":").slice(1).join(":").trim(), label: "", slots: [], keywords: {}};
+    if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){
+      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: []};
+      const [k, ...rest] = t.slice(2).split(":");
+      dg[k.trim()] = unq(rest.join(":").trim());
       out.digests.push(dg); slot = null; continue;
     }
     if (!dg) continue;
+    if (indent === 4 && t.startsWith("key:")){ dg.key = unq(t.slice(4).trim()); continue; }
     if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
     if (indent === 4 && t === "slots:"){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
+    if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
+    if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
+    if (dg._in === "queries" || dg._in === "channels"){
+      const list = dg._in === "queries" ? dg.queries : dg.channels;
+      if (t.startsWith("- name:")){ list.push({name: unq(t.slice(7).trim())}); continue; }
+      const cur = list[list.length - 1];
+      if (!cur) continue;
+      const [k, ...rest] = t.split(":");
+      const v = rest.join(":").trim();
+      if (k === "tags") cur.tags = v.replace(/[\[\]]/g, "").split(",").map(x => x.trim()).filter(Boolean);
+      else cur[k.trim()] = unq(v);
+      continue;
+    }
     if (dg._in === "slots" && t.startsWith("- slot:")){
       slot = {slot: t.slice(7).trim(), title: "", send_at: "08:00", enabled: true, articles: 1, videos: 1};
       dg.slots.push(slot); continue;
@@ -238,6 +292,32 @@ function render(){
         <input id="kwv${di}" type="number" min="1" max="5" value="2">
         <button class="tiny" onclick="addKeyword(${di})">추가</button>
       </div>
+
+      <details style="margin-top:12px">
+        <summary>인터넷 검색어 ${(dg.queries || []).length}개 · 채널 ${(dg.channels || []).length}개</summary>
+        <label style="margin-top:10px">검색어 — 구글 뉴스에서 이 말로 찾습니다</label>
+        <div class="chips">
+          ${(dg.queries || []).map((q, qi) => `
+            <span class="chip">${esc(q.query)}
+              <button onclick="delQuery(${di},${qi})" aria-label="삭제">×</button></span>`).join("") || '<span class="sub">없음</span>'}
+        </div>
+        <div class="add">
+          <input id="q${di}" placeholder="예: 스페셜티 커피" enterkeyhint="done">
+          <button class="tiny" onclick="addQuery(${di})">추가</button>
+        </div>
+
+        <label style="margin-top:12px">유튜브 채널</label>
+        <div class="chips">
+          ${(dg.channels || []).map((c, ci) => `
+            <span class="chip">${esc(c.name)}
+              <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("") || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+        </div>
+        <div class="add">
+          <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
+                 oninput="searchSubs(${di})" enterkeyhint="search">
+        </div>
+        <div class="chips" id="cr${di}"></div>
+      </details>
     </div>`).join("");
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
@@ -260,6 +340,84 @@ function addExclude(){
   data.exclude.push(w); $("excludeInput").value = ""; render();
 }
 function delExclude(w){ data.exclude = data.exclude.filter(x => x !== w); render(); }
+
+/* ---------- 구독 채널 (브라우저에만 보관) ---------- */
+let subs = JSON.parse(localStorage.getItem("subs") || "[]");
+
+function subsInfo(){
+  $("subsInfo").textContent = subs.length
+    ? `${subs.length}개 채널을 이 브라우저에 보관 중입니다.`
+    : "아직 불러오지 않았습니다.";
+}
+function loadSubs(input){
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const lines = reader.result.split(/\r?\n/).filter(Boolean);
+    const parsed = [];
+    for (const line of lines.slice(1)){
+      const cols = line.split(",");
+      if (cols.length < 3) continue;
+      const id = cols[0].trim();
+      const title = cols.slice(2).join(",").trim();
+      if (/^UC[\w-]{22}$/.test(id) && title) parsed.push({id, title});
+    }
+    if (!parsed.length){ status("채널을 찾지 못했습니다. 구독정보.csv 가 맞는지 확인하세요.", "err"); return; }
+    subs = parsed;
+    localStorage.setItem("subs", JSON.stringify(subs));
+    subsInfo(); render();
+    status(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
+  };
+  reader.readAsText(file, "utf-8");
+}
+function clearSubs(){
+  subs = []; localStorage.removeItem("subs"); subsInfo(); render();
+  status("구독 목록을 지웠습니다.", "ok");
+}
+function searchSubs(di){
+  const q = $("cs" + di).value.trim().toLowerCase();
+  const box = $("cr" + di);
+  if (!q){ box.innerHTML = ""; return; }
+  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 구독 CSV 를 불러오세요.</span>'; return; }
+  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
+  const hits = subs.filter(s => s.title.toLowerCase().includes(q) && !taken.has(s.id)).slice(0, 12);
+  box.innerHTML = hits.length
+    ? hits.map(h => `<span class="chip"><button onclick="pickChannel(${di},'${h.id}')"
+        style="font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
+    : '<span class="sub">일치하는 채널이 없습니다.</span>';
+}
+function pickChannel(di, id){
+  const hit = subs.find(s => s.id === id);
+  if (!hit) return;
+  (data.digests[di].channels ||= []).push({name: hit.title, channel_id: hit.id});
+  $("cs" + di).value = ""; render();
+}
+function delChannel(di, ci){ data.digests[di].channels.splice(ci, 1); render(); }
+function addQuery(di){
+  const q = $("q" + di).value.trim();
+  if (!q) return;
+  (data.digests[di].queries ||= []).push({name: q, query: q});
+  $("q" + di).value = ""; render();
+}
+function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); }
+
+function addTopic(){
+  const label = $("newTopic").value.trim();
+  if (!label) return;
+  const key = "t" + Date.now().toString(36);
+  data.digests.push({
+    config: "", key, label,
+    slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
+             enabled: true, articles: 2, videos: 3}],
+    keywords: {[label]: 3},
+    queries: [{name: label, query: label}],
+    channels: subs.filter(s => s.title.includes(label)).slice(0, 8)
+                  .map(s => ({name: s.title, channel_id: s.id})),
+  });
+  $("newTopic").value = ""; render();
+  status(`'${label}' 주제를 만들었습니다. 채널과 시각을 확인한 뒤 저장하세요.`, "ok");
+}
 
 /* ---------- GitHub ---------- */
 const token = () => localStorage.getItem("gh_token") || "";
@@ -307,6 +465,7 @@ async function save(){
   }catch(e){ status("저장하지 못했습니다: " + e.message, "err"); }
 }
 
+subsInfo();
 load();
 </script>
 </body>

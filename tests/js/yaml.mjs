@@ -7,7 +7,9 @@ function toYaml(d){
   let out = "# 모바일 어드민 페이지가 저장한 파일입니다.\n";
   out += "# 채널 목록은 config*.yaml 에 있습니다.\n\ndigests:\n";
   for (const dg of d.digests){
-    out += `  - config: ${dg.config}\n    label: ${quote(dg.label)}\n    slots:\n`;
+    out += "  - " + (dg.config ? `config: ${dg.config}\n` : `key: ${quote(dg.key)}\n`);
+    if (dg.config && dg.key) out += `    key: ${quote(dg.key)}\n`;
+    out += `    label: ${quote(dg.label)}\n    slots:\n`;
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
       out += `        title: ${JSON.stringify(s.title)}\n`;
@@ -17,6 +19,20 @@ function toYaml(d){
     }
     out += "    keywords:\n";
     for (const [k, v] of Object.entries(dg.keywords)) out += `      ${quote(k)}: ${v}\n`;
+    if ((dg.queries || []).length){
+      out += "    queries:\n";
+      for (const q of dg.queries){
+        out += `      - name: ${quote(q.name)}\n        query: ${JSON.stringify(q.query)}\n`;
+        if (q.tags && q.tags.length) out += `        tags: [${q.tags.join(", ")}]\n`;
+      }
+    }
+    if ((dg.channels || []).length){
+      out += "    channels:\n";
+      for (const c of dg.channels){
+        out += `      - name: ${quote(c.name)}\n        channel_id: ${c.channel_id}\n`;
+        if (c.tags && c.tags.length) out += `        tags: [${c.tags.join(", ")}]\n`;
+      }
+    }
   }
   out += "\nexclude:\n";
   for (const w of d.exclude) out += `  - ${quote(w)}\n`;
@@ -36,14 +52,30 @@ function fromYaml(text){
     if (mode === "exclude" && t.startsWith("- ")){ out.exclude.push(unq(t.slice(2))); continue; }
     if (mode !== "digests") continue;
 
-    if (indent === 2 && t.startsWith("- config:")){
-      dg = {config: t.split(":").slice(1).join(":").trim(), label: "", slots: [], keywords: {}};
+    if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){
+      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: []};
+      const [k, ...rest] = t.slice(2).split(":");
+      dg[k.trim()] = unq(rest.join(":").trim());
       out.digests.push(dg); slot = null; continue;
     }
     if (!dg) continue;
+    if (indent === 4 && t.startsWith("key:")){ dg.key = unq(t.slice(4).trim()); continue; }
     if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
     if (indent === 4 && t === "slots:"){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
+    if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
+    if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
+    if (dg._in === "queries" || dg._in === "channels"){
+      const list = dg._in === "queries" ? dg.queries : dg.channels;
+      if (t.startsWith("- name:")){ list.push({name: unq(t.slice(7).trim())}); continue; }
+      const cur = list[list.length - 1];
+      if (!cur) continue;
+      const [k, ...rest] = t.split(":");
+      const v = rest.join(":").trim();
+      if (k === "tags") cur.tags = v.replace(/[\[\]]/g, "").split(",").map(x => x.trim()).filter(Boolean);
+      else cur[k.trim()] = unq(v);
+      continue;
+    }
     if (dg._in === "slots" && t.startsWith("- slot:")){
       slot = {slot: t.slice(7).trim(), title: "", send_at: "08:00", enabled: true, articles: 1, videos: 1};
       dg.slots.push(slot); continue;

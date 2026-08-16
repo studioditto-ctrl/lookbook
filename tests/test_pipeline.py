@@ -1059,3 +1059,58 @@ class TestSettingsOverlay(unittest.TestCase):
     def test_original_config_is_not_mutated(self):
         self.apply(self.config, self.settings, "config.yaml", "morning")
         self.assertEqual(self.config["slots"]["morning"]["title"], "옛 제목")
+
+
+class TestPageCreatedTopic(unittest.TestCase):
+    """페이지에서 만든 주제(config 파일 없음)가 파이썬 쪽에서 그대로 도는지."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.settings_module = settings_module
+        self.data = {
+            "digests": [{
+                "key": "coffee",
+                "label": "커피",
+                "slots": [{"slot": "daily", "title": "커피 브리핑", "send_at": "18:00",
+                           "articles": 2, "videos": 3}],
+                "keywords": {"커피": 3},
+                "queries": [{"name": "커피", "query": "스페셜티 커피"}],
+                "channels": [{"name": "채널", "channel_id": "UC" + "x" * 22}],
+            }],
+            "exclude": ["광고"],
+        }
+
+    def test_found_by_key(self):
+        self.assertIsNotNone(self.settings_module.find(self.data, "coffee"))
+
+    def test_key_becomes_the_state_namespace(self):
+        digest = self.settings_module.find(self.data, "coffee")
+        self.assertEqual(self.settings_module.digest_key(digest), "coffee")
+
+    def test_queries_and_channels_become_sources(self):
+        cfg = self.settings_module.apply({}, self.data, "coffee", "daily")
+        self.assertEqual(len(cfg["sources"]["google_news"]), 1)
+        self.assertEqual(cfg["sources"]["youtube"][0]["channel_id"], "UC" + "x" * 22)
+        self.assertEqual(cfg["sources"]["google_news"][0]["lang"], "ko")
+
+    def test_defaults_fill_in_without_a_config_file(self):
+        cfg = self.settings_module.apply({}, self.data, "coffee", "daily")
+        self.assertEqual(cfg["timezone"], "Asia/Seoul")
+        self.assertTrue(cfg["summary"]["enabled"])
+        self.assertEqual(cfg["link_preview"]["prefer"], "video")
+
+    def test_page_sources_append_to_a_config_file(self):
+        base = {"sources": {"youtube": [{"name": "기존", "channel_id": "UC" + "y" * 22}]}}
+        data = dict(self.data)
+        data["digests"] = [dict(self.data["digests"][0], config="config.yaml")]
+        cfg = self.settings_module.apply(base, data, "config.yaml", "daily")
+        names = [c["name"] for c in cfg["sources"]["youtube"]]
+        self.assertEqual(names, ["기존", "채널"])
+
+    def test_config_file_sources_are_not_mutated(self):
+        base = {"sources": {"youtube": [{"name": "기존"}]}}
+        data = dict(self.data)
+        data["digests"] = [dict(self.data["digests"][0], config="config.yaml")]
+        self.settings_module.apply(base, data, "config.yaml", "daily")
+        self.assertEqual(len(base["sources"]["youtube"]), 1)

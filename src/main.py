@@ -61,16 +61,23 @@ def parse_args():
 
 def run_one(config_name, slot_name, dry_run):
     """다이제스트 한 회차를 처리한다. 종료 코드를 돌려준다."""
-    config_path = REPO / config_name
-    if not config_path.exists():
-        print(f"설정 파일이 없습니다: {config_name}", file=sys.stderr)
-        return 1
-    with config_path.open(encoding="utf-8") as f:
-        config = yaml.safe_load(f) or {}
+    settings = settings_module.load()
+    digest = settings_module.find(settings, config_name)
 
-    config = settings_module.apply(
-        config, settings_module.load(), config_name, slot_name
-    )
+    # config 파일은 선택이다. 페이지에서 만든 주제는 settings.yaml 만으로 돈다.
+    config = {}
+    if config_name.endswith(".yaml"):
+        config_path = REPO / config_name
+        if not config_path.exists():
+            print(f"설정 파일이 없습니다: {config_name}", file=sys.stderr)
+            return 1
+        with config_path.open(encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+    elif digest is None:
+        print(f"'{config_name}' 주제를 settings.yaml 에서 찾지 못했습니다.", file=sys.stderr)
+        return 1
+
+    config = settings_module.apply(config, settings, config_name, slot_name)
 
     slots = config.get("slots") or {}
     if slot_name not in slots:
@@ -81,7 +88,7 @@ def run_one(config_name, slot_name, dry_run):
         )
         return 1
 
-    ns = namespace_for(config_name)
+    ns = settings_module.digest_key(digest) if digest else namespace_for(config_name)
     print(f"\n[main] {config_name} / {slot_name} 슬롯" + (f" (state/{ns})" if ns else ""))
 
     token = os.environ.get("TELEGRAM_BOT_TOKEN")

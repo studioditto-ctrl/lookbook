@@ -18,6 +18,14 @@ SETTINGS_PATH = REPO / "settings.yaml"
 # 크론이 밀리거나 실행이 걸러졌을 때, 한참 지난 회차를 밤중에 보내지 않기 위함.
 MAX_LATE = timedelta(hours=3)
 
+# config 파일 없이 페이지에서 만든 주제에 쓰이는 기본값
+DEFAULTS = {
+    "timezone": "Asia/Seoul",
+    "lookback_hours": 48,
+    "summary": {"enabled": True, "effort": "low"},
+    "link_preview": {"mode": "first", "prefer": "video", "large": True, "above_text": True},
+}
+
 
 def load(path=None):
     path = Path(path) if path else SETTINGS_PATH
@@ -27,10 +35,27 @@ def load(path=None):
         return yaml.safe_load(f) or {}
 
 
+def digest_key(digest):
+    """상태 디렉터리 이름. config 파일이 없는 주제는 key 를 그대로 쓴다."""
+    if digest.get("key"):
+        return digest["key"]
+    config = digest.get("config") or ""
+    stem = Path(config).stem
+    return stem.split(".", 1)[1] if "." in stem else None
+
+
+def find(settings, digest_id):
+    """config 파일명 또는 key 로 다이제스트를 찾는다."""
+    for digest in settings.get("digests") or []:
+        if digest.get("config") == digest_id or digest.get("key") == digest_id:
+            return digest
+    return None
+
+
 def for_slot(settings, config_name, slot_name):
     """해당 다이제스트/슬롯의 설정을 찾는다. 없으면 None."""
     for digest in settings.get("digests") or []:
-        if digest.get("config") != config_name:
+        if digest.get("config") != config_name and digest.get("key") != config_name:
             continue
         for slot in digest.get("slots") or []:
             if slot.get("slot") == slot_name:
@@ -56,6 +81,23 @@ def apply(config, settings, config_name, slot_name):
         merged["keywords"] = digest["keywords"]
     if settings.get("exclude"):
         merged["exclude"] = settings["exclude"]
+
+    # 어드민 페이지가 추가한 소스를 config 의 목록 뒤에 붙인다.
+    sources = {k: list(v or []) for k, v in (config.get("sources") or {}).items()}
+    for query in digest.get("queries") or []:
+        name = query.get("name") if isinstance(query, dict) else query
+        text = query.get("query") if isinstance(query, dict) else query
+        entry = {"name": name, "query": text, "lang": "ko", "country": "KR"}
+        if isinstance(query, dict) and query.get("tags"):
+            entry["tags"] = query["tags"]
+        sources.setdefault("google_news", []).append(entry)
+    for channel in digest.get("channels") or []:
+        sources.setdefault("youtube", []).append(dict(channel))
+    merged["sources"] = sources
+
+    for key in ("timezone", "lookback_hours", "summary", "link_preview"):
+        if key not in merged and key in DEFAULTS:
+            merged[key] = DEFAULTS[key]
     return merged
 
 
@@ -88,8 +130,8 @@ def due(settings, now=None, state=None):
             scheduled = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
             if now < scheduled or now - scheduled > MAX_LATE:
                 continue
-            key = f"{config_name}:{slot['slot']}"
+            key = f"{config_name or digest.get('key')}:{slot['slot']}"
             if state.get(key) == today:
                 continue
-            ready.append((config_name, slot["slot"], key, today))
+            ready.append((config_name or digest.get("key"), slot["slot"], key, today))
     return ready
