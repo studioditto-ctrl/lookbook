@@ -84,6 +84,7 @@
 
 <main>
   <div class="status" id="status"></div>
+  <div id="tokenCard"></div>
   <div id="digests"></div>
 
   <div class="card">
@@ -118,23 +119,11 @@
     </div>
   </div>
 
-  <details class="card">
-    <summary>저장용 GitHub 토큰</summary>
-    <div class="note">
-      이 기기에만 저장됩니다(localStorage). 이 저장소에 대한
-      <b>Contents: Read and write</b> 권한만 있는 fine-grained 토큰을 권합니다.
-    </div>
-    <div class="row" style="margin-top:10px">
-      <input id="token" type="password" placeholder="github_pat_...">
-    </div>
-    <button class="tiny ghost" onclick="saveToken()">토큰 저장</button>
-    <button class="tiny ghost" onclick="clearToken()">지우기</button>
-  </details>
 </main>
 
 <footer>
   <button class="ghost" onclick="load()">다시 불러오기</button>
-  <button class="primary" onclick="save()">저장</button>
+  <button class="primary" id="saveBtn" onclick="save()">저장</button>
 </footer>
 
 <script>
@@ -421,12 +410,45 @@ function addTopic(){
 
 /* ---------- GitHub ---------- */
 const token = () => localStorage.getItem("gh_token") || "";
-function saveToken(){
-  localStorage.setItem("gh_token", $("token").value.trim());
-  $("token").value = "";
-  status("토큰을 이 기기에 저장했습니다.", "ok");
+
+function renderToken(){
+  const has = !!token();
+  $("tokenCard").innerHTML = has ? `
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin:0">
+        <span style="color:var(--ok)">✓ 저장 준비됨 — GitHub 토큰 등록됨</span>
+        <button class="tiny ghost" onclick="clearToken()">지우기</button>
+      </div>
+    </div>` : `
+    <div class="card" style="border-color:var(--accent)">
+      <h2>먼저 GitHub 토큰을 넣어주세요</h2>
+      <div class="sub">이걸 넣어야 <b>저장</b> 버튼이 동작합니다. 이 기기에만 저장됩니다.</div>
+      <div class="row" style="margin-top:10px">
+        <input id="token" type="password" placeholder="github_pat_..."
+               autocomplete="off" enterkeyhint="done">
+      </div>
+      <button class="primary" style="width:100%" onclick="saveToken()">토큰 저장</button>
+      <div class="note">
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
+           rel="noopener" style="color:var(--accent)">토큰 만들러 가기 →</a><br>
+        Repository access 는 <b>이 저장소만</b>, 권한은 <b>Contents: Read and write</b> 하나면 됩니다.
+      </div>
+    </div>`;
+  const saveBtn = $("saveBtn");
+  if (saveBtn) saveBtn.textContent = has ? "저장" : "저장 (토큰 필요)";
 }
-function clearToken(){ localStorage.removeItem("gh_token"); status("토큰을 지웠습니다.", "ok"); }
+
+function saveToken(){
+  const v = ($("token") || {}).value?.trim();
+  if (!v){ status("토큰을 붙여넣어 주세요.", "err"); return; }
+  localStorage.setItem("gh_token", v);
+  renderToken();
+  status("토큰을 이 기기에 저장했습니다. 이제 저장할 수 있습니다.", "ok");
+}
+function clearToken(){
+  localStorage.removeItem("gh_token"); renderToken();
+  status("토큰을 지웠습니다.", "ok");
+}
 
 async function load(){
   status("불러오는 중…");
@@ -465,6 +487,7 @@ async function save(){
   }catch(e){ status("저장하지 못했습니다: " + e.message, "err"); }
 }
 
+renderToken();
 subsInfo();
 load();
 </script>

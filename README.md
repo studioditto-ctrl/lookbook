@@ -199,7 +199,8 @@ echo "lifestyle:lunch" > .trigger && git commit -am "발송" && git push
 1. 저장소 **Settings → Pages → Source: Deploy from a branch**
    → 브랜치 선택, 폴더 **`/docs`** → Save
 2. 몇 분 뒤 `https://<사용자>.github.io/lookbook/` 접속
-3. 페이지 하단 **저장용 GitHub 토큰** 에 fine-grained PAT 입력
+3. 페이지 맨 위 **먼저 GitHub 토큰을 넣어주세요** 카드에 fine-grained PAT 입력
+   (토큰이 저장되면 이 카드는 한 줄로 접힌다)
    - 이 저장소 하나만, **Contents: Read and write** 권한만
    - 브라우저 localStorage 에만 저장되고 커밋되지 않는다
 
