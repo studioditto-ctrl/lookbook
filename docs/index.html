@@ -117,7 +117,7 @@
 <header>
   <div>
     <h1>다이제스트 설정</h1>
-    <div class="sub">studioditto-ctrl/lookbook</div>
+    <div class="sub">studioditto-ctrl/lookbook · <span id="build"></span></div>
   </div>
   <div id="saveState">불러오는 중…</div>
 </header>
@@ -174,6 +174,7 @@ const FILE = "settings.yaml";
 const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 // 저장에 실패해도 고친 값을 잃지 않도록 이 기기에 남겨둔다
 const DRAFT = "settings_draft";
+const BUILD = "2026-08-18b";   // 화면에 찍어 어느 판인지 확인한다
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -551,10 +552,15 @@ function renderDrive(){
         <ol style="margin:8px 0 0; padding-left:18px">
           <li><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com"
                  target="_blank" rel="noopener" style="color:var(--accent)">Drive API 사용 설정</a></li>
+          <li><a href="https://console.cloud.google.com/auth/overview"
+                 target="_blank" rel="noopener" style="color:var(--accent)">OAuth 동의 화면</a>
+              → 대상 <b>외부</b>, <b>테스트 사용자에 본인 계정 추가</b>
+              <span style="color:var(--danger)">(빠뜨리면 access_denied)</span></li>
           <li><a href="https://console.cloud.google.com/apis/credentials/oauthclient"
                  target="_blank" rel="noopener" style="color:var(--accent)">OAuth 클라이언트 ID 만들기</a>
               → 유형 <b>웹 애플리케이션</b></li>
-          <li>승인된 자바스크립트 출처에 <b>${location.origin}</b> 추가</li>
+          <li>승인된 자바스크립트 출처에 <b>${location.origin}</b><br>
+              (뒤에 <b>/</b> 나 경로를 붙이지 마세요)</li>
           <li><b>여기</b>에 만들어진 ID 붙여넣기 ↓</li>
         </ol>
       </div>
@@ -564,6 +570,7 @@ function renderDrive(){
                onkeydown="if(event.key==='Enter'){event.preventDefault();saveClientId()}">
         <button class="primary" onclick="saveClientId()">저장</button>
       </div>
+      <button class="tiny wide ghost" onclick="driveCheck()">연결 점검</button>
     </div>`;
 
   $("driveBox").innerHTML = !cid ? `
@@ -577,6 +584,7 @@ function renderDrive(){
       <button class="tiny ghost" onclick="clearSubs()">목록 지우기</button>
       <button class="tiny ghost" onclick="clearClientId()">클라이언트 ID 바꾸기</button>
     </div>
+    <button class="tiny wide ghost" onclick="driveCheck()">연결 점검</button>
     <div class="note">
       읽기 전용으로 연결하고, 받은 목록은 이 브라우저에만 둡니다.
       저장소는 공개라 주제에 실제로 넣은 채널만 커밋됩니다.
@@ -592,29 +600,83 @@ function saveClientId(){
   driveOpen();
 }
 function clearClientId(){
-  localStorage.removeItem("g_client_id"); gToken = null; renderDrive();
+  localStorage.removeItem("g_client_id"); localStorage.removeItem("g_granted");
+  gToken = null; renderDrive();
 }
 
 /* 구글 토큰. 한 번 허락하면 다음부터는 창 없이 조용히 받아온다. */
-function googleToken(interactive){
+/* 구글이 돌려주는 코드를 그대로 두면 뭘 고쳐야 할지 알 수 없다. 짚어준다. */
+const G_HELP = {
+  popup_failed_to_open: "브라우저가 팝업을 막았습니다. 팝업 차단을 풀고 다시 눌러주세요.",
+  popup_closed: "창을 닫으셨습니다. 다시 눌러주세요.",
+  access_denied: "구글이 거부했습니다. Cloud Console → OAuth 동의 화면 → "
+    + "<b>대상(테스트 사용자)</b> 에 지금 로그인한 계정을 추가했는지 확인해 주세요.",
+  admin_policy_enforced: "조직 정책이 막았습니다. 개인 구글 계정으로 해보세요.",
+  invalid_client: "클라이언트 ID 가 맞지 않습니다. 다시 복사해 넣어주세요.",
+  unregistered_origin: `승인된 자바스크립트 출처에 <b>${location.origin}</b> 이 없습니다.`,
+  idpiframe_initialization_failed: `승인된 자바스크립트 출처에 <b>${location.origin}</b> 을 넣어주세요.`,
+};
+function gError(code){
+  const key = String(code || "unknown");
+  const e = new Error((G_HELP[key] || "권한을 받지 못했습니다.") + ` (코드: ${esc(key)})`);
+  e.code = key;
+  return e;
+}
+
+function requestToken(prompt){
   return new Promise((resolve, reject) => {
-    if (gToken && Date.now() - gTokenAt < 50 * 60 * 1000) return resolve(gToken);
     const oauth = window.google && google.accounts && google.accounts.oauth2;
     if (!oauth) return reject(new Error("구글 스크립트를 불러오지 못했습니다. 새로고침해 주세요."));
     const client_id = localStorage.getItem("g_client_id");
     if (!client_id) return reject(new Error("먼저 클라이언트 ID 를 넣어주세요."));
     oauth.initTokenClient({
       client_id, scope: DRIVE_SCOPE,
-      callback: r => {
-        if (!r || !r.access_token) return reject(new Error(r && r.error || "권한을 받지 못했습니다."));
-        gToken = r.access_token; gTokenAt = Date.now();
-        resolve(gToken);
-      },
-      error_callback: e => reject(new Error((e && e.type) === "popup_closed"
-        ? "창을 닫았습니다." : "권한 요청이 막혔습니다. 팝업 차단을 풀어주세요.")),
-    }).requestAccessToken({prompt: interactive ? "consent" : ""});
+      callback: r => r && r.access_token
+        ? resolve(r.access_token)
+        : reject(gError(r && (r.error || r.type))),
+      error_callback: e => reject(gError(e && (e.type || e.message))),
+    }).requestAccessToken({prompt});
   });
 }
+
+/* 처음에는 반드시 동의 화면을 띄워야 한다.
+   prompt:"" 는 '아무것도 묻지 마라' 라서, 동의한 적이 없으면 구글이 묻지 않고
+   그냥 거부한다. 한 번 허락받은 뒤에만 조용히 받는다. */
+async function googleToken(){
+  if (gToken && Date.now() - gTokenAt < 50 * 60 * 1000) return gToken;
+  const granted = localStorage.getItem("g_granted") === "1";
+  try{
+    gToken = await requestToken(granted ? "" : "consent");
+  }catch(e){
+    if (!granted) throw e;
+    // 조용히 받기가 안 되면 허락이 풀린 것이다. 다음 누름에서 동의 화면을 띄운다.
+    localStorage.removeItem("g_granted");
+    throw new Error("구글 권한이 풀렸습니다. 한 번 더 눌러주세요.");
+  }
+  gTokenAt = Date.now();
+  localStorage.setItem("g_granted", "1");
+  return gToken;
+}
+
+/* 무엇이 준비됐고 무엇이 아닌지 화면에 적어준다 */
+function driveCheck(){
+  const cid = localStorage.getItem("g_client_id") || "";
+  const rows = [
+    [!!(window.google && google.accounts && google.accounts.oauth2),
+     "구글 로그인 스크립트", "차단됐거나 아직 안 왔습니다 — 새로고침"],
+    [/\.apps\.googleusercontent\.com$/.test(cid),
+     "클라이언트 ID 형식", "…apps.googleusercontent.com 으로 끝나야 합니다"],
+    [location.protocol === "https:",
+     "https 로 열림", "http 로는 구글 로그인이 안 됩니다"],
+  ];
+  const lines = rows.map(([ok, label, bad]) =>
+    `${ok ? "✓" : "✗"} ${label}${ok ? "" : " — " + bad}`);
+  lines.push(`이 페이지 출처: <b>${location.origin}</b><br>`
+    + "→ Cloud Console 의 <b>승인된 자바스크립트 출처</b> 에 이 값이 그대로 있어야 합니다"
+    + " (뒤에 / 나 경로를 붙이면 안 됩니다)");
+  toast(lines.join("<br>"), rows.every(r => r[0]) ? "ok" : "err", true);
+}
+
 async function drive(path){
   const r = await fetch("https://www.googleapis.com/drive/v3/" + path,
                         {headers: {Authorization: "Bearer " + gToken}});
@@ -633,7 +695,7 @@ const DRIVE_Q = "trashed=false and (mimeType='text/csv' or mimeType='application
 async function driveOpen(){
   try{
     toast("구글 계정에 연결하는 중…", "busy");
-    await googleToken(false);
+    await googleToken();
     toast("Drive 를 찾는 중…", "busy");
     const r = await drive("files?" + new URLSearchParams({
       q: DRIVE_Q, orderBy: "modifiedTime desc", pageSize: "25",
@@ -661,7 +723,7 @@ async function driveResync(){
   if (!subsMeta) return;
   try{
     toast("다시 동기화하는 중…", "busy");
-    await googleToken(false);
+    await googleToken();
     const text = await driveText(subsMeta.id, subsMeta.name, subsMeta.mimeType);
     useSubs(text, subsMeta);
   }catch(e){ toast("동기화하지 못했습니다: " + esc(e.message), "err", true); }
@@ -1052,6 +1114,7 @@ async function testSend(di, si){
 /* 저장이 끝나기 전에 화면을 닫으면 알려준다 */
 addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
 
+$("build").textContent = BUILD;
 renderToken();
 renderDrive();
 showState();

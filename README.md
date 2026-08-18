@@ -305,10 +305,16 @@ Takeout 파일을 매번 올리지 않는다. 고급 설정에서 Drive 에 한 
 연결하고 나면 그 카드는 사라지고 조작은 고급 설정 안으로 들어간다.
 
 1. [Drive API 사용 설정](https://console.cloud.google.com/apis/library/drive.googleapis.com)
-2. **OAuth 클라이언트 ID** 만들기 → 유형 `웹 애플리케이션`
-3. 승인된 자바스크립트 출처에 `https://<사용자>.github.io` 추가
-4. 만들어진 클라이언트 ID 를 **맨 위 카드** 에 붙여넣기 (저장하면 곧바로
+2. [**OAuth 동의 화면**](https://console.cloud.google.com/auth/overview) → 대상 `외부`
+   → **테스트 사용자에 본인 계정 추가**
+   `drive.readonly` 는 민감한 범위라, 테스트 사용자에 없으면 `access_denied` 가 난다.
+3. **OAuth 클라이언트 ID** 만들기 → 유형 `웹 애플리케이션`
+4. 승인된 자바스크립트 출처에 `https://<사용자>.github.io`
+   — 뒤에 `/` 나 경로(`/lookbook`)를 붙이면 안 된다
+5. 만들어진 클라이언트 ID 를 **맨 위 카드** 에 붙여넣기 (저장하면 곧바로
    Drive 파일 목록이 뜬다)
+
+막히면 카드의 **연결 점검** 이 스크립트 로드·ID 형식·현재 출처를 적어준다.
 
 클라이언트 ID 는 비밀값이 아니지만 이 기기의 localStorage 에만 둔다.
 권한은 읽기 전용(`drive.readonly`) 하나이고, 액세스 토큰은 저장하지 않아
@@ -383,6 +389,24 @@ slots:
 아무것도 전송하지 않고 로그에만 출력한다.
 
 ## 잘 안 될 때
+
+**Drive 연결이 `access_denied` 로 막힘**
+
+`prompt: ""` 는 "동의 화면을 띄우지 말라"는 뜻이라, 한 번도 허락한 적이 없으면
+구글이 묻지 않고 그대로 거부한다. 그래서 **첫 연결은 `prompt: "consent"`**,
+허락을 받은 뒤부터만 조용히 받는다(`g_granted` 로 기억).
+
+코드가 아니라 설정 쪽 `access_denied` 라면 OAuth 동의 화면의 **테스트 사용자**
+에 로그인한 계정이 없는 경우다. 위 준비 2번을 확인한다.
+
+| 코드 | 할 일 |
+|---|---|
+| `access_denied` | 테스트 사용자에 계정 추가 |
+| `unregistered_origin` | 승인된 자바스크립트 출처 확인 (`/` 없이) |
+| `invalid_client` | 클라이언트 ID 다시 복사 |
+| `popup_failed_to_open` | 팝업 차단 해제 |
+
+페이지 머리말에 빌드 날짜가 찍힌다. 고친 판을 보고 있는지 여기서 확인한다.
 
 **어드민 페이지에서 `저장하지 못했습니다 403`**
 
