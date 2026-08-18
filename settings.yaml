@@ -80,7 +80,7 @@ digests:
     slots:
       - slot: daily
         title: "피부 브리핑"
-        send_at: "18:00"
+        send_at: "11:10"
         enabled: true
         articles: 2
         videos: 3
