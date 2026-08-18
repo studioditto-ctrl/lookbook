@@ -3,6 +3,7 @@
 import html
 import time
 from datetime import datetime
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import requests
@@ -69,6 +70,17 @@ def build_message(articles, videos, config, slot):
     return render(blocks)
 
 
+# 미리보기를 만들 수 없는 중계 링크. 텔레그램이 빈 카드를 붙인다.
+REDIRECT_HOSTS = ("news.google.com",)
+
+
+def _is_redirect(url):
+    try:
+        return urlparse(url).hostname in REDIRECT_HOSTS
+    except ValueError:
+        return False
+
+
 def _link_preview_options(config, articles, videos):
     """첫 항목의 링크 미리보기(썸네일) 설정.
 
@@ -82,11 +94,14 @@ def _link_preview_options(config, articles, videos):
         return {"is_disabled": True}
 
     # 유튜브 링크는 썸네일이 확실히 잡히는 반면, Google 뉴스 링크는 리다이렉트라
-    # 미리보기가 비는 일이 잦다. 그래서 메시지 순서와 무관하게 영상을 먼저 쓴다.
+    # 미리보기가 비는 일이 잦다. 그래서 메시지 순서와 무관하게 영상을 먼저 쓰고,
+    # 리다이렉트 링크는 건너뛴다. 빈 미리보기 카드가 붙느니 없는 편이 낫다.
     if setting.get("prefer", "video") == "video":
-        first = next(iter(videos or articles or []), None)
+        pool = list(videos or []) + list(articles or [])
     else:
-        first = next(iter(articles or videos or []), None)
+        pool = list(articles or []) + list(videos or [])
+
+    first = next((i for i in pool if not _is_redirect(i.url)), None)
     if first is None:
         return {"is_disabled": True}
 

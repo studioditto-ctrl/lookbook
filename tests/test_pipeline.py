@@ -931,6 +931,112 @@ class TestConfigNamespaceDerivation(unittest.TestCase):
         self.assertEqual(self.derive("/repo/config.lifestyle.yaml"), "lifestyle")
 
 
+class TestVideoSearch(unittest.TestCase):
+    """구독 채널이 없는 주제도 검색으로 영상을 얻어야 한다."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        payload = {"items": [
+            {"id": {"videoId": "abc123"},
+             "snippet": {"title": "IT 뉴스 정리", "channelTitle": "테크채널",
+                         "publishedAt": "2026-08-16T02:00:00Z",
+                         "description": "이번 주  요약"}},
+            {"id": {},  # videoId 없음 → 건너뛴다
+             "snippet": {"title": "깨진 항목", "publishedAt": "2026-08-16T02:00:00Z"}},
+        ]}
+        cls.server = FeedServer({
+            "search.json": json.dumps(payload, ensure_ascii=False),
+            "bad.json": "not json",
+        })
+        cls.saved = collect_module.YT_SEARCH_API
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.YT_SEARCH_API = cls.saved
+        cls.server.close()
+
+    def test_parses_videos(self):
+        self.collect.YT_SEARCH_API = self.server.url("search.json")
+        items = self.collect.search_videos("IT", "IT", "key")
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item.url, "https://www.youtube.com/watch?v=abc123")
+        self.assertEqual(item.id, "yt:video:abc123")
+        self.assertEqual(item.kind, "video")
+        # 검색은 채널을 가리지 않으므로 출처는 실제 채널 이름이어야 한다
+        self.assertEqual(item.source, "테크채널")
+        self.assertEqual(item.summary, "이번 주 요약")
+
+    def test_failure_is_reported_not_raised(self):
+        self.collect.YT_SEARCH_API = self.server.url("bad.json")
+        problems = []
+        self.assertEqual(self.collect.search_videos("IT", "IT", "key", problems=problems), [])
+        self.assertEqual(problems[0][0], "IT")
+
+
+class TestPageQueriesFeedBothSides(unittest.TestCase):
+    """페이지 검색어는 뉴스와 유튜브 양쪽에 걸려야 썸네일이 뜬다."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.apply = settings_module.apply
+        self.data = {"digests": [{
+            "key": "it", "label": "IT",
+            "slots": [{"slot": "daily", "title": "IT", "articles": 2, "videos": 3}],
+            "queries": [{"name": "IT", "query": "IT 뉴스"}],
+        }]}
+
+    def test_query_becomes_news_and_video_source(self):
+        cfg = self.apply({}, self.data, "it", "daily")
+        self.assertEqual([s["query"] for s in cfg["sources"]["google_news"]], ["IT 뉴스"])
+        self.assertEqual([s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
+
+    def test_tags_carry_to_both(self):
+        self.data["digests"][0]["queries"][0]["tags"] = ["tech"]
+        cfg = self.apply({}, self.data, "it", "daily")
+        self.assertEqual(cfg["sources"]["youtube_search"][0]["tags"], ["tech"])
+
+    def test_youtube_can_be_turned_off_per_query(self):
+        self.data["digests"][0]["queries"][0]["youtube"] = False
+        cfg = self.apply({}, self.data, "it", "daily")
+        self.assertEqual(cfg["sources"].get("youtube_search"), None)
+        self.assertEqual(len(cfg["sources"]["google_news"]), 1)
+
+
+class TestPreviewSkipsRedirects(unittest.TestCase):
+    """구글 뉴스 링크는 미리보기가 비므로 썸네일 대상에서 뺀다."""
+
+    def setUp(self):
+        from collect import Item
+        from telegram import _link_preview_options
+
+        self.options = _link_preview_options
+        now = datetime.now(timezone.utc)
+        self.news = Item(id="n1", title="기사", source="구글뉴스", kind="article",
+                         published=now, url="https://news.google.com/rss/articles/CBMi")
+        self.direct = Item(id="d1", title="기사", source="블로그", kind="article",
+                           published=now, url="https://runnersworld.com/a")
+        self.video = Item(id="v1", title="영상", source="채널", kind="video",
+                          published=now, url="https://www.youtube.com/watch?v=xyz")
+        self.config = {"link_preview": {"mode": "first", "prefer": "video"}}
+
+    def test_video_wins(self):
+        opts = self.options(self.config, [self.news], [self.video])
+        self.assertEqual(opts["url"], self.video.url)
+
+    def test_redirect_article_is_skipped_for_a_real_one(self):
+        opts = self.options(self.config, [self.news, self.direct], [])
+        self.assertEqual(opts["url"], self.direct.url)
+
+    def test_all_redirects_means_no_preview(self):
+        opts = self.options(self.config, [self.news], [])
+        self.assertEqual(opts, {"is_disabled": True})
+
+
 class TestEmptySlots(unittest.TestCase):
     """시간이 하나도 없는 주제가 남아도 다른 회차를 막지 않아야 한다."""
 

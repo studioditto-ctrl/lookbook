@@ -250,6 +250,65 @@ def search_channel_id(query, cache, key, problems=None, source_name=None):
     return channel_id
 
 
+def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX, problems=None):
+    """키워드로 최근 영상을 찾는다.
+
+    구독 채널이 없는 새 주제는 이 경로로만 영상이 들어온다. 뉴스 링크는
+    구글 리다이렉트라 텔레그램 썸네일이 비는데, 유튜브 링크는 확실히 잡힌다.
+
+    search 는 1회 100 유닛이라 회차당 검색어 하나에 한 번만 부른다.
+    """
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    params = {
+        "part": "snippet",
+        "type": "video",
+        "order": "date",
+        "q": query,
+        "maxResults": min(limit, 25),
+        "publishedAfter": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "key": key,
+    }
+    try:
+        resp = requests.get(
+            YT_SEARCH_API, params=params, timeout=TIMEOUT,
+            headers={"User-Agent": USER_AGENT},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"[collect] '{source_name}' 영상 검색 실패: {e}")
+        _note(problems, source_name, "유튜브 영상 검색 실패")
+        return []
+
+    items = []
+    for entry in data.get("items") or []:
+        video_id = (entry.get("id") or {}).get("videoId")
+        snippet = entry.get("snippet") or {}
+        title = _clean_title(snippet.get("title"))
+        if not video_id or not title:
+            continue
+        try:
+            when = datetime.fromisoformat(
+                (snippet.get("publishedAt") or "").replace("Z", "+00:00")
+            )
+        except ValueError:
+            when = datetime.now(timezone.utc)
+        items.append(
+            Item(
+                id=f"yt:video:{video_id}",
+                title=title,
+                # 검색은 채널을 가리지 않으므로 출처에 실제 채널 이름을 쓴다
+                source=snippet.get("channelTitle") or source_name,
+                url=f"https://www.youtube.com/watch?v={video_id}",
+                kind="video",
+                published=when,
+                summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
+            )
+        )
+    print(f"[collect] '{source_name}' 영상 검색 {len(items)}건")
+    return items
+
+
 def _uploads_playlist(channel_id):
     """채널의 '업로드' 재생목록 ID. UC... -> UU... 로 앞 두 글자만 바뀐다."""
     return "UU" + channel_id[2:]
@@ -326,6 +385,15 @@ def collect(config, channel_cache):
         )
 
     api_key = os.environ.get("YOUTUBE_API_KEY")
+    if (sources.get("youtube_search") or []) and not api_key:
+        print("[collect] YOUTUBE_API_KEY 가 없어 영상 검색을 건너뜁니다.")
+    for src in sources.get("youtube_search") or [] if api_key else []:
+        found = search_videos(
+            src["query"], src.get("name") or src["query"], api_key,
+            hours=config.get("lookback_hours", 36), problems=problems,
+        )
+        items += _tag(found, src.get("tags"))
+
     if (sources.get("youtube") or []) and not api_key:
         print("[collect] YOUTUBE_API_KEY 가 없어 RSS 로 시도합니다 (404 가 잦습니다).")
 

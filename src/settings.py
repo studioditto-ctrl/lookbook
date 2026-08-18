@@ -83,14 +83,24 @@ def apply(config, settings, config_name, slot_name):
         merged["exclude"] = settings["exclude"]
 
     # 어드민 페이지가 추가한 소스를 config 의 목록 뒤에 붙인다.
+    # 검색어 하나는 뉴스와 유튜브 양쪽에 건다 — 구독 채널이 없는 새 주제도
+    # 영상이 들어와야 텔레그램 썸네일이 뜬다.
     sources = {k: list(v or []) for k, v in (config.get("sources") or {}).items()}
     for query in digest.get("queries") or []:
         name = query.get("name") if isinstance(query, dict) else query
         text = query.get("query") if isinstance(query, dict) else query
+        tags = query.get("tags") if isinstance(query, dict) else None
         entry = {"name": name, "query": text, "lang": "ko", "country": "KR"}
-        if isinstance(query, dict) and query.get("tags"):
-            entry["tags"] = query["tags"]
+        if tags:
+            entry["tags"] = tags
         sources.setdefault("google_news", []).append(entry)
+
+        if isinstance(query, dict) and query.get("youtube") is False:
+            continue
+        video = {"name": name, "query": text}
+        if tags:
+            video["tags"] = tags
+        sources.setdefault("youtube_search", []).append(video)
     for channel in digest.get("channels") or []:
         sources.setdefault("youtube", []).append(dict(channel))
     merged["sources"] = sources

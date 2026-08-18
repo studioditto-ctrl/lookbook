@@ -129,7 +129,8 @@
   <!-- 맨 위: 주제 추가 -->
   <div class="card">
     <h2>주제 추가</h2>
-    <div class="sub">넣은 말로 구글 뉴스를 찾고, 불러온 구독 목록에서 이름이 맞는 채널을 붙입니다.</div>
+    <div class="sub">넣은 말로 구글 뉴스와 <b>유튜브</b> 를 찾고, 구독 목록에서 이름이 맞는
+      채널도 붙입니다. 영상이 들어와야 텔레그램 썸네일이 뜹니다.</div>
     <div class="add">
       <input id="newTopic" placeholder="예: 커피" enterkeyhint="done"
              autocapitalize="off" autocomplete="off"
@@ -515,7 +516,8 @@ function addTopic(){
   const n = data.digests[data.digests.length - 1].channels.length;
   toast(n
     ? `'${esc(label)}' 주제를 만들고 구독 채널 ${n}개를 붙였습니다. 아래에서 확인하세요.`
-    : `'${esc(label)}' 주제를 만들었습니다. 이름이 맞는 구독 채널이 없어 검색어만 넣었습니다.`,
+    : `'${esc(label)}' 주제를 만들었습니다. 이름이 맞는 구독 채널은 없지만 `
+      + `유튜브 검색으로 영상이 들어옵니다.`,
     "busy");
 }
 
@@ -687,7 +689,35 @@ function useSubs(text, meta){
   localStorage.setItem("subs", JSON.stringify(subs));
   localStorage.setItem("subs_meta", JSON.stringify(subsMeta));
   renderDrive();
+
+  // 목록이 없던 때 만든 주제는 채널이 비어 있다. 이제 붙일 수 있다고 알린다.
+  const empty = (data && data.digests || []).filter(d => !d.config && !(d.channels || []).length);
+  if (empty.length){
+    toast(`${subs.length}개 채널을 불러왔습니다.
+           <div style="margin-top:6px">채널이 비어 있는 주제 ${empty.length}개가 있습니다 —
+           <a href="#" onclick="reMatchAll();return false">이름으로 찾아 붙이기</a></div>`, "ok", true);
+    return;
+  }
   toast(`${subs.length}개 채널을 불러왔습니다. 이 기기에만 저장됩니다.`, "ok");
+}
+
+/* 채널이 비어 있는 주제에만 붙인다. config 파일이 있는 주제는 거기에 목록이 있다. */
+function reMatchAll(){
+  const hit = [];
+  data.digests.forEach((dg, di) => {
+    if (dg.config || (dg.channels || []).length) return;
+    const found = matchChannels(dg.label);
+    if (!found.length) return;
+    dg.channels = found;
+    open.add("d" + di);
+    hit.push(`${dg.label} ${found.length}개`);
+  });
+  if (!hit.length){
+    toast("이름이 맞는 구독 채널을 찾지 못했습니다. 검색어로도 영상은 들어옵니다.", "err", true);
+    return;
+  }
+  render(); touch();
+  toast(`${esc(hit.join(", "))} 붙였습니다.`, "busy");
 }
 
 /* 채널 ID 열의 자리가 언어판마다 달라 값으로 찾는다 */
