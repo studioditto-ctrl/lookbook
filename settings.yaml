@@ -75,6 +75,20 @@ digests:
     queries:
       - name: IT
         query: "IT"
+  - key: tmsy0lgx6
+    label: 피부
+    slots:
+      - slot: daily
+        title: "피부 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      피부: 3
+    queries:
+      - name: 피부
+        query: "피부"
 
 exclude:
   - 부고
