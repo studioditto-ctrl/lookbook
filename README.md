@@ -225,16 +225,26 @@ printf 'food:lunch\nforce\n' > .trigger && git commit -am "테스트 발송" && 
 발송 시각·항목 수·키워드·제외어를 휴대폰에서 고친다. 채널 목록은
 `config*.yaml` 에 그대로 두고, 페이지는 `settings.yaml` 만 덮어쓴다.
 
+### 주소
+
+`https://<사용자>.github.io/lookbook/`
+
 ### 켜기 (한 번)
 
 1. 저장소 **Settings → Pages → Source: GitHub Actions**
 2. **Actions → 어드민 페이지 배포 → Run workflow** (이후로는 `docs/` 가
    바뀔 때마다 저절로 배포된다)
-3. `https://<사용자>.github.io/lookbook/` 접속 후 맨 위
+3. 위 주소로 접속한 뒤 맨 위
    **먼저 GitHub 토큰을 넣어주세요** 카드에 fine-grained PAT 입력
    (토큰이 저장되면 이 카드는 한 줄로 접힌다)
    - 이 저장소 하나만, **Contents: Read and write** 권한만
    - 브라우저 localStorage 에만 저장되고 커밋되지 않는다
+
+**주소를 열었는데 README 가 보이면** Pages Source 가 `Deploy from a branch`
+(루트) 로 바뀐 것이다. 루트에 `index.html` 이 없으면 GitHub 이 `README.md` 를
+대신 보여준다. 저장소 루트의 `index.html` 이 이 경우 `docs/` 로 넘겨주므로
+그대로 두면 되고, `Source: GitHub Actions` 로 되돌려도 된다. 어느 쪽이든
+같은 주소로 열린다.
 
 ### 쓰기
 
