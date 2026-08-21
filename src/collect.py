@@ -338,6 +338,29 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
     return items
 
 
+NAVER_ERRORS = {
+    "024": "Client ID 가 틀렸습니다. 개발자센터의 값과 다시 맞춰보세요.",
+    "028": "Client Secret 이 틀렸습니다. 두 값이 서로 바뀌지 않았는지 보세요.",
+    "101": "이 앱에 검색 API 권한이 없습니다. 앱 설정의 '사용 API' 에 검색을 추가하세요.",
+    "012": "요청 헤더가 잘못됐습니다.",
+    "429": "하루 호출 한도를 넘겼습니다.",
+}
+
+
+def _naver_error(response):
+    """네이버 오류 본문에서 코드와 뜻을 뽑는다. 코드가 앞에 와야 잘려도 남는다."""
+    if response is None:
+        return ""
+    try:
+        body = response.json()
+    except ValueError:
+        return " ".join((response.text or "").split())[:120]
+    code = str(body.get("errorCode", "")).strip()
+    message = " ".join(str(body.get("errorMessage", "")).split())
+    hint = NAVER_ERRORS.get(code, "")
+    return " ".join(x for x in (f"[{code}]" if code else "", hint, message) if x)[:200]
+
+
 def search_naver_blog(query, source_name, client_id, client_secret,
                       sort="date", display=20, problems=None):
     """네이버 블로그를 검색한다. 특정 블로그가 아니라 네이버 전체가 대상이다.
@@ -362,6 +385,15 @@ def search_naver_blog(query, source_name, client_id, client_secret,
         )
         resp.raise_for_status()
         data = resp.json()
+    except requests.HTTPError as e:
+        # 네이버는 본문에 errorCode 를 담아 준다. 상태 코드만 찍으면
+        # 아이디가 틀린 건지 권한이 없는 건지 알 수 없다.
+        print(f"[collect] '{source_name}' 네이버 블로그 검색 실패: {e}")
+        reason = _naver_error(e.response)
+        if reason:
+            print(f"[collect]   네이버 응답: {reason}")
+        _note(problems, source_name, f"네이버 블로그 검색 실패 ({reason or e})")
+        return []
     except (requests.RequestException, ValueError) as e:
         print(f"[collect] '{source_name}' 네이버 블로그 검색 실패: {e}")
         _note(problems, source_name, "네이버 블로그 검색 실패")

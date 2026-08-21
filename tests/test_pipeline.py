@@ -3,8 +3,10 @@
 외부 네트워크 없이 돌도록 고정 피드를 로컬 HTTP 서버로 띄운다.
 """
 
+import contextlib
 import functools
 import http.server
+import io
 import json
 import os
 import socketserver
@@ -62,15 +64,30 @@ def atom_feed(entries):
 class FeedServer:
     """테스트용 정적 파일 서버."""
 
-    def __init__(self, files):
+    def __init__(self, files, statuses=None):
         self.dir = tempfile.TemporaryDirectory()
         for name, content in files.items():
             (Path(self.dir.name) / name).write_text(content, encoding="utf-8")
+        # 오류 응답은 본문까지 흉내 내야 한다. 상태 코드만으로는 부족한 경우가 있다.
+        errors = statuses or {}
 
         class QuietHandler(http.server.SimpleHTTPRequestHandler):
             # 요청 로그로 테스트 출력이 지저분해지지 않게 막는다
             def log_message(self, *args):
                 pass
+
+            def do_GET(self):
+                name = self.path.lstrip("/").split("?", 1)[0]
+                if name in errors:
+                    code, body = errors[name]
+                    encoded = body.encode("utf-8")
+                    self.send_response(code)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(encoded)))
+                    self.end_headers()
+                    self.wfile.write(encoded)
+                    return
+                super().do_GET()
 
         handler = functools.partial(QuietHandler, directory=self.dir.name)
         self.httpd = socketserver.TCPServer(("127.0.0.1", 0), handler)
@@ -995,7 +1012,9 @@ class TestNaverBlogSearch(unittest.TestCase):
         cls.server = FeedServer({
             "blog.json": json.dumps(payload, ensure_ascii=False),
             "bad.json": "not json",
-        })
+        }, statuses={"denied.json": (401, json.dumps(
+            {"errorMessage": "Not Exist Client ID : Authentication failed.",
+             "errorCode": "024"}))})
         cls.saved = collect_module.NAVER_BLOG_API
 
     @classmethod
@@ -1030,6 +1049,17 @@ class TestNaverBlogSearch(unittest.TestCase):
         got = self.collect.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
         self.assertEqual(got, [])
         self.assertEqual(problems[0][0], "블로그")
+
+    def test_naver_error_body_is_surfaced(self):
+        """상태 코드만으로는 무엇을 고쳐야 할지 알 수 없다."""
+        self.collect.NAVER_BLOG_API = self.server.url("denied.json")  # 401 을 낼 주소
+        problems = []
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            self.collect.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
+        self.assertIn("네이버 응답", buffer.getvalue())
+        self.assertIn("024", buffer.getvalue())
+        self.assertIn("024", problems[0][1])
 
     def test_unknown_sort_falls_back(self):
         self.collect.NAVER_BLOG_API = self.server.url("blog.json")
