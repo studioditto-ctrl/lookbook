@@ -118,9 +118,19 @@ sources:
 ### 네이버 블로그
 
 훈련 후기·코스·러닝화 리뷰처럼 뉴스에도 유튜브에도 없는 글이 여기 많다.
-넣는 방법이 두 가지이고, 목적이 다르다.
 
-**블로그 하나만 구독** — 키가 필요 없다. 네이버가 블로그마다 RSS 를 준다.
+**검색 API 는 쓸 수 없다.** 네이버가 블로그·뉴스·카페 검색을 개발자센터에서
+[NAVER API HUB](https://www.ncloud.com/product/applicationService/naverApiHub)
+(네이버클라우드플랫폼)로 옮겼다. 그래서 developers.naver.com 의 **사용 API**
+목록에 `검색` 이 더 이상 나타나지 않고, 거기서 받은 키로 호출하면
+`[024] Scopes are Empty` 가 난다. 쇼핑·책·전문자료 검색은 2026년 7월 31일자로
+아예 종료됐다.
+
+`src/collect.py` 의 `search_naver_blog()` 와 `sources.naver_blog` 는 남겨뒀다.
+HUB 규격(엔드포인트·인증 헤더)을 확인하면 그 자리에 다시 이으면 된다.
+어느 config 에서도 쓰지 않으므로 지금은 아무 요청도 나가지 않는다.
+
+**블로그별 RSS 는 그대로 된다.** 키도 계정도 필요 없다.
 
 ```yaml
 sources:
@@ -129,56 +139,14 @@ sources:
       url: https://rss.blog.naver.com/<블로그아이디>.xml
 ```
 
-**주제로 넓게 훑기** — 네이버 검색 API 를 쓴다. 특정 블로그가 아니라
-네이버 전체가 대상이다.
+어드민 페이지의 주제 카드를 펴면 **네이버 블로그** 칸이 있다. 주소를
+붙여넣으면 아이디만 뽑아 RSS 주소로 만들어 `settings.yaml` 의 `feeds` 에
+넣고, 발송할 때 `sources.rss` 뒤에 붙는다. 받는 모양은 다음과 같다.
 
-```yaml
-sources:
-  naver_blog:
-    - name: 러닝 블로그
-      query: 러닝 훈련 OR 마라톤 후기
-      sort: date      # date(기본) · sim(관련도)
-      display: 20
-```
-
-#### 키 발급 (한 번, 심사 없음)
-
-1. [네이버 개발자센터](https://developers.naver.com/apps/#/register) → 애플리케이션 등록
-2. 사용 API 에 **검색** 추가
-3. 나온 **Client ID / Client Secret** 을 Repository secrets 에 넣는다
-   - `NAVER_CLIENT_ID`
-   - `NAVER_CLIENT_SECRET`
-
-즉시 발급되고 하루 25,000회다. 키가 없으면 이 소스만 건너뛰고 발송은
-그대로 된다.
-
-#### 401 이 나면
-
-네이버가 본문에 `errorCode` 를 담아 준다. 로그의 `네이버 응답:` 줄을 본다.
-
-| 코드 | 본문 | 할 일 |
-|---|---|---|
-| 024 | `Scopes are Empty` | **키는 맞다.** 앱 설정의 **사용 API** 에 `검색` 추가 |
-| 024 | `Not Exist Client ID` | `NAVER_CLIENT_ID` 값 확인 |
-| 028 | `Authentication failed` | `NAVER_CLIENT_SECRET` 값 확인 (두 값이 바뀌지 않았는지) |
-| 101 | `Permission Denied` | 앱 설정의 **사용 API** 에 `검색` 추가 |
-
-`024` 는 원인이 둘이라 본문을 봐야 갈린다. `Scopes are Empty` 면 키를
-아무리 다시 넣어도 고쳐지지 않는다 — 고칠 곳은 개발자센터의 앱 설정이다.
-등록할 때 **사용 API** 를 고르지 않으면 이 상태가 되고, 같은 이유로
-**비로그인 오픈 API 서비스 환경**(WEB 설정) 칸도 나타나지 않는다.
-
-값을 복사할 때 앞뒤 공백이나 줄바꿈이 섞이면 그대로 401 이 난다.
-
-#### 알아둘 점
-
-- `postdate` 가 **날짜까지만** 온다. 시각이 없어 그날 0시(KST)로 둔다.
-  `lookback_hours: 48` 이면 어제·오늘 글이 들어온다.
-- 출처를 검색어가 아니라 **블로그 이름**으로 둔다. 소스 분산이 블로그
-  단위로 걸려 한 블로그가 회차를 독식하지 않는다.
-- 검색 결과에 `?from=...` 이 붙어 온다. 떼지 않으면 같은 글이 다른 URL 로
-  보여 중복 제거를 빠져나간다. `TRACKING_PARAMS` 에서 걸러낸다.
-- 협찬글이 많다. `exclude` 에 `체험단`·`원고료`·`소정의` 를 넣어뒀다.
+- `https://blog.naver.com/아이디/223456789`
+- `m.blog.naver.com/아이디`
+- `https://rss.blog.naver.com/아이디.xml`
+- `@아이디` 또는 `아이디`
 
 ### 키워드로 영상 찾기 (채널 목록 밖)
 

@@ -30,11 +30,6 @@ sources:
       lang: ko
       country: KR
 
-  naver_blog:
-    - name: 맛집 블로그
-      query: 맛집 후기 OR 레시피
-      sort: date
-
   youtube_search:
     - name: 맛집·요리 인기 영상
       query: 맛집 OR 요리 OR 레시피

@@ -100,12 +100,14 @@ def apply(config, settings, config_name, slot_name):
             if tags:
                 video["tags"] = tags
             sources.setdefault("youtube_search", []).append(video)
+    # 네이버 블로그는 검색 API 가 NAVER API HUB 로 옮겨가 키를 새로 받아야 한다.
+    # 블로그별 RSS 는 키 없이 그대로 되므로 페이지에서 주소만 받아 rss 로 넣는다.
+    for feed in digest.get("feeds") or []:
+        entry = {"name": feed.get("name") or feed.get("url"), "url": feed["url"]}
+        if feed.get("tags"):
+            entry["tags"] = feed["tags"]
+        sources.setdefault("rss", []).append(entry)
 
-        if not (isinstance(query, dict) and query.get("naver") is False):
-            blog = {"name": name, "query": text}
-            if tags:
-                blog["tags"] = tags
-            sources.setdefault("naver_blog", []).append(blog)
     for channel in digest.get("channels") or []:
         sources.setdefault("youtube", []).append(dict(channel))
     merged["sources"] = sources

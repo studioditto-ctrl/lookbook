@@ -27,6 +27,13 @@ function toYaml(d){
         if (q.tags && q.tags.length) out += `        tags: [${q.tags.join(", ")}]\n`;
       }
     }
+    if ((dg.feeds || []).length){
+      out += "    feeds:\n";
+      for (const f of dg.feeds){
+        out += `      - name: ${quote(f.name)}\n        url: ${JSON.stringify(f.url)}\n`;
+        if (f.tags && f.tags.length) out += `        tags: [${f.tags.join(", ")}]\n`;
+      }
+    }
     if ((dg.channels || []).length){
       out += "    channels:\n";
       for (const c of dg.channels){
@@ -54,7 +61,7 @@ function fromYaml(text){
     if (mode !== "digests") continue;
 
     if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){
-      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: []};
+      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: [], feeds: []};
       const [k, ...rest] = t.slice(2).split(":");
       dg[k.trim()] = unq(rest.join(":").trim());
       out.digests.push(dg); slot = null; continue;
@@ -66,8 +73,10 @@ function fromYaml(text){
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
     if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
     if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
-    if (dg._in === "queries" || dg._in === "channels"){
-      const list = dg._in === "queries" ? dg.queries : dg.channels;
+    if (indent === 4 && t === "feeds:"){ dg._in = "feeds"; continue; }
+    if (dg._in === "queries" || dg._in === "channels" || dg._in === "feeds"){
+      const list = dg._in === "queries" ? dg.queries
+                 : dg._in === "channels" ? dg.channels : dg.feeds;
       if (t.startsWith("- name:")){ list.push({name: unq(t.slice(7).trim())}); continue; }
       const cur = list[list.length - 1];
       if (!cur) continue;

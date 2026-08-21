@@ -54,13 +54,6 @@ sources:
       country: KR
 
   # 일반 RSS 피드 (해외 매체)
-  # 네이버 블로그 — 훈련 후기·코스·러닝화 리뷰가 여기 많다.
-  # 특정 블로그만 보려면 rss 에 rss.blog.naver.com/<아이디>.xml 을 넣는다.
-  naver_blog:
-    - name: 러닝 블로그
-      query: 러닝 훈련 OR 마라톤 후기
-      sort: date
-
   # 구독·큐레이션 채널 밖에서도 끌어온다. 48시간 안에 올라온 것 중
   # 조회수가 높은 순이라 '요즘 많이 본 러닝 영상'이 된다.
   youtube_search:

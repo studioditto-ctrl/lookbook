@@ -287,6 +287,13 @@ function toYaml(d){
         if (q.tags && q.tags.length) out += `        tags: [${q.tags.join(", ")}]\n`;
       }
     }
+    if ((dg.feeds || []).length){
+      out += "    feeds:\n";
+      for (const f of dg.feeds){
+        out += `      - name: ${quote(f.name)}\n        url: ${JSON.stringify(f.url)}\n`;
+        if (f.tags && f.tags.length) out += `        tags: [${f.tags.join(", ")}]\n`;
+      }
+    }
     if ((dg.channels || []).length){
       out += "    channels:\n";
       for (const c of dg.channels){
@@ -314,7 +321,7 @@ function fromYaml(text){
     if (mode !== "digests") continue;
 
     if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){
-      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: []};
+      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: [], feeds: []};
       const [k, ...rest] = t.slice(2).split(":");
       dg[k.trim()] = unq(rest.join(":").trim());
       out.digests.push(dg); slot = null; continue;
@@ -326,8 +333,10 @@ function fromYaml(text){
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
     if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
     if (indent === 4 && t === "channels:"){ dg._in = "channels"; continue; }
-    if (dg._in === "queries" || dg._in === "channels"){
-      const list = dg._in === "queries" ? dg.queries : dg.channels;
+    if (indent === 4 && t === "feeds:"){ dg._in = "feeds"; continue; }
+    if (dg._in === "queries" || dg._in === "channels" || dg._in === "feeds"){
+      const list = dg._in === "queries" ? dg.queries
+                 : dg._in === "channels" ? dg.channels : dg.feeds;
       if (t.startsWith("- name:")){ list.push({name: unq(t.slice(7).trim())}); continue; }
       const cur = list[list.length - 1];
       if (!cur) continue;
@@ -403,7 +412,7 @@ function render(){
 
       <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
                ontoggle="panel('d${di}',this.open)">
-        <summary>키워드 ${Object.keys(dg.keywords).length} · 검색어 ${(dg.queries || []).length} · 채널 ${(dg.channels || []).length}</summary>
+        <summary>키워드 ${Object.keys(dg.keywords).length} · 검색어 ${(dg.queries || []).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
 
         <label style="margin-top:6px">키워드 — 숫자가 클수록 먼저 골라집니다</label>
         <div class="chips">
@@ -430,6 +439,20 @@ function render(){
           <input id="q${di}" placeholder="예: 스페셜티 커피" enterkeyhint="done"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addQuery(${di})}">
           <button class="tiny" onclick="addQuery(${di})">추가</button>
+        </div>
+
+        <label style="margin-top:16px">네이버 블로그</label>
+        <div class="chips">
+          ${(dg.feeds || []).map((f, fi) => `
+            <span class="chip">${esc(f.name)}
+              <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음</span>'}
+        </div>
+        <div class="add">
+          <input id="bl${di}" placeholder="blog.naver.com/아이디 또는 아이디" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
+          <button class="tiny" onclick="addFeed(${di})">추가</button>
         </div>
 
         <label style="margin-top:16px">유튜브 채널</label>
@@ -550,6 +573,7 @@ function addTopic(){
     keywords: {[label]: 3},
     queries: [{name: label, query: label}],
     channels: matchChannels(label),
+    feeds: [],
   });
   $("newTopic").value = "";
   open.add("d" + (data.digests.length - 1));   // 붙은 채널을 바로 볼 수 있게
@@ -909,6 +933,36 @@ function addQuery(di){
   render(); touch();
 }
 function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); touch(); }
+
+/* 네이버 블로그는 주소 모양이 여러 가지다. 아이디만 뽑아 RSS 주소로 만든다.
+   검색 API 는 NAVER API HUB 로 옮겨가 키가 따로 필요하지만, 블로그별 RSS 는
+   키 없이 그대로 된다. */
+function blogId(text){
+  let s = String(text).trim();
+  if (!s) return "";
+  s = s.replace(/^@/, "");
+  // https://blog.naver.com/아이디/223... · m.blog.naver.com/아이디 · rss.blog.naver.com/아이디.xml
+  const m = s.match(/(?:^|\/\/)(?:m\.|rss\.)?blog\.naver\.com\/([A-Za-z0-9_-]+)/);
+  if (m) return m[1].replace(/\.xml$/i, "");
+  if (/^[A-Za-z0-9_-]+$/.test(s)) return s;
+  return "";
+}
+function addFeed(di){
+  const el = $("bl" + di), id = blogId(el.value);
+  if (!id){
+    toast("네이버 블로그 주소나 아이디를 넣어주세요. 예: blog.naver.com/myblog", "err");
+    return;
+  }
+  const url = `https://rss.blog.naver.com/${id}.xml`;
+  const feeds = (data.digests[di].feeds ||= []);
+  if (feeds.some(f => f.url === url)){ toast(`'${esc(id)}' 은(는) 이미 있습니다.`, "err"); return; }
+  feeds.push({name: id, url});
+  el.value = "";
+  open.add("d" + di);
+  render(); touch();
+  toast(`블로그 '${esc(id)}' 을(를) ${esc(data.digests[di].label)} 에 넣었습니다.`, "busy");
+}
+function delFeed(di, fi){ data.digests[di].feeds.splice(fi, 1); render(); touch(); }
 
 /* ---------- GitHub ---------- */
 const token = () => localStorage.getItem("gh_token") || "";

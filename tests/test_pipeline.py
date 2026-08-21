@@ -1101,8 +1101,12 @@ class TestNaverNeedsCredentials(unittest.TestCase):
         self.assertEqual(self.collect.collect(config, {}), [])
 
 
-class TestPageQueriesReachNaver(unittest.TestCase):
-    """페이지 검색어 하나가 뉴스·유튜브·네이버 셋 다에 걸려야 한다."""
+class TestPageQueriesFanOut(unittest.TestCase):
+    """페이지 검색어 하나가 뉴스와 유튜브에 걸린다.
+
+    네이버 검색은 API 가 NAVER API HUB 로 이관돼 기존 키가 통하지 않는다.
+    블로그는 검색 대신 feeds(블로그별 RSS)로 받는다.
+    """
 
     def setUp(self):
         import settings as settings_module
@@ -1114,16 +1118,54 @@ class TestPageQueriesReachNaver(unittest.TestCase):
             "queries": [{"name": "IT", "query": "IT 뉴스"}],
         }]}
 
-    def test_all_three(self):
+    def test_news_and_video(self):
         cfg = self.apply({}, self.data, "it", "daily")
-        for key in ("google_news", "youtube_search", "naver_blog"):
+        for key in ("google_news", "youtube_search"):
             self.assertEqual([s["query"] for s in cfg["sources"][key]], ["IT 뉴스"], key)
 
-    def test_naver_can_be_turned_off_per_query(self):
-        self.data["digests"][0]["queries"][0]["naver"] = False
+    def test_youtube_can_be_turned_off_per_query(self):
+        self.data["digests"][0]["queries"][0]["youtube"] = False
         cfg = self.apply({}, self.data, "it", "daily")
+        self.assertIsNone(cfg["sources"].get("youtube_search"))
+        self.assertEqual(len(cfg["sources"]["google_news"]), 1)
+
+
+class TestPageFeeds(unittest.TestCase):
+    """네이버 블로그는 검색 API 대신 블로그별 RSS 로 받는다."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.apply = settings_module.apply
+        self.data = {"digests": [{
+            "key": "run", "label": "러닝",
+            "slots": [{"slot": "daily", "title": "러닝", "articles": 2, "videos": 3}],
+            "feeds": [{"name": "달리는회계사",
+                       "url": "https://rss.blog.naver.com/runner.xml"}],
+        }]}
+
+    def test_feed_lands_in_rss(self):
+        cfg = self.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["sources"]["rss"],
+                         [{"name": "달리는회계사", "url": "https://rss.blog.naver.com/runner.xml"}])
+
+    def test_config_feeds_are_kept(self):
+        base = {"sources": {"rss": [{"name": "기존", "url": "https://x.test/f.xml"}]}}
+        cfg = self.apply(base, self.data, "run", "daily")
+        self.assertEqual([s["name"] for s in cfg["sources"]["rss"]], ["기존", "달리는회계사"])
+        # 원본은 건드리지 않는다
+        self.assertEqual(len(base["sources"]["rss"]), 1)
+
+    def test_page_queries_no_longer_hit_naver_search(self):
+        """검색 API 가 이관돼 키가 안 먹는다. 매 회차 401 을 만들지 않아야 한다."""
+        data = {"digests": [{
+            "key": "it", "label": "IT",
+            "slots": [{"slot": "daily", "title": "IT", "articles": 1, "videos": 1}],
+            "queries": [{"name": "IT", "query": "IT"}],
+        }]}
+        cfg = self.apply({}, data, "it", "daily")
         self.assertIsNone(cfg["sources"].get("naver_blog"))
-        self.assertEqual(len(cfg["sources"]["youtube_search"]), 1)
+        self.assertEqual(len(cfg["sources"]["google_news"]), 1)
 
 
 class TestSearchOrder(unittest.TestCase):
