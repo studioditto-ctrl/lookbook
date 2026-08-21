@@ -250,24 +250,36 @@ def search_channel_id(query, cache, key, problems=None, source_name=None):
     return channel_id
 
 
-def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX, problems=None):
-    """키워드로 최근 영상을 찾는다.
+# search.list 가 받는 정렬. viewCount 는 기간 안에서 조회수가 높은 순이라,
+# publishedAfter 와 같이 쓰면 '요즘 많이 본 영상'이 된다.
+SEARCH_ORDERS = ("date", "viewCount", "relevance", "rating")
 
-    구독 채널이 없는 새 주제는 이 경로로만 영상이 들어온다. 뉴스 링크는
-    구글 리다이렉트라 텔레그램 썸네일이 비는데, 유튜브 링크는 확실히 잡힌다.
+
+def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
+                  order="date", lang=None, problems=None):
+    """키워드로 최근 영상을 찾는다. 구독 여부와 무관하게 유튜브 전체가 대상이다.
+
+    채널 목록만 보면 이미 아는 채널에서만 영상이 온다. 이 경로가 있어야
+    주제를 새로 만들거나 모르는 채널이 올린 영상도 들어온다.
 
     search 는 1회 100 유닛이라 회차당 검색어 하나에 한 번만 부른다.
     """
+    if order not in SEARCH_ORDERS:
+        print(f"[collect] '{source_name}' 정렬 '{order}' 을 몰라 date 로 씁니다.")
+        order = "date"
+
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     params = {
         "part": "snippet",
         "type": "video",
-        "order": "date",
+        "order": order,
         "q": query,
         "maxResults": min(limit, 25),
         "publishedAfter": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "key": key,
     }
+    if lang:
+        params["relevanceLanguage"] = lang
     try:
         resp = requests.get(
             YT_SEARCH_API, params=params, timeout=TIMEOUT,
@@ -305,7 +317,7 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX, problems=
                 summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
             )
         )
-    print(f"[collect] '{source_name}' 영상 검색 {len(items)}건")
+    print(f"[collect] '{source_name}' 영상 검색 {len(items)}건 ({order})")
     return items
 
 
@@ -390,7 +402,10 @@ def collect(config, channel_cache):
     for src in sources.get("youtube_search") or [] if api_key else []:
         found = search_videos(
             src["query"], src.get("name") or src["query"], api_key,
-            hours=config.get("lookback_hours", 36), problems=problems,
+            hours=config.get("lookback_hours", 36),
+            order=src.get("order", "date"),
+            lang=src.get("lang"),
+            problems=problems,
         )
         items += _tag(found, src.get("tags"))
 

@@ -54,6 +54,14 @@ sources:
       country: KR
 
   # 일반 RSS 피드 (해외 매체)
+  # 구독·큐레이션 채널 밖에서도 끌어온다. 48시간 안에 올라온 것 중
+  # 조회수가 높은 순이라 '요즘 많이 본 러닝 영상'이 된다.
+  youtube_search:
+    - name: 러닝 인기 영상
+      query: 러닝 OR 마라톤 OR 달리기
+      order: viewCount
+      lang: ko
+
   rss:
     - name: Runner's World
       url: https://www.runnersworld.com/rss/all.xml/

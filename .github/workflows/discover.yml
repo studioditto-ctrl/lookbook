@@ -1,0 +1,38 @@
+name: 인기 채널 찾기
+
+# 주제로 인기 유튜브 채널을 찾아 로그에 출력한다. 아무것도 전송하지 않는다.
+# .discover-trigger 파일에 검색어를 적고 푸시해도 실행된다.
+on:
+  push:
+    paths:
+      - '.discover-trigger'
+  workflow_dispatch:
+    inputs:
+      queries:
+        description: 검색어 (비우면 settings.yaml 의 모든 주제)
+        type: string
+        default: ''
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 채널 찾기
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          want="${{ inputs.queries }}"
+          if [ -z "$want" ] && [ -f .discover-trigger ]; then
+            want="$(head -1 .discover-trigger)"
+          fi
+          if [ -z "$want" ]; then
+            python scripts/discover_channels.py --all
+          else
+            python scripts/discover_channels.py $want
+          fi

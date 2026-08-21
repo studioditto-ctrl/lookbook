@@ -30,6 +30,12 @@ sources:
       lang: ko
       country: KR
 
+  youtube_search:
+    - name: 패션 인기 영상
+      query: 패션 OR 코디 OR 스타일링
+      order: viewCount
+      lang: ko
+
   rss: []
 
   # 구독 목록(Takeout)에서 확인한 channel_id. 검색을 거치지 않는다.

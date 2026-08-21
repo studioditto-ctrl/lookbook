@@ -977,6 +977,56 @@ class TestVideoSearch(unittest.TestCase):
         self.assertEqual(problems[0][0], "IT")
 
 
+class TestSearchOrder(unittest.TestCase):
+    """'인기순'으로도 찾을 수 있어야 채널 목록 밖의 영상이 들어온다."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        payload = {"items": [{"id": {"videoId": "v1"}, "snippet": {
+            "title": "많이 본 영상", "channelTitle": "채널",
+            "publishedAt": "2026-08-19T02:00:00Z", "description": ""}}]}
+        cls.server = FeedServer({"s.json": json.dumps(payload, ensure_ascii=False)})
+        cls.saved = collect_module.YT_SEARCH_API
+        collect_module.YT_SEARCH_API = cls.server.url("s.json")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.YT_SEARCH_API = cls.saved
+        cls.server.close()
+
+    def test_known_orders_are_accepted(self):
+        for order in self.collect.SEARCH_ORDERS:
+            items = self.collect.search_videos("러닝", "러닝", "key", order=order)
+            self.assertEqual(len(items), 1, order)
+
+    def test_unknown_order_falls_back_to_date(self):
+        # 오타가 있어도 그 회차를 통째로 잃지 않아야 한다
+        items = self.collect.search_videos("러닝", "러닝", "key", order="popular")
+        self.assertEqual(len(items), 1)
+
+
+class TestChannelOnlyConfigsAlsoSearch(unittest.TestCase):
+    """채널 목록만 있던 주제도 유튜브 전체에서 영상을 받아야 한다."""
+
+    def test_every_config_has_a_video_search(self):
+        import yaml as yaml_module
+
+        repo = Path(__file__).resolve().parent.parent
+        for path in sorted(repo.glob("config*.yaml")):
+            config = yaml_module.safe_load(path.read_text(encoding="utf-8")) or {}
+            searches = (config.get("sources") or {}).get("youtube_search") or []
+            self.assertTrue(searches, f"{path.name} 에 youtube_search 가 없습니다")
+            for src in searches:
+                self.assertIn("query", src)
+                if src.get("order"):
+                    from collect import SEARCH_ORDERS
+
+                    self.assertIn(src["order"], SEARCH_ORDERS)
+
+
 class TestPageQueriesFeedBothSides(unittest.TestCase):
     """페이지 검색어는 뉴스와 유튜브 양쪽에 걸려야 썸네일이 뜬다."""
 

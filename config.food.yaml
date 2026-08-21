@@ -30,6 +30,12 @@ sources:
       lang: ko
       country: KR
 
+  youtube_search:
+    - name: 맛집·요리 인기 영상
+      query: 맛집 OR 요리 OR 레시피
+      order: viewCount
+      lang: ko
+
   rss: []
 
   # 구독 목록(Takeout)에서 확인한 channel_id. 검색을 거치지 않는다.
