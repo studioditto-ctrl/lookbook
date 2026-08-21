@@ -338,6 +338,12 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
     return items
 
 
+# 024 는 원인이 둘이다. 본문을 봐야 갈린다.
+NAVER_SCOPES_EMPTY = (
+    "앱에 API 권한이 없습니다. 개발자센터 → 내 애플리케이션 → 해당 앱 → "
+    "API 설정 → '사용 API' 에 '검색' 을 추가하세요. 키는 맞습니다."
+)
+
 NAVER_ERRORS = {
     "024": "Client ID 가 틀렸습니다. 개발자센터의 값과 다시 맞춰보세요.",
     "028": "Client Secret 이 틀렸습니다. 두 값이 서로 바뀌지 않았는지 보세요.",
@@ -358,6 +364,9 @@ def _naver_error(response):
     code = str(body.get("errorCode", "")).strip()
     message = " ".join(str(body.get("errorMessage", "")).split())
     hint = NAVER_ERRORS.get(code, "")
+    # 키는 맞는데 앱에 권한이 없는 경우도 024 로 온다. 고칠 곳이 아예 다르다.
+    if "scopes are empty" in message.lower():
+        hint = NAVER_SCOPES_EMPTY
     return " ".join(x for x in (f"[{code}]" if code else "", hint, message) if x)[:200]
 
 

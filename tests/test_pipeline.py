@@ -1050,6 +1050,19 @@ class TestNaverBlogSearch(unittest.TestCase):
         self.assertEqual(got, [])
         self.assertEqual(problems[0][0], "블로그")
 
+    def test_scopes_empty_points_at_the_app_not_the_key(self):
+        """024 는 원인이 둘이다. 키를 다시 넣으라고 하면 영영 못 고친다."""
+        import collect as collect_module
+
+        class Response:
+            def json(self):
+                return {"errorCode": "024",
+                        "errorMessage": "Scopes are Empty : Authentication failed."}
+
+        reason = collect_module._naver_error(Response())
+        self.assertIn("사용 API", reason)
+        self.assertNotIn("Client ID 가 틀렸습니다", reason)
+
     def test_naver_error_body_is_surfaced(self):
         """상태 코드만으로는 무엇을 고쳐야 할지 알 수 없다."""
         self.collect.NAVER_BLOG_API = self.server.url("denied.json")  # 401 을 낼 주소

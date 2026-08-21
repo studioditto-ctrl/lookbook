@@ -156,11 +156,17 @@ sources:
 
 네이버가 본문에 `errorCode` 를 담아 준다. 로그의 `네이버 응답:` 줄을 본다.
 
-| 코드 | 뜻 | 할 일 |
+| 코드 | 본문 | 할 일 |
 |---|---|---|
-| 024 | Not Exist Client ID | `NAVER_CLIENT_ID` 값 확인 |
-| 028 | Authentication failed | `NAVER_CLIENT_SECRET` 값 확인 (두 값이 바뀌지 않았는지) |
-| 101 | Permission Denied | 앱 설정의 **사용 API** 에 `검색` 추가 |
+| 024 | `Scopes are Empty` | **키는 맞다.** 앱 설정의 **사용 API** 에 `검색` 추가 |
+| 024 | `Not Exist Client ID` | `NAVER_CLIENT_ID` 값 확인 |
+| 028 | `Authentication failed` | `NAVER_CLIENT_SECRET` 값 확인 (두 값이 바뀌지 않았는지) |
+| 101 | `Permission Denied` | 앱 설정의 **사용 API** 에 `검색` 추가 |
+
+`024` 는 원인이 둘이라 본문을 봐야 갈린다. `Scopes are Empty` 면 키를
+아무리 다시 넣어도 고쳐지지 않는다 — 고칠 곳은 개발자센터의 앱 설정이다.
+등록할 때 **사용 API** 를 고르지 않으면 이 상태가 되고, 같은 이유로
+**비로그인 오픈 API 서비스 환경**(WEB 설정) 칸도 나타나지 않는다.
 
 값을 복사할 때 앞뒤 공백이나 줄바꿈이 섞이면 그대로 401 이 난다.
 
