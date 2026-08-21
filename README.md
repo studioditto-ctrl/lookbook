@@ -115,6 +115,53 @@ sources:
       country: KR
 ```
 
+### 네이버 블로그
+
+훈련 후기·코스·러닝화 리뷰처럼 뉴스에도 유튜브에도 없는 글이 여기 많다.
+넣는 방법이 두 가지이고, 목적이 다르다.
+
+**블로그 하나만 구독** — 키가 필요 없다. 네이버가 블로그마다 RSS 를 준다.
+
+```yaml
+sources:
+  rss:
+    - name: 어느 러너의 블로그
+      url: https://rss.blog.naver.com/<블로그아이디>.xml
+```
+
+**주제로 넓게 훑기** — 네이버 검색 API 를 쓴다. 특정 블로그가 아니라
+네이버 전체가 대상이다.
+
+```yaml
+sources:
+  naver_blog:
+    - name: 러닝 블로그
+      query: 러닝 훈련 OR 마라톤 후기
+      sort: date      # date(기본) · sim(관련도)
+      display: 20
+```
+
+#### 키 발급 (한 번, 심사 없음)
+
+1. [네이버 개발자센터](https://developers.naver.com/apps/#/register) → 애플리케이션 등록
+2. 사용 API 에 **검색** 추가
+3. 나온 **Client ID / Client Secret** 을 Repository secrets 에 넣는다
+   - `NAVER_CLIENT_ID`
+   - `NAVER_CLIENT_SECRET`
+
+즉시 발급되고 하루 25,000회다. 키가 없으면 이 소스만 건너뛰고 발송은
+그대로 된다.
+
+#### 알아둘 점
+
+- `postdate` 가 **날짜까지만** 온다. 시각이 없어 그날 0시(KST)로 둔다.
+  `lookback_hours: 48` 이면 어제·오늘 글이 들어온다.
+- 출처를 검색어가 아니라 **블로그 이름**으로 둔다. 소스 분산이 블로그
+  단위로 걸려 한 블로그가 회차를 독식하지 않는다.
+- 검색 결과에 `?from=...` 이 붙어 온다. 떼지 않으면 같은 글이 다른 URL 로
+  보여 중복 제거를 빠져나간다. `TRACKING_PARAMS` 에서 걸러낸다.
+- 협찬글이 많다. `exclude` 에 `체험단`·`원고료`·`소정의` 를 넣어뒀다.
+
 ### 키워드로 영상 찾기 (채널 목록 밖)
 
 `sources.youtube` 는 내가 적어둔 채널만 본다. 그 목록에 없는 채널이 올린

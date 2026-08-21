@@ -10,6 +10,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from urllib.parse import quote_plus, urlparse, urlunparse, parse_qsl, urlencode
 
 import feedparser
@@ -22,6 +23,12 @@ YT_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 YT_API = "https://www.googleapis.com/youtube/v3/playlistItems"
 YT_SEARCH_API = "https://www.googleapis.com/youtube/v3/search"
 YT_API_MAX = 15
+# 네이버 검색 API. 개발자센터에서 앱을 만들면 바로 나오는 ID/시크릿만 있으면
+# 되고 심사가 없다. 하루 25,000회.
+NAVER_BLOG_API = "https://openapi.naver.com/v1/search/blog.json"
+NAVER_SORTS = ("date", "sim")
+KST = ZoneInfo("Asia/Seoul")
+
 GNEWS_FEED = (
     "https://news.google.com/rss/search"
     "?q={query}&hl={lang}&gl={country}&ceid={country}:{lang}"
@@ -31,6 +38,8 @@ GNEWS_FEED = (
 TRACKING_PARAMS = {
     "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
     "fbclid", "gclid", "igshid", "ref", "ref_src",
+    # 네이버 검색이 붙이는 것들. 남겨두면 같은 글이 다른 URL 로 보인다.
+    "from", "trackingCode", "proxyReferer", "fromRss",
 }
 
 
@@ -46,6 +55,14 @@ class Item:
     summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
     tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
     score: float = 0.0
+
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _plain(text):
+    """네이버가 검색어에 <b> 를 씌워 돌려주고 엔티티도 섞여 온다."""
+    return html.unescape(_TAG_RE.sub("", text or "")).strip()
 
 
 def _canonical_url(url):
@@ -321,6 +338,63 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
     return items
 
 
+def search_naver_blog(query, source_name, client_id, client_secret,
+                      sort="date", display=20, problems=None):
+    """네이버 블로그를 검색한다. 특정 블로그가 아니라 네이버 전체가 대상이다.
+
+    블로그 하나만 구독하려면 sources.rss 에 rss.blog.naver.com/<아이디>.xml 을
+    넣으면 된다 — 그건 키가 필요 없다. 이 함수는 주제로 넓게 훑는 쪽이다.
+    """
+    if sort not in NAVER_SORTS:
+        print(f"[collect] '{source_name}' 정렬 '{sort}' 을 몰라 date 로 씁니다.")
+        sort = "date"
+
+    try:
+        resp = requests.get(
+            NAVER_BLOG_API,
+            params={"query": query, "display": min(display, 100), "sort": sort},
+            timeout=TIMEOUT,
+            headers={
+                "X-Naver-Client-Id": client_id,
+                "X-Naver-Client-Secret": client_secret,
+                "User-Agent": USER_AGENT,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"[collect] '{source_name}' 네이버 블로그 검색 실패: {e}")
+        _note(problems, source_name, "네이버 블로그 검색 실패")
+        return []
+
+    items = []
+    for entry in data.get("items") or []:
+        link = entry.get("link")
+        title = _clean_title(_plain(entry.get("title")))
+        if not link or not title:
+            continue
+        # postdate 는 YYYYMMDD 라 시각이 없다. 그날 0시(KST)로 둔다.
+        try:
+            when = datetime.strptime(entry.get("postdate", ""), "%Y%m%d").replace(tzinfo=KST)
+        except ValueError:
+            when = datetime.now(timezone.utc)
+        url_ = _canonical_url(link)
+        items.append(
+            Item(
+                id=f"naver:{url_}",
+                title=title,
+                url=url_,
+                # 블로그 이름을 출처로 둬야 한 블로그가 회차를 독식하지 않는다
+                source=_plain(entry.get("bloggername")) or source_name,
+                kind="article",
+                published=when,
+                summary=_plain(entry.get("description")),
+            )
+        )
+    print(f"[collect] '{source_name}' 네이버 블로그 {len(items)}건 ({sort})")
+    return items
+
+
 def _uploads_playlist(channel_id):
     """채널의 '업로드' 재생목록 ID. UC... -> UU... 로 앞 두 글자만 바뀐다."""
     return "UU" + channel_id[2:]
@@ -395,6 +469,19 @@ def collect(config, channel_cache):
         items += _tag(
             _parse_feed(src["url"], src["name"], "article", problems), src.get("tags")
         )
+
+    naver_id = os.environ.get("NAVER_CLIENT_ID")
+    naver_secret = os.environ.get("NAVER_CLIENT_SECRET")
+    naver_sources = sources.get("naver_blog") or []
+    if naver_sources and not (naver_id and naver_secret):
+        print("[collect] NAVER_CLIENT_ID/SECRET 이 없어 블로그 검색을 건너뜁니다.")
+    for src in naver_sources if (naver_id and naver_secret) else []:
+        found = search_naver_blog(
+            src["query"], src.get("name") or src["query"], naver_id, naver_secret,
+            sort=src.get("sort", "date"), display=src.get("display", 20),
+            problems=problems,
+        )
+        items += _tag(found, src.get("tags"))
 
     api_key = os.environ.get("YOUTUBE_API_KEY")
     if (sources.get("youtube_search") or []) and not api_key:

@@ -977,6 +977,112 @@ class TestVideoSearch(unittest.TestCase):
         self.assertEqual(problems[0][0], "IT")
 
 
+class TestNaverBlogSearch(unittest.TestCase):
+    """네이버 블로그는 RSS 없이 검색 API 로 넓게 훑는다."""
+
+    @classmethod
+    def setUpClass(cls):
+        import collect as collect_module
+
+        cls.collect = collect_module
+        payload = {"items": [
+            {"title": "서브3 <b>마라톤</b> 훈련 &amp; 후기",
+             "link": "https://blog.naver.com/runner/223456789?from=search",
+             "description": "인터벌 <b>훈련</b>을 12주간",
+             "bloggername": "달리는 사람", "postdate": "20260819"},
+            {"title": "링크 없음", "link": "", "postdate": "20260819"},
+        ]}
+        cls.server = FeedServer({
+            "blog.json": json.dumps(payload, ensure_ascii=False),
+            "bad.json": "not json",
+        })
+        cls.saved = collect_module.NAVER_BLOG_API
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collect.NAVER_BLOG_API = cls.saved
+        cls.server.close()
+
+    def test_parses_and_cleans(self):
+        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
+        items = self.collect.search_naver_blog("마라톤", "러닝 블로그", "id", "secret")
+        self.assertEqual(len(items), 1)  # link 없는 항목은 제외
+        item = items[0]
+        # <b> 와 엔티티가 그대로 텔레그램에 나가면 안 된다
+        self.assertEqual(item.title, "서브3 마라톤 훈련 & 후기")
+        self.assertEqual(item.summary, "인터벌 훈련을 12주간")
+        self.assertEqual(item.kind, "article")
+        # 한 블로그가 회차를 독식하지 않도록 출처는 블로그 이름
+        self.assertEqual(item.source, "달리는 사람")
+        # 추적 파라미터는 떨어져야 같은 글이 두 번 안 온다
+        self.assertEqual(item.url, "https://blog.naver.com/runner/223456789")
+        self.assertEqual(item.id, "naver:https://blog.naver.com/runner/223456789")
+
+    def test_postdate_is_read_as_kst(self):
+        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
+        item = self.collect.search_naver_blog("마라톤", "블로그", "id", "secret")[0]
+        self.assertEqual(item.published.astimezone(self.collect.KST).date().isoformat(),
+                         "2026-08-19")
+
+    def test_failure_is_reported_not_raised(self):
+        self.collect.NAVER_BLOG_API = self.server.url("bad.json")
+        problems = []
+        got = self.collect.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
+        self.assertEqual(got, [])
+        self.assertEqual(problems[0][0], "블로그")
+
+    def test_unknown_sort_falls_back(self):
+        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
+        got = self.collect.search_naver_blog("마라톤", "블로그", "id", "s", sort="best")
+        self.assertEqual(len(got), 1)
+
+
+class TestNaverNeedsCredentials(unittest.TestCase):
+    """키가 없으면 그 소스만 건너뛰고 발송은 계속돼야 한다."""
+
+    def setUp(self):
+        import collect as collect_module
+
+        self.collect = collect_module
+        self.saved = {k: os.environ.pop(k, None)
+                      for k in ("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET", "YOUTUBE_API_KEY")}
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+    def test_missing_keys_skip_the_source(self):
+        config = {"sources": {"naver_blog": [{"name": "블로그", "query": "러닝"}]},
+                  "lookback_hours": 48}
+        self.assertEqual(self.collect.collect(config, {}), [])
+
+
+class TestPageQueriesReachNaver(unittest.TestCase):
+    """페이지 검색어 하나가 뉴스·유튜브·네이버 셋 다에 걸려야 한다."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.apply = settings_module.apply
+        self.data = {"digests": [{
+            "key": "it", "label": "IT",
+            "slots": [{"slot": "daily", "title": "IT", "articles": 2, "videos": 3}],
+            "queries": [{"name": "IT", "query": "IT 뉴스"}],
+        }]}
+
+    def test_all_three(self):
+        cfg = self.apply({}, self.data, "it", "daily")
+        for key in ("google_news", "youtube_search", "naver_blog"):
+            self.assertEqual([s["query"] for s in cfg["sources"][key]], ["IT 뉴스"], key)
+
+    def test_naver_can_be_turned_off_per_query(self):
+        self.data["digests"][0]["queries"][0]["naver"] = False
+        cfg = self.apply({}, self.data, "it", "daily")
+        self.assertIsNone(cfg["sources"].get("naver_blog"))
+        self.assertEqual(len(cfg["sources"]["youtube_search"]), 1)
+
+
 class TestSearchOrder(unittest.TestCase):
     """'인기순'으로도 찾을 수 있어야 채널 목록 밖의 영상이 들어온다."""
 

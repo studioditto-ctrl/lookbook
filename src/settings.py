@@ -95,12 +95,17 @@ def apply(config, settings, config_name, slot_name):
             entry["tags"] = tags
         sources.setdefault("google_news", []).append(entry)
 
-        if isinstance(query, dict) and query.get("youtube") is False:
-            continue
-        video = {"name": name, "query": text}
-        if tags:
-            video["tags"] = tags
-        sources.setdefault("youtube_search", []).append(video)
+        if not (isinstance(query, dict) and query.get("youtube") is False):
+            video = {"name": name, "query": text}
+            if tags:
+                video["tags"] = tags
+            sources.setdefault("youtube_search", []).append(video)
+
+        if not (isinstance(query, dict) and query.get("naver") is False):
+            blog = {"name": name, "query": text}
+            if tags:
+                blog["tags"] = tags
+            sources.setdefault("naver_blog", []).append(blog)
     for channel in digest.get("channels") or []:
         sources.setdefault("youtube", []).append(dict(channel))
     merged["sources"] = sources

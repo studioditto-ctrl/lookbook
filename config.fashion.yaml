@@ -30,6 +30,11 @@ sources:
       lang: ko
       country: KR
 
+  naver_blog:
+    - name: 패션 블로그
+      query: 코디 추천 OR 패션 트렌드
+      sort: date
+
   youtube_search:
     - name: 패션 인기 영상
       query: 패션 OR 코디 OR 스타일링
