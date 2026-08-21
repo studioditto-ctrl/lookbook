@@ -114,8 +114,6 @@ sources:
       search: 러닝전도사 안정은
     - name: 정두식 마라톤TV
       search: 정두식 마라톤 TV
-    - name: 메달사냥꾼
-      search: 메달사냥꾼 Medal Hunter
 
     # 구독 목록(Takeout)에서 확인한 채널. channel_id 를 그대로 받았으므로
     # 검색을 거치지 않는다 — 엉뚱한 채널이 잡힐 여지가 없다.
