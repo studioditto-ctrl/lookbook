@@ -63,6 +63,8 @@ digests:
         query: "낙성대 맛집"
       - name: 양재맛집
         query: "양재맛집"
+      - name: 성남맛집
+        query: "성남맛집"
   - config: config.fashion.yaml
     label: 패션
     slots:
