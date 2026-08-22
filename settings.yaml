@@ -86,7 +86,7 @@ digests:
     slots:
       - slot: night
         title: "You Know Style"
-        send_at: "21:30"
+        send_at: "07:00"
         enabled: true
         articles: 3
         videos: 3
