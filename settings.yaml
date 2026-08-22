@@ -13,7 +13,7 @@ digests:
         videos: 3
     keywords:
       통증: 2
-      훈련: 2
+      훈련: 3
       루틴: 2
       페이스: 2
       기록: 2
@@ -31,7 +31,7 @@ digests:
       beginner: 1
     queries:
       - name: 러닝
-        query: "통증 OR 훈련 OR 루틴 OR 페이스 OR 기록 OR 마라톤"
+        query: "훈련 OR 통증 OR 루틴 OR 페이스 OR 기록 OR 마라톤"
   - config: config.food.yaml
     label: 음식
     slots:
