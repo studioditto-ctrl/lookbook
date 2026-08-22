@@ -26,12 +26,12 @@ digests:
       training: 2
       workout: 2
       pace: 2
-      recovery: 2
+      recovery: 3
       shoes: 2
       beginner: 1
     queries:
       - name: 러닝
-        query: "훈련 OR 마라톤 OR 통증 OR 루틴 OR 페이스 OR 기록"
+        query: "훈련 OR 마라톤 OR recovery OR 통증 OR 루틴 OR 페이스"
   - config: config.food.yaml
     label: 음식
     slots:
