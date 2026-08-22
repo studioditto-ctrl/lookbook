@@ -59,6 +59,8 @@ digests:
         query: "판교맛집"
       - name: 사당맛집
         query: "사당맛집"
+      - name: 낙성대 맛집
+        query: "낙성대 맛집"
   - config: config.fashion.yaml
     label: 패션
     slots:
