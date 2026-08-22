@@ -73,6 +73,8 @@ digests:
         query: "남성 스타일"
       - name: 4050 패션
         query: "4050 패션"
+      - name: 중년 스타일
+        query: "중년 스타일"
   - key: tmsy0lgx6
     label: 피부
     slots:
