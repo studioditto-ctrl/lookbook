@@ -10,7 +10,7 @@ digests:
         send_at: "08:00"
         enabled: true
         articles: 3
-        videos: 2
+        videos: 3
     keywords:
       부상: 3
       통증: 3
@@ -38,8 +38,8 @@ digests:
         title: "🍜 점심 뭐 먹지"
         send_at: "12:30"
         enabled: true
-        articles: 1
-        videos: 4
+        articles: 3
+        videos: 3
     keywords:
       맛집: 3
       레시피: 3
