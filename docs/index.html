@@ -84,6 +84,14 @@
   .chip.plain{padding-right:12px}
   .chip button{border:0; background:none; padding:0; min-height:28px; width:28px;
         color:var(--muted); font-size:18px; line-height:1}
+  /* 순위 상자 — 칩을 끌어다 옮긴다 */
+  .tier{border:1px dashed var(--line); border-radius:12px; padding:8px 10px; margin-top:8px}
+  .tier.over{border-color:var(--accent); border-style:solid; background:rgba(31,111,235,.07)}
+  .tier .head{display:flex; justify-content:space-between; font-size:12px; color:var(--muted)}
+  .chip.kw{touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none}
+  .chip.kw.dragging{opacity:.35}
+  .chip.kw.ghost{position:fixed; z-index:60; pointer-events:none; cursor:grabbing;
+        box-shadow:0 8px 22px rgba(0,0,0,.28); background:var(--card)}
   .add{display:flex; gap:8px; margin-top:10px}
   .add input{flex:1}
   details{margin-top:12px}
@@ -414,12 +422,12 @@ function render(){
                ontoggle="panel('d${di}',this.open)">
         <summary>키워드 ${Object.keys(dg.keywords).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
 
-        <label style="margin-top:6px">키워드 — 이 말로 찾고, 숫자가 클수록 먼저 골라집니다</label>
-        <div class="chips">
-          ${Object.entries(dg.keywords).map(([k, v]) => `
-            <span class="chip">${esc(k)} ${v}
-              <button onclick="delKeyword(${di},${arg(k)})" aria-label="삭제">×</button>
-            </span>`).join("") || '<span class="sub">없음</span>'}
+        <label style="margin-top:6px">키워드 — 이 말로 찾고, 위 순위일수록 먼저 골라집니다</label>
+        <div class="sub">칩을 끌어다 다른 순위로 옮길 수 있습니다.</div>
+        ${keywordTiers(di, dg)}
+        <div class="seg" style="margin-top:10px">
+          ${TIERS.map(([w, label]) => `<button aria-pressed="${tierFor(di) === w}"
+              onclick="pickTier(${di},${w})">${label}</button>`).join("")}
         </div>
         <div class="add">
           <input id="kw${di}" placeholder="예: 인터벌" enterkeyhint="done"
@@ -539,6 +547,36 @@ function bump(di, si, key, delta){
    너무 넓어지지 않게 가중치 높은 순으로 몇 개만 쓴다. */
 const QUERY_WORDS = 6;
 
+/* 화면은 세 순위로 보여주고 저장은 그대로 숫자 가중치다.
+   filter._score 가 이 숫자를 더해 점수를 매긴다. */
+const TIERS = [[3, "1순위"], [2, "2순위"], [1, "3순위"]];
+const newTier = {};   // 주제별로 '추가' 할 때 쓸 순위
+
+function tierOf(weight){
+  const n = Number(weight) || 1;
+  return n >= 3 ? 3 : (n <= 1 ? 1 : 2);
+}
+function tierFor(di){ return newTier[di] || 2; }
+function pickTier(di, weight){ newTier[di] = weight; render(); }
+
+function keywordTiers(di, dg){
+  return TIERS.map(([weight, label]) => {
+    const words = Object.entries(dg.keywords)
+      .filter(([, w]) => tierOf(w) === weight)
+      .map(([word]) => word);
+    return `
+      <div class="tier" data-di="${di}" data-tier="${weight}">
+        <div class="head"><span>${label}</span><span>${words.length}</span></div>
+        <div class="chips">
+          ${words.map(word => `<span class="chip kw" data-di="${di}" data-word="${esc(word)}">
+              ${esc(word)}
+              <button onclick="delKeyword(${di},${arg(word)})" aria-label="삭제">×</button>
+            </span>`).join("") || '<span class="sub">비어 있음</span>'}
+        </div>
+      </div>`;
+  }).join("");
+}
+
 function syncQueries(dg){
   const words = Object.entries(dg.keywords)
     .sort((a, b) => b[1] - a[1])
@@ -553,7 +591,7 @@ function addKeyword(di, word){
   if (!k) return;
   const dg = data.digests[di];
   if (dg.keywords[k]){ toast(`'${esc(k)}' 은(는) 이미 있습니다.`, "err"); return; }
-  dg.keywords[k] = 2;
+  dg.keywords[k] = tierFor(di);
   syncQueries(dg);
   if (el) el.value = "";
   open.add("d" + di);            // 넣은 칩이 바로 보이도록 패널을 연 채로 둔다
@@ -652,7 +690,8 @@ function addAllSuggestions(di){
   let added = 0;
   for (const word of visibleSuggestions(dg).slice(0, 5)){
     if (dg.keywords[word]) continue;
-    dg.keywords[word] = 2;
+    // 사람이 고른 말이 아니므로 낮은 순위로 넣는다. 끌어 올리면 된다.
+    dg.keywords[word] = 1;
     added += 1;
   }
   if (!added) return;
@@ -1326,6 +1365,87 @@ async function testSend(di, si){
 
 /* 저장이 끝나기 전에 화면을 닫으면 알려준다 */
 addEventListener("beforeunload", e => { if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------- 순위 사이로 칩 끌어 옮기기 ----------
+   HTML5 draggable 은 터치에서 동작하지 않는다. 폰에서도 써야 하므로
+   포인터 이벤트로 만든다 — 마우스·터치·펜이 같은 경로를 탄다. */
+let drag = null;
+
+function zoneUnder(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest ? el.closest(".tier") : null;
+}
+function highlight(zone){
+  if (drag.zone === zone) return;
+  if (drag.zone) drag.zone.classList.remove("over");
+  drag.zone = zone;
+  if (zone) zone.classList.add("over");
+}
+
+addEventListener("pointerdown", e => {
+  const chip = e.target.closest && e.target.closest(".chip.kw");
+  // 삭제 버튼을 누른 것이면 끌기가 아니다
+  if (!chip || e.target.closest("button")) return;
+  e.preventDefault();
+
+  const box = chip.getBoundingClientRect();
+  const ghost = chip.cloneNode(true);
+  ghost.classList.add("ghost");
+  ghost.style.width = box.width + "px";
+  document.body.appendChild(ghost);
+
+  drag = {
+    chip, ghost, zone: null,
+    di: Number(chip.dataset.di),
+    word: chip.dataset.word,
+    from: Number(chip.closest(".tier").dataset.tier),
+    dx: e.clientX - box.left,
+    dy: e.clientY - box.top,
+  };
+  chip.classList.add("dragging");
+  place(e.clientX, e.clientY);
+});
+
+function place(x, y){
+  drag.ghost.style.left = (x - drag.dx) + "px";
+  drag.ghost.style.top = (y - drag.dy) + "px";
+}
+
+addEventListener("pointermove", e => {
+  if (!drag) return;
+  e.preventDefault();
+  place(e.clientX, e.clientY);
+  const zone = zoneUnder(e.clientX, e.clientY);
+  // 다른 주제의 상자에는 떨어뜨리지 않는다
+  highlight(zone && Number(zone.dataset.di) === drag.di ? zone : null);
+}, {passive: false});
+
+addEventListener("pointerup", () => {
+  if (!drag) return;
+  const {zone, di, word, from} = drag;
+  drag.ghost.remove();
+  drag.chip.classList.remove("dragging");
+  if (zone) zone.classList.remove("over");
+  drag = null;
+
+  const to = zone ? Number(zone.dataset.tier) : null;
+  if (!to || to === from) { render(); return; }
+  const dg = data.digests[di];
+  if (!dg || !dg.keywords[word]) { render(); return; }
+  dg.keywords[word] = to;
+  syncQueries(dg);
+  render(); touch();
+  const label = (TIERS.find(([w]) => w === to) || [])[1];
+  toast(`'${esc(word)}' 을(를) ${label} 로 옮겼습니다.`, "busy");
+});
+
+addEventListener("pointercancel", () => {
+  if (!drag) return;
+  drag.ghost.remove();
+  drag.chip.classList.remove("dragging");
+  if (drag.zone) drag.zone.classList.remove("over");
+  drag = null;
+});
 
 /* 데스크탑에서 손이 키보드에 있을 때 */
 addEventListener("keydown", e => {
