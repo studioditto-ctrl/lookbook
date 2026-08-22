@@ -79,7 +79,7 @@ digests:
     label: 패션
     slots:
       - slot: night
-        title: "👕 오늘의 스타일"
+        title: "You Know Style"
         send_at: "21:30"
         enabled: true
         articles: 3
