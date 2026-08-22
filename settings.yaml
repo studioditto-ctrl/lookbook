@@ -112,7 +112,7 @@ digests:
     slots:
       - slot: daily
         title: "Skin Care"
-        send_at: "11:10"
+        send_at: "22:00"
         enabled: true
         articles: 3
         videos: 3
