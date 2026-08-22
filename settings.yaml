@@ -42,6 +42,7 @@ digests:
         videos: 3
     keywords:
       분당맛집: 2
+      판교맛집: 2
   - config: config.fashion.yaml
     label: 패션
     slots:
