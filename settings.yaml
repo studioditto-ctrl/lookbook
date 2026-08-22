@@ -6,7 +6,7 @@ digests:
     label: 러닝
     slots:
       - slot: morning
-        title: "🏃 오늘 아침 러닝 브리핑"
+        title: "러닝 브리핑"
         send_at: "08:00"
         enabled: true
         articles: 3
