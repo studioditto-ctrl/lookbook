@@ -412,9 +412,9 @@ function render(){
 
       <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
                ontoggle="panel('d${di}',this.open)">
-        <summary>키워드 ${Object.keys(dg.keywords).length} · 검색어 ${(dg.queries || []).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
+        <summary>키워드 ${Object.keys(dg.keywords).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
 
-        <label style="margin-top:6px">키워드 — 숫자가 클수록 먼저 골라집니다</label>
+        <label style="margin-top:6px">키워드 — 이 말로 찾고, 숫자가 클수록 먼저 골라집니다</label>
         <div class="chips">
           ${Object.entries(dg.keywords).map(([k, v]) => `
             <span class="chip">${esc(k)} ${v}
@@ -422,24 +422,20 @@ function render(){
             </span>`).join("") || '<span class="sub">없음</span>'}
         </div>
         <div class="add">
-          <input id="kw${di}" placeholder="키워드" enterkeyhint="done"
+          <input id="kw${di}" placeholder="예: 인터벌" enterkeyhint="done"
                  autocapitalize="off" autocomplete="off"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
           <button class="tiny" onclick="addKeyword(${di})">추가</button>
         </div>
-
-        <label style="margin-top:16px">검색어 — 구글 뉴스에서 이 말로 찾습니다</label>
-        <div class="chips">
-          ${(dg.queries || []).map((qq, qi) => `
-            <span class="chip">${esc(qq.query)}
-              <button onclick="delQuery(${di},${qi})" aria-label="삭제">×</button></span>`).join("")
-            || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+        <div class="note">
+          ${(dg.queries || []).length
+            ? `검색에 쓰는 말: <b>${esc(dg.queries[0].query)}</b>`
+            : "키워드를 넣으면 그 말로 구글 뉴스와 유튜브를 찾습니다."}
         </div>
         <div class="add">
-          <input id="q${di}" placeholder="예: 스페셜티 커피" enterkeyhint="done"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addQuery(${di})}">
-          <button class="tiny" onclick="addQuery(${di})">추가</button>
+          <button class="tiny ghost" style="flex:1" onclick="suggestFor(${di})">추천 키워드 보기</button>
         </div>
+        <div class="chips" id="sg${di}">${suggestionChips(di, dg)}</div>
 
         <label style="margin-top:16px">네이버 블로그</label>
         <div class="chips">
@@ -535,18 +531,136 @@ function bump(di, si, key, delta){
   touch();
 }
 
-function addKeyword(di){
-  const el = $("kw" + di), k = el.value.trim();
+/* 키워드 하나가 두 가지 일을 한다 — 찾는 말이자 우선순위다.
+   칸을 둘로 나눠 두 번 입력하게 할 이유가 없다.
+
+   검색어는 키워드에서 만들어 낸다. 하나씩 따로 걸면 키워드 수만큼 호출이
+   늘어나므로(유튜브 search 는 1회 100유닛) OR 로 묶어 한 번만 부른다.
+   너무 넓어지지 않게 가중치 높은 순으로 몇 개만 쓴다. */
+const QUERY_WORDS = 6;
+
+function syncQueries(dg){
+  const words = Object.entries(dg.keywords)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, QUERY_WORDS)
+    .map(([word]) => word);
+  dg.queries = words.length ? [{name: dg.label, query: words.join(" OR ")}] : [];
+}
+
+function addKeyword(di, word){
+  const el = $("kw" + di);
+  const k = (word !== undefined ? word : el.value).trim();
   if (!k) return;
   const dg = data.digests[di];
-  if (dg.keywords[k]){ toast(`'${k}' 은(는) 이미 있습니다.`, "err"); return; }
+  if (dg.keywords[k]){ toast(`'${esc(k)}' 은(는) 이미 있습니다.`, "err"); return; }
   dg.keywords[k] = 2;
-  el.value = "";
+  syncQueries(dg);
+  if (el) el.value = "";
   open.add("d" + di);            // 넣은 칩이 바로 보이도록 패널을 연 채로 둔다
   render(); touch();
   toast(`'${esc(k)}' 을(를) ${esc(dg.label)} 에 넣었습니다. 저장하는 중…`, "busy");
 }
-function delKeyword(di, k){ delete data.digests[di].keywords[k]; render(); touch(); }
+function delKeyword(di, k){
+  const dg = data.digests[di];
+  delete dg.keywords[k];
+  syncQueries(dg);
+  render(); touch();
+}
+
+/* ---------- 추천 키워드 ----------
+   자동완성 API 는 브라우저에서 막힐 수 있어(CORS) 결과를 보장할 수 없다.
+   그래서 네트워크 없이도 항상 나오는 쪽을 먼저 만들고, 원격은 얹기만 한다. */
+const SUGGEST_SUFFIX = ["추천", "후기", "입문", "초보", "리뷰", "트렌드", "꿀팁", "순위", "비교"];
+const suggestPool = {};   // 주제 이름 -> 후보 전체. 이미 넣은 말은 그릴 때 걸러낸다.
+
+function localSuggestions(label){
+  const out = SUGGEST_SUFFIX.map(s => `${label} ${s}`);
+  // 불러온 구독 채널 이름에서 같이 쓰이는 말을 뽑는다
+  const needle = label.toLowerCase();
+  for (const s of subs){
+    if (!s.title.toLowerCase().includes(needle)) continue;
+    for (const word of s.title.split(/[\s·,\-_/|()\[\]]+/)){
+      if (word.length >= 2 && word.toLowerCase() !== needle) out.push(word);
+    }
+  }
+  return out;
+}
+
+async function remoteSuggestions(label){
+  // 열려 있으면 쓰고, 막히면 조용히 포기한다. 이것 때문에 화면이 멈추면 안 된다.
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), 4000);
+  try{
+    const r = await fetch(
+      "https://duckduckgo.com/ac/?type=list&q=" + encodeURIComponent(label),
+      {signal: control.signal});
+    if (!r.ok) return [];
+    const body = await r.json();
+    // ["러닝", ["러닝화", "러닝 크루", …]] 또는 [{phrase: …}]
+    const list = Array.isArray(body) ? (body[1] || []) : (body || []);
+    return list.map(x => typeof x === "string" ? x : (x && x.phrase) || "").filter(Boolean);
+  }catch(e){
+    return [];
+  }finally{ clearTimeout(timer); }
+}
+
+/* 이미 넣은 말을 뺀 나머지. 넣을 때마다 줄어들되 목록은 남는다. */
+function visibleSuggestions(dg){
+  const pool = suggestPool[dg.label] || [];
+  const taken = new Set(Object.keys(dg.keywords).map(k => k.toLowerCase()));
+  const seen = new Set();
+  const picks = [];
+  for (const word of pool){
+    const clean = String(word).trim();
+    const key = clean.toLowerCase();
+    if (!clean || clean.length > 20 || taken.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    picks.push(clean);
+    if (picks.length >= 9) break;
+  }
+  return picks;
+}
+
+function suggestionChips(di, dg){
+  if (!suggestPool[dg.label]) return "";
+  const picks = visibleSuggestions(dg);
+  if (!picks.length) return '<span class="sub">더 추천할 말이 없습니다.</span>';
+  return picks.map(w => `<span class="chip plain"><button
+      style="width:auto;padding:0;font-size:14px;color:var(--accent)"
+      onclick="addKeyword(${di},${arg(w)})">+ ${esc(w)}</button></span>`).join("")
+    + `<span class="chip plain"><button style="width:auto;padding:0;font-size:14px"
+      onclick="addAllSuggestions(${di})">모두 추가(${Math.min(5, picks.length)})</button></span>`;
+}
+
+async function suggestFor(di, quiet){
+  const dg = data.digests[di];
+  if (!dg) return;
+  const box = $("sg" + di);
+  if (box && !suggestPool[dg.label]) box.innerHTML = '<span class="sub">추천을 찾는 중…</span>';
+
+  if (!suggestPool[dg.label]){
+    const remote = await remoteSuggestions(dg.label);
+    suggestPool[dg.label] = [...remote, ...localSuggestions(dg.label)];
+  }
+  render();
+  const picks = visibleSuggestions(dg);
+  if (!quiet && picks.length) toast(`추천 ${picks.length}개 — 넣을 것만 누르세요.`, "ok");
+}
+
+function addAllSuggestions(di){
+  const dg = data.digests[di];
+  let added = 0;
+  for (const word of visibleSuggestions(dg).slice(0, 5)){
+    if (dg.keywords[word]) continue;
+    dg.keywords[word] = 2;
+    added += 1;
+  }
+  if (!added) return;
+  syncQueries(dg);
+  open.add("d" + di);
+  render(); touch();
+  toast(`${added}개를 ${esc(dg.label)} 에 넣었습니다.`, "busy");
+}
 function addExclude(){
   const w = $("excludeInput").value.trim();
   if (!w || data.exclude.includes(w)) return;
@@ -576,8 +690,11 @@ function addTopic(){
     feeds: [],
   });
   $("newTopic").value = "";
-  open.add("d" + (data.digests.length - 1));   // 붙은 채널을 바로 볼 수 있게
+  const di = data.digests.length - 1;
+  syncQueries(data.digests[di]);
+  open.add("d" + di);   // 붙은 채널과 추천을 바로 볼 수 있게
   render(); touch();
+  suggestFor(di, true);
   const n = data.digests[data.digests.length - 1].channels.length;
   toast(n
     ? `'${esc(label)}' 주제를 만들고 구독 채널 ${n}개를 붙였습니다. 아래에서 확인하세요.`
@@ -925,14 +1042,6 @@ function pickChannel(di, id){
   render(); touch();
 }
 function delChannel(di, ci){ data.digests[di].channels.splice(ci, 1); render(); touch(); }
-function addQuery(di){
-  const text = $("q" + di).value.trim();
-  if (!text) return;
-  (data.digests[di].queries ||= []).push({name: text, query: text});
-  open.add("d" + di);
-  render(); touch();
-}
-function delQuery(di, qi){ data.digests[di].queries.splice(qi, 1); render(); touch(); }
 
 /* 네이버 블로그는 주소 모양이 여러 가지다. 아이디만 뽑아 RSS 주소로 만든다.
    검색 API 는 NAVER API HUB 로 옮겨가 키가 따로 필요하지만, 블로그별 RSS 는
@@ -1144,6 +1253,16 @@ async function load(){
     }
     dirty = false;
     render(); showState();
+
+    // 키워드와 검색어를 합치기 전에 만든 주제는 검색어가 비어 있다.
+    // 화면에 적힌 것과 실제로 도는 것이 달라지지 않게 여기서 맞춘다.
+    const before = data.digests.map(d => JSON.stringify(d.queries || []));
+    data.digests.forEach(syncQueries);
+    if (data.digests.some((d, i) => JSON.stringify(d.queries || []) !== before[i])){
+      render(); touch();
+      toast("키워드로 검색어를 맞췄습니다. 저장하는 중…", "busy");
+      return;
+    }
     toast("최신 설정을 불러왔습니다.", "ok");
   }catch(e){ toast("불러오지 못했습니다: " + esc(e.message), "err"); showState(); }
 }
