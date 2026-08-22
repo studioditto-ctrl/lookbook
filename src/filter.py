@@ -51,6 +51,29 @@ def _score(item, keywords):
     return score
 
 
+def _relevant(item, keywords):
+    """검색으로 찾아온 항목이 이 주제의 말을 실제로 담고 있는지.
+
+    구글 뉴스도 유튜브도 검색어를 느슨하게 해석해, 주제와 상관없는 것을
+    섞어 돌려준다. 키워드는 점수만 매길 뿐 아무것도 걸러내지 않았기 때문에
+    그것들이 그대로 발송에 실려 갔다.
+
+    제목뿐 아니라 본문 발췌도 본다. 제목만 보면 '이번 주 정리' 같은
+    맹숭한 제목의 알맹이 있는 글까지 떨어진다.
+    """
+    if not keywords:
+        return True
+    haystack = f"{item.title} {item.summary or ''}".lower()
+    for word in keywords:
+        # 낱말이 여럿인 키워드는 붙어 있지 않아도 다 나오면 걸린 것으로 본다.
+        # '남성 피부' 를 문구 그대로 요구하면 '남성 피부, 여름엔 이렇게' 는
+        # 걸려도 '남성의 피부 관리' 는 떨어진다.
+        parts = [part for part in word.lower().split() if part]
+        if parts and all(part in haystack for part in parts):
+            return True
+    return False
+
+
 def _excluded(item, patterns):
     title = item.title.lower()
     return any(p.lower() in title for p in patterns)
@@ -105,8 +128,13 @@ def select(items, seen, config, slot):
     # 같은 채널 묶음에서 시간대별로 다른 주제를 보낼 때 쓴다.
     wanted = set(slot_config.get("tags") or [])
 
+    # 검색으로 찾아온 항목에만 적용한다. 사람이 골라둔 채널·피드는
+    # 채널을 믿고 담는 것이라 낱말이 안 걸려도 남긴다.
+    require_keyword = config.get("require_keyword", True)
+
     fresh = []
     repeats = 0
+    off_topic = 0
     for item in items:
         if item.id in seen:
             continue
@@ -118,6 +146,9 @@ def select(items, seen, config, slot):
             continue
         if _excluded(item, exclude):
             continue
+        if require_keyword and item.searched and not _relevant(item, keywords):
+            off_topic += 1
+            continue
         item.score = _score(item, keywords)
         fresh.append(item)
 
@@ -128,6 +159,9 @@ def select(items, seen, config, slot):
         if existing is None or item.score > existing.score:
             by_url[item.url] = item
     fresh = list(by_url.values())
+
+    if off_topic:
+        print(f"[filter] 주제와 안 맞아 제외 {off_topic}건 (검색으로 찾아온 것 중)")
 
     fresh, folded = _fold_similar(fresh)
     if repeats or folded:

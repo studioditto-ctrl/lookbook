@@ -62,6 +62,7 @@ class Item:
     tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
     channel_id: str = ""   # 영상일 때 올린 채널 (구독자 수 확인에 쓴다)
     trusted: bool = False  # 사람이 골라 config 에 적어둔 채널에서 온 것
+    searched: bool = False # 검색으로 찾아온 것 (주제와 무관할 수 있다)
     score: float = 0.0
 
 
@@ -341,6 +342,7 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
                 published=when,
                 summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
                 channel_id=snippet.get("channelId", ""),
+                searched=True,
             )
         )
     print(f"[collect] '{source_name}' 영상 검색 {len(items)}건 ({order})")
@@ -657,12 +659,17 @@ def _collect_google_news(src, hours, problems=None):
             name, "article", problems,
         )
 
+    def mark(found):
+        for item in found:
+            item.searched = True
+        return found
+
     window = _fresh_window(hours)
-    items = fetch(f"{src['query']} {window}")
+    items = mark(fetch(f"{src['query']} {window}"))
     if items:
         return items
     print(f"[collect] '{name}' {window} 로는 결과가 없어 기간 제한 없이 다시 찾습니다.")
-    return fetch(src["query"])
+    return mark(fetch(src["query"]))
 
 
 def collect(config, channel_cache):

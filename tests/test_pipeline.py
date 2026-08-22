@@ -1306,6 +1306,77 @@ class TestYoutubeThresholds(unittest.TestCase):
         self.assertTrue(ok)
 
 
+class TestRelevanceGate(unittest.TestCase):
+    """검색은 주제와 무관한 것을 섞어 준다. 키워드로 한 번 걸러야 한다."""
+
+    def setUp(self):
+        from collect import Item
+        from filter import select
+
+        self.Item = Item
+        self.select = select
+        self.now = datetime.now(timezone.utc)
+        self.config = {
+            "slots": {"m": {"articles": 5, "videos": 5}},
+            "keywords": {"러닝": 3, "마라톤": 2},
+        }
+
+    def make(self, title, *, searched, kind="article", summary=""):
+        return self.Item(id=title, title=title, url=f"https://x.test/{title}",
+                         source=title, kind=kind, published=self.now,
+                         summary=summary, searched=searched)
+
+    def test_searched_items_need_a_keyword(self):
+        items = [self.make("서울 마라톤 접수", searched=True),
+                 self.make("부동산 시장 전망", searched=True)]
+        articles, _ = self.select(items, {}, self.config, "m")
+        self.assertEqual([a.title for a in articles], ["서울 마라톤 접수"])
+
+    def test_curated_sources_are_not_gated(self):
+        """채널·피드는 채널을 믿고 담는 것이라 낱말이 안 걸려도 남긴다."""
+        items = [self.make("제주도 브이로그", searched=False, kind="video")]
+        _, videos = self.select(items, {}, self.config, "m")
+        self.assertEqual(len(videos), 1)
+
+    def test_summary_counts_too(self):
+        # '이번 주 정리' 같은 맹숭한 제목의 알맹이 있는 글을 살린다
+        item = self.make("이번 주 정리", searched=True, summary="러닝 훈련 기록을 모았다")
+        articles, _ = self.select([item], {}, self.config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_multi_word_keywords_need_not_be_adjacent(self):
+        config = dict(self.config, keywords={"남성 피부": 3})
+        loose = self.make("남성의 피부 관리 기초", searched=True)
+        articles, _ = self.select([loose], {}, config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_multi_word_keywords_still_need_every_word(self):
+        config = dict(self.config, keywords={"남성 피부": 3})
+        items = [self.make("여성 피부 관리", searched=True)]
+        articles, _ = self.select(items, {}, config, "m")
+        self.assertEqual(articles, [])
+
+    def test_gate_can_be_turned_off(self):
+        config = dict(self.config, require_keyword=False)
+        items = [self.make("부동산 시장 전망", searched=True)]
+        articles, _ = self.select(items, {}, config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_no_keywords_means_no_gate(self):
+        config = dict(self.config, keywords={})
+        items = [self.make("아무 기사", searched=True)]
+        articles, _ = self.select(items, {}, config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_freshness_bonus_no_longer_carries_off_topic_items(self):
+        """새 것이라는 이유만으로 무관한 항목이 실려 가면 안 된다."""
+        stale = self.make("마라톤 훈련법", searched=True)
+        stale.published = self.now - timedelta(hours=30)
+        brand_new = self.make("연예인 결혼 소식", searched=True)
+        articles, _ = self.select([brand_new, stale], {}, self.config, "m")
+        self.assertEqual([a.title for a in articles], ["마라톤 훈련법"])
+
+
 class TestQueryPhrases(unittest.TestCase):
     """여러 낱말짜리 키워드는 따옴표로 묶어야 OR 가 뜻대로 걸린다.
 
