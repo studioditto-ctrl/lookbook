@@ -71,6 +71,8 @@ digests:
         query: "남성 악세사리"
       - name: 남성 스타일
         query: "남성 스타일"
+      - name: 4050 패션
+        query: "4050 패션"
   - key: tmsy0lgx6
     label: 피부
     slots:
