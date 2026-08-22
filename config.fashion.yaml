@@ -15,8 +15,8 @@ lookback_hours: 48
 
 # 유튜브 영상 기준. 확인 못 한 값(비공개·요청 실패)은 통과시킨다.
 youtube_filter:
-  min_subscribers: 100000
-  min_views: 10000
+  min_subscribers: 10000
+  min_views: 5000
 
 summary:
   enabled: true

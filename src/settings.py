@@ -23,7 +23,7 @@ DEFAULTS = {
     "timezone": "Asia/Seoul",
     "lookback_hours": 48,
     "summary": {"enabled": True, "effort": "low"},
-    "youtube_filter": {"min_subscribers": 100000, "min_views": 10000},
+    "youtube_filter": {"min_subscribers": 10000, "min_views": 5000},
     "link_preview": {"mode": "first", "prefer": "video", "large": True, "above_text": True},
 }
 

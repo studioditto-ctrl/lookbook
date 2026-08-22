@@ -1231,7 +1231,7 @@ class TestYoutubeThresholds(unittest.TestCase):
 
         self.collect = collect_module
         self.Item = Item
-        self.config = {"youtube_filter": {"min_subscribers": 100000, "min_views": 10000}}
+        self.config = {"youtube_filter": {"min_subscribers": 10000, "min_views": 5000}}
         self.saved = (collect_module.video_views, collect_module.channel_subscribers)
 
     def tearDown(self):
