@@ -23,6 +23,7 @@ DEFAULTS = {
     "timezone": "Asia/Seoul",
     "lookback_hours": 48,
     "summary": {"enabled": True, "effort": "low"},
+    "youtube_filter": {"min_subscribers": 100000, "min_views": 10000},
     "link_preview": {"mode": "first", "prefer": "video", "large": True, "above_text": True},
 }
 
@@ -112,7 +113,8 @@ def apply(config, settings, config_name, slot_name):
         sources.setdefault("youtube", []).append(dict(channel))
     merged["sources"] = sources
 
-    for key in ("timezone", "lookback_hours", "summary", "link_preview"):
+    for key in ("timezone", "lookback_hours", "summary", "link_preview",
+                "youtube_filter"):
         if key not in merged and key in DEFAULTS:
             merged[key] = DEFAULTS[key]
     return merged

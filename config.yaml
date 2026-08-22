@@ -21,6 +21,11 @@ lookback_hours: 36
 
 # 한국어 번역·요약 (Claude API)
 # ANTHROPIC_API_KEY 시크릿이 없으면 자동으로 건너뛰고 제목만 보냅니다.
+# 유튜브 영상 기준. 확인 못 한 값(비공개·요청 실패)은 통과시킨다.
+youtube_filter:
+  min_subscribers: 100000
+  min_views: 10000
+
 summary:
   enabled: true
   # low | medium | high | xhigh | max — 번역·요약은 단순한 작업이라 low로 충분합니다.

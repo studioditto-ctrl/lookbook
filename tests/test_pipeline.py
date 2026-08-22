@@ -1168,6 +1168,119 @@ class TestPageFeeds(unittest.TestCase):
         self.assertEqual(len(cfg["sources"]["google_news"]), 1)
 
 
+class TestRepeatedStories(unittest.TestCase):
+    """같은 사건을 여러 매체가 쓰면 URL 도 id 도 달라 그냥은 안 걸러진다."""
+
+    def setUp(self):
+        from collect import Item
+        from filter import fingerprint, select
+
+        self.Item = Item
+        self.fingerprint = fingerprint
+        self.select = select
+        self.now = datetime.now(timezone.utc)
+        self.config = {"slots": {"m": {"articles": 5, "videos": 0}}}
+
+    def article(self, ident, title):
+        return self.Item(id=ident, title=title, url=f"https://x.test/{ident}",
+                         source=ident, kind="article", published=self.now)
+
+    def test_publisher_tail_is_ignored(self):
+        self.assertEqual(self.fingerprint("서울마라톤 접수 시작 - 연합뉴스"),
+                         self.fingerprint("서울마라톤 접수 시작 | 뉴시스"))
+
+    def test_different_stories_keep_different_marks(self):
+        self.assertNotEqual(self.fingerprint("마라톤 완주 비결"),
+                            self.fingerprint("김치찌개 끓이는 법"))
+
+    def test_untitled_has_no_mark(self):
+        self.assertEqual(self.fingerprint(""), "")
+        self.assertEqual(self.fingerprint("!!! ???"), "")
+
+    def test_same_story_folds_within_one_run(self):
+        items = [
+            self.article("a", "서울마라톤 접수 시작 - 연합뉴스"),
+            self.article("b", "서울마라톤 접수 시작 | 뉴시스"),
+            self.article("c", "러닝화 고르는 법"),
+        ]
+        articles, _ = self.select(items, {}, self.config, "m")
+        self.assertEqual(len(articles), 2)
+
+    def test_story_sent_before_does_not_return(self):
+        sent = self.article("a", "서울마라톤 접수 시작 - 연합뉴스")
+        seen = {self.fingerprint(sent.title): "2026-08-21"}
+        again = self.article("b", "서울마라톤 접수 시작 | 뉴시스")
+        articles, _ = self.select([again], seen, self.config, "m")
+        self.assertEqual(articles, [])
+
+    def test_mark_sent_records_both(self):
+        import state
+
+        item = self.article("a", "서울마라톤 접수 시작")
+        seen = state.mark_sent({}, [item])
+        self.assertIn("a", seen)
+        self.assertIn(self.fingerprint(item.title), seen)
+
+
+class TestYoutubeThresholds(unittest.TestCase):
+    """구독자·조회수가 기준에 못 미치는 영상은 뺀다."""
+
+    def setUp(self):
+        import collect as collect_module
+        from collect import Item
+
+        self.collect = collect_module
+        self.Item = Item
+        self.config = {"youtube_filter": {"min_subscribers": 100000, "min_views": 10000}}
+        self.saved = (collect_module.video_views, collect_module.channel_subscribers)
+
+    def tearDown(self):
+        self.collect.video_views, self.collect.channel_subscribers = self.saved
+
+    def video(self, vid, channel):
+        return self.Item(id=f"yt:video:{vid}", title=vid, url="u", source="s",
+                         kind="video", published=datetime.now(timezone.utc),
+                         channel_id=channel)
+
+    def stub(self, views, subs, subs_ok=True):
+        self.collect.video_views = lambda ids, key, problems=None: views
+        self.collect.channel_subscribers = lambda ids, key, cache, problems=None: (subs, subs_ok)
+
+    def test_low_views_and_small_channels_are_dropped(self):
+        items = [self.video("big", "UC1"), self.video("few", "UC1"), self.video("small", "UC2")]
+        self.stub({"big": 50000, "few": 900, "small": 80000}, {"UC1": 500000, "UC2": 1200})
+        kept = self.collect.filter_youtube(items, self.config, "key", {})
+        self.assertEqual([i.id for i in kept], ["yt:video:big"])
+
+    def test_unknown_numbers_pass(self):
+        """모르는 것을 이유로 버리면 API 가 흔들릴 때 영상이 통째로 사라진다."""
+        items = [self.video("x", "UC9")]
+        self.stub({}, {})
+        self.assertEqual(self.collect.filter_youtube(items, self.config, "key", {}), items)
+
+    def test_articles_are_untouched(self):
+        article = self.Item(id="a", title="t", url="u", source="s", kind="article",
+                            published=datetime.now(timezone.utc))
+        self.stub({}, {})
+        self.assertIn(article, self.collect.filter_youtube([article], self.config, "key", {}))
+
+    def test_no_limits_means_no_api_calls(self):
+        called = []
+        self.collect.video_views = lambda *a, **k: called.append(1) or {}
+        items = [self.video("x", "UC1")]
+        self.assertEqual(self.collect.filter_youtube(items, {}, "key", {}), items)
+        self.assertEqual(called, [])
+
+    def test_subscriber_counts_are_cached(self):
+        from datetime import timedelta as td
+
+        fresh = (datetime.now(timezone.utc) - td(days=1)).isoformat()
+        cache = {"subs:UC1": [500000, fresh]}
+        subs, ok = self.saved[1](["UC1"], "key", cache)
+        self.assertEqual(subs, {"UC1": 500000})
+        self.assertTrue(ok)
+
+
 class TestGoogleNewsWindow(unittest.TestCase):
     """기간을 좁히지 않으면 관련도순으로 오래된 기사가 와서 전부 잘려 나간다."""
 

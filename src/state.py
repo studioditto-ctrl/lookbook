@@ -63,9 +63,19 @@ def save_seen(seen, namespace=None):
 
 
 def mark_sent(seen, items):
+    """보낸 항목을 이력에 남긴다.
+
+    id 와 함께 제목 지문도 남긴다. 같은 사건을 내일 다른 매체가 쓰면
+    id 도 URL 도 달라 id 만으로는 다시 걸러지지 않는다.
+    """
+    from filter import fingerprint
+
     now = datetime.now(timezone.utc).isoformat()
     for item in items:
         seen[item.id] = now
+        mark = fingerprint(item.title)
+        if mark:
+            seen[mark] = now
     return seen
 
 

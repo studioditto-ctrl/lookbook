@@ -21,6 +21,12 @@ TIMEOUT = 20
 
 YT_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 YT_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+YT_VIDEOS_API = "https://www.googleapis.com/youtube/v3/videos"
+YT_CHANNELS_API = "https://www.googleapis.com/youtube/v3/channels"
+# id 를 50개까지 한 번에 물어볼 수 있고 호출당 1유닛이다.
+YT_BATCH = 50
+# 구독자 수는 하루 사이에 크게 변하지 않는다. 캐시해 호출을 아낀다.
+SUBS_CACHE_DAYS = 7
 YT_SEARCH_API = "https://www.googleapis.com/youtube/v3/search"
 YT_API_MAX = 15
 # 네이버 검색 API. 개발자센터에서 앱을 만들면 바로 나오는 ID/시크릿만 있으면
@@ -54,6 +60,7 @@ class Item:
     summary: str = ""      # 피드에서 가져온 원문 발췌
     summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
     tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
+    channel_id: str = ""   # 영상일 때 올린 채널 (구독자 수 확인에 쓴다)
     score: float = 0.0
 
 
@@ -332,6 +339,7 @@ def search_videos(query, source_name, key, hours=48, limit=YT_API_MAX,
                 kind="video",
                 published=when,
                 summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
+                channel_id=snippet.get("channelId", ""),
             )
         )
     print(f"[collect] '{source_name}' 영상 검색 {len(items)}건 ({order})")
@@ -486,10 +494,133 @@ def _collect_via_api(channel_id, source_name, key, problems=None):
                 kind="video",
                 published=when,
                 summary=re.sub(r"\s+", " ", snippet.get("description") or "").strip(),
+                channel_id=snippet.get("channelId", "") or channel_id,
             )
         )
     print(f"[collect] '{source_name}' {len(items)}건 (Data API)")
     return items
+
+
+def _video_id(item):
+    return item.id.split(":")[-1] if item.id.startswith("yt:video:") else ""
+
+
+def _batched(values, size=YT_BATCH):
+    values = list(values)
+    for start in range(0, len(values), size):
+        yield values[start:start + size]
+
+
+def _stat(entry, name):
+    try:
+        return int((entry.get("statistics") or {}).get(name, 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def video_views(video_ids, key, problems=None):
+    """영상별 조회수. 50개당 1유닛."""
+    views = {}
+    for chunk in _batched(video_ids):
+        try:
+            resp = requests.get(
+                YT_VIDEOS_API,
+                params={"part": "statistics", "id": ",".join(chunk), "key": key},
+                timeout=TIMEOUT, headers={"User-Agent": USER_AGENT},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (requests.RequestException, ValueError) as e:
+            print(f"[collect] 조회수 확인 실패: {e}")
+            _note(problems, "조회수 확인", "videos.list 요청 실패")
+            return {}
+        for entry in data.get("items") or []:
+            views[entry.get("id")] = _stat(entry, "viewCount")
+    return views
+
+
+def channel_subscribers(channel_ids, key, cache, problems=None):
+    """채널별 구독자 수. 캐시에 남겨 매 회차 다시 묻지 않는다."""
+    now = datetime.now(timezone.utc)
+    subs, missing = {}, []
+    for channel_id in set(channel_ids):
+        hit = (cache or {}).get(f"subs:{channel_id}")
+        if isinstance(hit, list) and len(hit) == 2:
+            try:
+                when = datetime.fromisoformat(hit[1])
+            except ValueError:
+                when = None
+            if when and now - when < timedelta(days=SUBS_CACHE_DAYS):
+                subs[channel_id] = int(hit[0])
+                continue
+        missing.append(channel_id)
+
+    for chunk in _batched(missing):
+        try:
+            resp = requests.get(
+                YT_CHANNELS_API,
+                params={"part": "statistics", "id": ",".join(chunk), "key": key},
+                timeout=TIMEOUT, headers={"User-Agent": USER_AGENT},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (requests.RequestException, ValueError) as e:
+            print(f"[collect] 구독자 수 확인 실패: {e}")
+            _note(problems, "구독자 확인", "channels.list 요청 실패")
+            return subs, False
+        for entry in data.get("items") or []:
+            # 구독자 수를 숨긴 채널은 0 이 아니라 '모름'이다. 걸러내지 않는다.
+            if (entry.get("statistics") or {}).get("hiddenSubscriberCount"):
+                continue
+            count = _stat(entry, "subscriberCount")
+            subs[entry["id"]] = count
+            if cache is not None:
+                cache[f"subs:{entry['id']}"] = [count, now.isoformat()]
+    return subs, True
+
+
+def filter_youtube(items, config, key, cache, problems=None):
+    """구독자·조회수가 기준에 못 미치는 영상을 뺀다.
+
+    확인하지 못한 값(요청 실패, 구독자 비공개)은 통과시킨다. 모르는 것을
+    이유로 버리면 API 가 한 번 흔들릴 때 영상이 통째로 사라진다.
+    """
+    limits = config.get("youtube_filter") or {}
+    min_subs = int(limits.get("min_subscribers", 0) or 0)
+    min_views = int(limits.get("min_views", 0) or 0)
+    if not (min_subs or min_views) or not key:
+        return items
+
+    videos = [i for i in items if i.kind == "video" and _video_id(i)]
+    if not videos:
+        return items
+
+    views = video_views([_video_id(i) for i in videos], key, problems) if min_views else {}
+    subs, subs_ok = ({}, True)
+    if min_subs:
+        subs, subs_ok = channel_subscribers(
+            [i.channel_id for i in videos if i.channel_id], key, cache, problems
+        )
+
+    kept, by_views, by_subs = [], 0, 0
+    for item in items:
+        if item.kind != "video" or not _video_id(item):
+            kept.append(item)
+            continue
+        seen_views = views.get(_video_id(item))
+        if min_views and seen_views is not None and seen_views < min_views:
+            by_views += 1
+            continue
+        seen_subs = subs.get(item.channel_id)
+        if min_subs and subs_ok and seen_subs is not None and seen_subs < min_subs:
+            by_subs += 1
+            continue
+        kept.append(item)
+
+    if by_views or by_subs:
+        print(f"[collect] 기준 미달 영상 제외 {by_views + by_subs}건 "
+              f"(조회수 {min_views:,} 미만 {by_views} · 구독자 {min_subs:,} 미만 {by_subs})")
+    return kept
 
 
 def _fresh_window(hours):
@@ -601,6 +732,8 @@ def collect(config, channel_cache):
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback)
     fresh = [i for i in items if i.published >= cutoff]
+    # 기간을 좁힌 뒤에 확인한다. 어차피 버릴 것까지 물어볼 이유가 없다.
+    fresh = filter_youtube(fresh, config, api_key, channel_cache, problems)
     # 종류별로 나눠 찍는다. 합계만 보면 기사가 통째로 잘려도 눈에 띄지 않는다.
     articles = sum(1 for i in fresh if i.kind == "article")
     print(f"[collect] 전체 {len(items)}건 중 최근 {len(fresh)}건 "
