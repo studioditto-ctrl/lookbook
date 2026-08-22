@@ -98,10 +98,6 @@ digests:
         articles: 3
         videos: 3
     keywords:
-      피부: 3
-    queries:
-      - name: 피부
-        query: "피부"
 
 exclude:
   - 부고
