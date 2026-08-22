@@ -49,6 +49,7 @@ digests:
       성남맛집: 2
       노포: 2
       커피: 2
+      로스터리: 2
   - config: config.fashion.yaml
     label: 패션
     slots:
