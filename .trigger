@@ -1,3 +1,3 @@
-config.fashion.yaml:night
+tmsy0lgx6:daily
 force
-2026-08-22T07:13:23.773Z
+2026-08-22T07:13:30.402Z
