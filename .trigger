@@ -1,3 +1,3 @@
-config.food.yaml:sgey9c
+config.yaml:morning
 force
-2026-08-22T01:14:56Z
+2026-08-22T05:45:45Z
