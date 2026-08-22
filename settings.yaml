@@ -41,14 +41,6 @@ digests:
         articles: 3
         videos: 3
     keywords:
-      맛집: 3
-      레시피: 3
-      존맛: 2
-      신메뉴: 2
-      와인: 2
-      페어링: 2
-      디저트: 1
-      후기: 1
   - config: config.fashion.yaml
     label: 패션
     slots:
