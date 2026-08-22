@@ -69,6 +69,8 @@ digests:
         query: "남성 패션"
       - name: 남성 악세사리
         query: "남성 악세사리"
+      - name: 남성 스타일
+        query: "남성 스타일"
   - key: tmsy0lgx6
     label: 피부
     slots:
