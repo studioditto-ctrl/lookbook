@@ -65,6 +65,8 @@ digests:
         query: "양재맛집"
       - name: 성남맛집
         query: "성남맛집"
+      - name: 노포
+        query: "노포"
   - config: config.fashion.yaml
     label: 패션
     slots:
