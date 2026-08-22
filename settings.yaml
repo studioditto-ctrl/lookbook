@@ -105,7 +105,7 @@ digests:
     label: 피부
     slots:
       - slot: daily
-        title: "피부 브리핑"
+        title: "Skin Care"
         send_at: "11:10"
         enabled: true
         articles: 3
