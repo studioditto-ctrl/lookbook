@@ -55,6 +55,8 @@ digests:
     queries:
       - name: 분당맛집
         query: "분당맛집"
+      - name: 판교맛집
+        query: "판교맛집"
   - config: config.fashion.yaml
     label: 패션
     slots:
