@@ -12,7 +12,6 @@ digests:
         articles: 3
         videos: 3
     keywords:
-      부상: 3
       통증: 3
       훈련: 2
       루틴: 2
@@ -24,7 +23,6 @@ digests:
       자세: 2
       초보: 1
       호흡: 1
-      injury: 3
       training: 2
       workout: 2
       pace: 2
@@ -33,7 +31,7 @@ digests:
       beginner: 1
     queries:
       - name: 러닝
-        query: "부상 OR 통증 OR injury OR 훈련 OR 루틴 OR 페이스"
+        query: "통증 OR 훈련 OR 루틴 OR 페이스 OR 기록 OR 마라톤"
   - config: config.food.yaml
     label: 음식
     slots:
