@@ -67,6 +67,10 @@ digests:
         query: "성남맛집"
       - name: 노포
         query: "노포"
+      - name: 커피
+        query: "커피"
+      - name: 로스터리
+        query: "로스터리"
   - config: config.fashion.yaml
     label: 패션
     slots:
