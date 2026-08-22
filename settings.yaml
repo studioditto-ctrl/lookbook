@@ -71,6 +71,8 @@ digests:
         query: "커피"
       - name: 로스터리
         query: "로스터리"
+      - name: 와인
+        query: "와인"
   - config: config.fashion.yaml
     label: 패션
     slots:
