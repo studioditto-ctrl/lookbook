@@ -42,7 +42,7 @@ digests:
         videos: 3
       - slot: sgey9c
         title: "음식 브리핑"
-        send_at: "12:00"
+        send_at: "16:00"
         enabled: true
         articles: 3
         videos: 3
