@@ -47,6 +47,7 @@ digests:
       낙성대 맛집: 2
       양재 맛집: 2
       성남맛집: 2
+      노포: 2
   - config: config.fashion.yaml
     label: 패션
     slots:
