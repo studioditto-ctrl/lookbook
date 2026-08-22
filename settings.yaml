@@ -17,7 +17,7 @@ digests:
       루틴: 2
       페이스: 2
       기록: 2
-      마라톤: 2
+      마라톤: 3
       러닝화: 2
       스트레칭: 2
       자세: 2
@@ -31,7 +31,7 @@ digests:
       beginner: 1
     queries:
       - name: 러닝
-        query: "훈련 OR 통증 OR 루틴 OR 페이스 OR 기록 OR 마라톤"
+        query: "훈련 OR 마라톤 OR 통증 OR 루틴 OR 페이스 OR 기록"
   - config: config.food.yaml
     label: 음식
     slots:
