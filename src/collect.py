@@ -61,6 +61,7 @@ class Item:
     summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
     tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
     channel_id: str = ""   # 영상일 때 올린 채널 (구독자 수 확인에 쓴다)
+    trusted: bool = False  # 사람이 골라 config 에 적어둔 채널에서 온 것
     score: float = 0.0
 
 
@@ -596,10 +597,13 @@ def filter_youtube(items, config, key, cache, problems=None):
         return items
 
     views = video_views([_video_id(i) for i in videos], key, problems) if min_views else {}
+    # 구독자 수는 검색으로 들어온 모르는 채널에만 묻는다. 직접 적어둔 채널은
+    # 크기를 따지려고 고른 게 아니다.
+    unknown = [i for i in videos if not i.trusted and i.channel_id]
     subs, subs_ok = ({}, True)
-    if min_subs:
+    if min_subs and unknown:
         subs, subs_ok = channel_subscribers(
-            [i.channel_id for i in videos if i.channel_id], key, cache, problems
+            [i.channel_id for i in unknown], key, cache, problems
         )
 
     kept, by_views, by_subs = [], 0, 0
@@ -612,14 +616,16 @@ def filter_youtube(items, config, key, cache, problems=None):
             by_views += 1
             continue
         seen_subs = subs.get(item.channel_id)
-        if min_subs and subs_ok and seen_subs is not None and seen_subs < min_subs:
+        if (min_subs and not item.trusted and subs_ok
+                and seen_subs is not None and seen_subs < min_subs):
             by_subs += 1
             continue
         kept.append(item)
 
     if by_views or by_subs:
         print(f"[collect] 기준 미달 영상 제외 {by_views + by_subs}건 "
-              f"(조회수 {min_views:,} 미만 {by_views} · 구독자 {min_subs:,} 미만 {by_subs})")
+              f"(조회수 {min_views:,} 미만 {by_views} · "
+              f"구독자 {min_subs:,} 미만 {by_subs}, 직접 고른 채널은 제외 안 함)")
     return kept
 
 
@@ -722,6 +728,9 @@ def collect(config, channel_cache):
             fetched = _parse_feed(
                 YT_FEED.format(channel_id=channel_id), src["name"], "video", problems
             )
+        # 사람이 골라 적어둔 채널이다. 구독자 수로 되묻지 않는다.
+        for item in fetched:
+            item.trusted = True
         items += _tag(fetched, src.get("tags"))
 
     if problems:

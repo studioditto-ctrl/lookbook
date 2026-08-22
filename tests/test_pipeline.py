@@ -1246,6 +1246,31 @@ class TestYoutubeThresholds(unittest.TestCase):
         self.collect.video_views = lambda ids, key, problems=None: views
         self.collect.channel_subscribers = lambda ids, key, cache, problems=None: (subs, subs_ok)
 
+    def test_curated_channels_skip_the_subscriber_floor(self):
+        """직접 적어둔 채널은 크기를 따지려고 고른 게 아니다."""
+        mine = self.video("mine", "UC2")
+        mine.trusted = True
+        found = self.video("found", "UC2")
+        self.stub({"mine": 50000, "found": 50000}, {"UC2": 1200})
+        kept = self.collect.filter_youtube([mine, found], self.config, "key", {})
+        self.assertEqual([i.id for i in kept], ["yt:video:mine"])
+
+    def test_curated_channels_still_need_views(self):
+        mine = self.video("mine", "UC2")
+        mine.trusted = True
+        self.stub({"mine": 900}, {})
+        self.assertEqual(self.collect.filter_youtube([mine], self.config, "key", {}), [])
+
+    def test_subscribers_are_only_asked_for_unknown_channels(self):
+        asked = []
+        self.collect.video_views = lambda ids, key, problems=None: {"mine": 50000}
+        self.collect.channel_subscribers = (
+            lambda ids, key, cache, problems=None: (asked.extend(ids), ({}, True))[1])
+        mine = self.video("mine", "UC2")
+        mine.trusted = True
+        self.collect.filter_youtube([mine], self.config, "key", {})
+        self.assertEqual(asked, [])
+
     def test_low_views_and_small_channels_are_dropped(self):
         items = [self.video("big", "UC1"), self.video("few", "UC1"), self.video("small", "UC2")]
         self.stub({"big": 50000, "few": 900, "small": 80000}, {"UC1": 500000, "UC2": 1200})
