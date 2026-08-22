@@ -577,11 +577,19 @@ function keywordTiers(di, dg){
   }).join("");
 }
 
+/* 낱말이 여럿이면 따옴표로 묶는다.
+   "남성 피부 OR 남성 화장품" 은 검색엔진이
+   남성 AND (피부 OR 남성) AND (화장품) 으로 읽어 엉뚱한 게 나온다.
+   '"남성 피부" OR "남성 화장품"' 이라야 뜻대로 걸린다. */
+function asPhrase(word){
+  return /\s/.test(word) ? `"${word.replace(/"/g, "")}"` : word;
+}
+
 function syncQueries(dg){
   const words = Object.entries(dg.keywords)
     .sort((a, b) => b[1] - a[1])
     .slice(0, QUERY_WORDS)
-    .map(([word]) => word);
+    .map(([word]) => asPhrase(word));
   dg.queries = words.length ? [{name: dg.label, query: words.join(" OR ")}] : [];
 }
 

@@ -1306,6 +1306,46 @@ class TestYoutubeThresholds(unittest.TestCase):
         self.assertTrue(ok)
 
 
+class TestQueryPhrases(unittest.TestCase):
+    """여러 낱말짜리 키워드는 따옴표로 묶어야 OR 가 뜻대로 걸린다.
+
+    '남성 피부 OR 남성 화장품' 은 검색엔진이
+    남성 AND (피부 OR 남성) AND (화장품) 으로 읽어 엉뚱한 게 나온다.
+    """
+
+    def _pieces(self, query):
+        return [p.strip() for p in query.split(" OR ") if p.strip()]
+
+    def test_every_saved_query_is_well_formed(self):
+        import yaml as yaml_module
+
+        repo = Path(__file__).resolve().parent.parent
+        data = yaml_module.safe_load((repo / "settings.yaml").read_text(encoding="utf-8"))
+        checked = 0
+        for digest in data.get("digests") or []:
+            for entry in digest.get("queries") or []:
+                for piece in self._pieces(entry["query"]):
+                    checked += 1
+                    if " " in piece:
+                        self.assertTrue(
+                            piece.startswith('"') and piece.endswith('"'),
+                            f"{digest['label']}: {piece!r} 를 따옴표로 묶어야 합니다",
+                        )
+        self.assertGreater(checked, 0)
+
+    def test_single_words_are_left_alone(self):
+        # 한 낱말까지 따옴표로 묶으면 어형이 달라진 제목을 놓친다
+        import yaml as yaml_module
+
+        repo = Path(__file__).resolve().parent.parent
+        data = yaml_module.safe_load((repo / "settings.yaml").read_text(encoding="utf-8"))
+        for digest in data.get("digests") or []:
+            for entry in digest.get("queries") or []:
+                for piece in self._pieces(entry["query"]):
+                    if " " not in piece:
+                        self.assertFalse(piece.startswith('"'), piece)
+
+
 class TestGoogleNewsWindow(unittest.TestCase):
     """기간을 좁히지 않으면 관련도순으로 오래된 기사가 와서 전부 잘려 나간다."""
 

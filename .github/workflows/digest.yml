@@ -31,10 +31,15 @@ on:
 permissions:
   contents: write
 
-# 아침/저녁 실행이 겹쳐 state 커밋이 충돌하지 않게 한다
-concurrency:
-  group: digest
-  cancel-in-progress: false
+# 동시성 그룹을 두지 않는다.
+#
+# state 커밋이 겹치는 걸 막으려고 group: digest 를 뒀었는데, 깃허브는 그룹당
+# '대기 중' 실행을 하나만 남긴다. cancel-in-progress: false 는 '실행 중'인
+# 것만 지켜줄 뿐이라, 새 실행이 들어오면 대기 중이던 것이 취소된다.
+# 테스트 발송을 주제마다 연달아 누르면 첫 번째와 마지막만 돌고 가운데가
+# 조용히 사라졌다.
+#
+# 커밋 충돌은 아래 '발송 이력 커밋' 단계가 리베이스 후 재시도로 이미 처리한다.
 
 jobs:
   digest:
