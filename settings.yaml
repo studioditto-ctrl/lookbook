@@ -56,8 +56,8 @@ digests:
         title: "👕 오늘의 스타일"
         send_at: "21:30"
         enabled: true
-        articles: 1
-        videos: 4
+        articles: 3
+        videos: 3
     keywords:
       코디: 3
       스타일링: 3
