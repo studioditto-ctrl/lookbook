@@ -98,6 +98,7 @@ digests:
         articles: 3
         videos: 3
     keywords:
+      남성 피부: 2
 
 exclude:
   - 부고
