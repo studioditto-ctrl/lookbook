@@ -1,3 +1,3 @@
-config.yaml:morning
+config.food.yaml:lunch
 force
-2026-08-22T12:07:31.006Z
+2026-08-22T12:07:32.406Z
