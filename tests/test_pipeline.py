@@ -1168,6 +1168,66 @@ class TestPageFeeds(unittest.TestCase):
         self.assertEqual(len(cfg["sources"]["google_news"]), 1)
 
 
+class TestGoogleNewsWindow(unittest.TestCase):
+    """기간을 좁히지 않으면 관련도순으로 오래된 기사가 와서 전부 잘려 나간다."""
+
+    def setUp(self):
+        import collect as collect_module
+
+        self.collect = collect_module
+
+    def test_window_never_narrows_below_lookback(self):
+        self.assertEqual(self.collect._fresh_window(6), "when:6h")
+        self.assertEqual(self.collect._fresh_window(23), "when:23h")
+        self.assertEqual(self.collect._fresh_window(24), "when:1d")
+        # 36시간을 1d 로 줄이면 열두 시간을 잃는다
+        self.assertEqual(self.collect._fresh_window(36), "when:2d")
+        self.assertEqual(self.collect._fresh_window(48), "when:2d")
+        self.assertEqual(self.collect._fresh_window(49), "when:3d")
+
+    def test_zero_and_negative_do_not_crash(self):
+        self.assertEqual(self.collect._fresh_window(0), "when:1h")
+        self.assertEqual(self.collect._fresh_window(-5), "when:1h")
+
+
+class TestGoogleNewsFallback(unittest.TestCase):
+    """when: 을 붙여 빈손이면 제한 없이 한 번 더 부른다."""
+
+    def setUp(self):
+        import collect as collect_module
+
+        self.collect = collect_module
+        self.calls = []
+        self.saved = collect_module._parse_feed
+
+    def tearDown(self):
+        self.collect._parse_feed = self.saved
+
+    def _stub(self, results):
+        def fake(url, name, kind, problems=None):
+            self.calls.append(url)
+            return results.pop(0)
+        self.collect._parse_feed = fake
+
+    def test_window_is_added_to_the_query(self):
+        from collect import Item
+
+        item = Item(id="a", title="t", url="u", source="s", kind="article",
+                    published=datetime.now(timezone.utc))
+        self._stub([[item]])
+        got = self.collect._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
+        self.assertEqual(got, [item])
+        self.assertEqual(len(self.calls), 1)
+        self.assertIn("when%3A2d", self.calls[0])
+
+    def test_empty_result_retries_without_the_window(self):
+        self._stub([[], []])
+        self.collect._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
+        self.assertEqual(len(self.calls), 2)
+        self.assertIn("when%3A2d", self.calls[0])
+        self.assertNotIn("when", self.calls[1])
+
+
 class TestSearchOrder(unittest.TestCase):
     """'인기순'으로도 찾을 수 있어야 채널 목록 밖의 영상이 들어온다."""
 

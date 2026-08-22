@@ -492,19 +492,51 @@ def _collect_via_api(channel_id, source_name, key, problems=None):
     return items
 
 
+def _fresh_window(hours):
+    """구글 뉴스 검색어에 붙일 기간 제한.
+
+    when: 이 없으면 관련도순으로 몇 달 전 기사까지 섞여 온다. 그것들은
+    lookback 에서 전부 잘려 나가 결국 기사가 한 건도 남지 않는다.
+    """
+    hours = max(1, int(hours))
+    if hours < 24:
+        return f"when:{hours}h"
+    # 올림한다. 36시간을 1d 로 줄이면 열두 시간을 잃는다.
+    return f"when:{-(-hours // 24)}d"
+
+
+def _collect_google_news(src, hours, problems=None):
+    """기간을 좁혀 부르고, 그래도 비면 제한 없이 한 번 더 부른다.
+
+    when: 을 못 알아듣는 경우에도 지금보다 나빠지지 않게 하기 위함이다.
+    """
+    name = src["name"]
+    lang = src.get("lang", "ko")
+    country = src.get("country", "KR")
+
+    def fetch(query):
+        return _parse_feed(
+            GNEWS_FEED.format(query=quote_plus(query), lang=lang, country=country),
+            name, "article", problems,
+        )
+
+    window = _fresh_window(hours)
+    items = fetch(f"{src['query']} {window}")
+    if items:
+        return items
+    print(f"[collect] '{name}' {window} 로는 결과가 없어 기간 제한 없이 다시 찾습니다.")
+    return fetch(src["query"])
+
+
 def collect(config, channel_cache):
     """설정에 있는 모든 소스에서 항목을 모아 lookback 기간 내 것만 반환."""
     sources = config.get("sources") or {}
     items = []
     problems = []
 
+    lookback = config.get("lookback_hours", 36)
     for src in sources.get("google_news") or []:
-        url = GNEWS_FEED.format(
-            query=quote_plus(src["query"]),
-            lang=src.get("lang", "ko"),
-            country=src.get("country", "KR"),
-        )
-        items += _tag(_parse_feed(url, src["name"], "article", problems), src.get("tags"))
+        items += _tag(_collect_google_news(src, lookback, problems), src.get("tags"))
 
     for src in sources.get("rss") or []:
         items += _tag(
@@ -567,9 +599,10 @@ def collect(config, channel_cache):
             print(f"  - {source_name}: {reason}")
         print()
 
-    cutoff = datetime.now(timezone.utc) - timedelta(
-        hours=config.get("lookback_hours", 36)
-    )
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback)
     fresh = [i for i in items if i.published >= cutoff]
-    print(f"[collect] 전체 {len(items)}건 중 최근 {len(fresh)}건")
+    # 종류별로 나눠 찍는다. 합계만 보면 기사가 통째로 잘려도 눈에 띄지 않는다.
+    articles = sum(1 for i in fresh if i.kind == "article")
+    print(f"[collect] 전체 {len(items)}건 중 최근 {len(fresh)}건 "
+          f"(기사 {articles} · 영상 {len(fresh) - articles}, 최근 {lookback}시간)")
     return fresh
