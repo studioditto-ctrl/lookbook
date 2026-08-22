@@ -36,7 +36,7 @@ digests:
     slots:
       - slot: lunch
         title: "맛집기행"
-        send_at: "12:30"
+        send_at: "11:00"
         enabled: true
         articles: 3
         videos: 3
