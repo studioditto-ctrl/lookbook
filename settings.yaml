@@ -73,6 +73,8 @@ digests:
         query: "로스터리"
       - name: 와인
         query: "와인"
+      - name: 오마카세
+        query: "오마카세"
   - config: config.fashion.yaml
     label: 패션
     slots:
