@@ -31,6 +31,9 @@ digests:
       recovery: 2
       shoes: 2
       beginner: 1
+    queries:
+      - name: 러닝
+        query: "부상 OR 통증 OR injury OR 훈련 OR 루틴 OR 페이스"
   - config: config.food.yaml
     label: 음식
     slots:
@@ -59,28 +62,8 @@ digests:
       와인: 2
       오마카세: 2
     queries:
-      - name: 분당맛집
-        query: "분당맛집"
-      - name: 판교맛집
-        query: "판교맛집"
-      - name: 사당맛집
-        query: "사당맛집"
-      - name: 낙성대 맛집
-        query: "낙성대 맛집"
-      - name: 양재맛집
-        query: "양재맛집"
-      - name: 성남맛집
-        query: "성남맛집"
-      - name: 노포
-        query: "노포"
-      - name: 커피
-        query: "커피"
-      - name: 로스터리
-        query: "로스터리"
-      - name: 와인
-        query: "와인"
-      - name: 오마카세
-        query: "오마카세"
+      - name: 음식
+        query: "분당맛집 OR 판교맛집 OR 사당맛집 OR 낙성대 맛집 OR 양재 맛집 OR 성남맛집"
   - config: config.fashion.yaml
     label: 패션
     slots:
@@ -97,16 +80,8 @@ digests:
       4050 패션: 2
       중년 스타일: 2
     queries:
-      - name: 남성 패션
-        query: "남성 패션"
-      - name: 남성 악세사리
-        query: "남성 악세사리"
-      - name: 남성 스타일
-        query: "남성 스타일"
-      - name: 4050 패션
-        query: "4050 패션"
-      - name: 중년 스타일
-        query: "중년 스타일"
+      - name: 패션
+        query: "남성 패션 OR 남성 악세사리 OR 남성 스타일 OR 4050 패션 OR 중년 스타일"
   - key: tmsy0lgx6
     label: 피부
     slots:
@@ -122,14 +97,8 @@ digests:
       남성 피부관리: 2
       남성 화장품: 2
     queries:
-      - name: 남성 피부
-        query: "남성 피부"
-      - name: 남성 스킨케어
-        query: "남성 스킨케어"
-      - name: 남성 피부관리
-        query: "남성 피부관리"
-      - name: 남성 화장품
-        query: "남성 화장품"
+      - name: 피부
+        query: "남성 피부 OR 남성 스킨케어 OR 남성 피부관리 OR 남성 화장품"
 
 exclude:
   - 부고
