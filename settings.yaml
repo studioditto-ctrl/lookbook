@@ -86,6 +86,8 @@ digests:
         query: "남성 피부"
       - name: 남성 스킨케어
         query: "남성 스킨케어"
+      - name: 남성 피부관리
+        query: "남성 피부관리"
 
 exclude:
   - 부고
