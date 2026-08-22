@@ -84,9 +84,14 @@ digests:
       남성 스타일: 2
       4050 패션: 2
       중년 스타일: 2
+      패션 추천: 2
+      패션 후기: 2
+      패션 입문: 2
+      패션 초보: 2
+      패션 리뷰: 2
     queries:
       - name: 패션
-        query: "남성 패션 OR 남성 악세사리 OR 남성 스타일 OR 4050 패션 OR 중년 스타일"
+        query: "남성 패션 OR 남성 악세사리 OR 남성 스타일 OR 4050 패션 OR 중년 스타일 OR 패션 추천"
   - key: tmsy0lgx6
     label: 피부
     slots:
