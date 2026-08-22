@@ -45,6 +45,7 @@ digests:
       판교맛집: 2
       사당맛집: 2
       낙성대 맛집: 2
+      양재 맛집: 2
   - config: config.fashion.yaml
     label: 패션
     slots:
