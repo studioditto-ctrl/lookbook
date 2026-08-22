@@ -50,6 +50,7 @@ digests:
       노포: 2
       커피: 2
       로스터리: 2
+      와인: 2
   - config: config.fashion.yaml
     label: 패션
     slots:
