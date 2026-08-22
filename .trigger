@@ -1,3 +1,3 @@
-tmsy0lgx6:daily
+config.yaml:morning
 force
-2026-08-22T23:12:19.317Z
+2026-08-22T23:26:08.456Z
