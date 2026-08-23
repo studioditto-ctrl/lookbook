@@ -1,1 +1,1 @@
-tmsy0lgx6:daily
+config.yaml:morning
