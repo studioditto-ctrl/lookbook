@@ -104,7 +104,7 @@ digests:
         query: "\"남성 피부\" OR \"남성 피부관리\" OR \"남성 스킨케어\" OR \"남성 화장품\""
   - key: tmt5dr93z
     label: 돌파매매
-    scope: [추세추종]
+    scope: [니콜라스 다바스]
     slots:
       - slot: daily
         title: "돌파매매 브리핑"
