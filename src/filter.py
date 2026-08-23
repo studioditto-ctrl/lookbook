@@ -51,27 +51,33 @@ def _score(item, keywords):
     return score
 
 
-def _relevant(item, keywords):
-    """검색으로 찾아온 항목이 이 주제의 말을 실제로 담고 있는지.
+def _has(haystack, word):
+    """낱말이 여럿인 말은 붙어 있지 않아도 다 나오면 걸린 것으로 본다.
 
-    구글 뉴스도 유튜브도 검색어를 느슨하게 해석해, 주제와 상관없는 것을
-    섞어 돌려준다. 키워드는 점수만 매길 뿐 아무것도 걸러내지 않았기 때문에
-    그것들이 그대로 발송에 실려 갔다.
+    '남성 피부' 를 문구 그대로 요구하면 '남성의 피부 관리' 가 떨어진다.
+    """
+    parts = [part for part in str(word).lower().split() if part]
+    return bool(parts) and all(part in haystack for part in parts)
+
+
+def _relevant(item, keywords, scope=()):
+    """검색으로 찾아온 항목이 이 주제 이야기인지.
+
+    구글 뉴스도 유튜브도 검색어를 느슨하게 해석해 상관없는 것을 섞어 준다.
+    주제어(scope)가 있으면 그것만 본다 — '훈련·기록·페이스' 같은 키워드는
+    한미연합훈련·기록적 폭염·페이스북 기사에도 그대로 들어 있어서,
+    키워드로 거르면 정치 기사가 러닝 회차에 실려 나간다. 키워드는 점수를
+    매기는 데 쓰고, 주제에 속하는지는 주제어로 판단한다.
 
     제목뿐 아니라 본문 발췌도 본다. 제목만 보면 '이번 주 정리' 같은
     맹숭한 제목의 알맹이 있는 글까지 떨어진다.
     """
+    haystack = f"{item.title} {item.summary or ''}".lower()
+    if scope:
+        return any(_has(haystack, word) for word in scope)
     if not keywords:
         return True
-    haystack = f"{item.title} {item.summary or ''}".lower()
-    for word in keywords:
-        # 낱말이 여럿인 키워드는 붙어 있지 않아도 다 나오면 걸린 것으로 본다.
-        # '남성 피부' 를 문구 그대로 요구하면 '남성 피부, 여름엔 이렇게' 는
-        # 걸려도 '남성의 피부 관리' 는 떨어진다.
-        parts = [part for part in word.lower().split() if part]
-        if parts and all(part in haystack for part in parts):
-            return True
-    return False
+    return any(_has(haystack, word) for word in keywords)
 
 
 def _excluded(item, patterns):
@@ -131,6 +137,7 @@ def select(items, seen, config, slot):
     # 검색으로 찾아온 항목에만 적용한다. 사람이 골라둔 채널·피드는
     # 채널을 믿고 담는 것이라 낱말이 안 걸려도 남긴다.
     require_keyword = config.get("require_keyword", True)
+    scope = config.get("scope") or []
 
     fresh = []
     repeats = 0
@@ -146,7 +153,7 @@ def select(items, seen, config, slot):
             continue
         if _excluded(item, exclude):
             continue
-        if require_keyword and item.searched and not _relevant(item, keywords):
+        if require_keyword and item.searched and not _relevant(item, keywords, scope):
             off_topic += 1
             continue
         item.score = _score(item, keywords)

@@ -28,6 +28,67 @@ DEFAULTS = {
 }
 
 
+# ---------- 검색어에 주제어를 씌운다 ----------
+# '훈련 OR 루틴 OR 페이스' 만 던지면 한미연합훈련·페이스북 기사가 그대로
+# 딸려 온다. 낱말 자체는 주제와 무관하게 흔히 쓰이기 때문이다. 그래서
+# 주제어(러닝·달리기…)를 AND 로 앞에 세워 검색 단계에서부터 좁힌다.
+
+def scope_words(digest):
+    """이 주제를 가리키는 말들. 없으면 이름 하나를 쓴다."""
+    scope = digest.get("scope")
+    if isinstance(scope, str):
+        scope = [scope]
+    words = [str(w).strip() for w in (scope or []) if str(w).strip()]
+    if words:
+        return words
+    label = (digest.get("label") or "").strip()
+    return [label] if label else []
+
+
+def _phrase(word):
+    return f'"{word}"' if " " in word else word
+
+
+def _terms(text, scope):
+    """검색어에서 주제어와 겹치는 낱말을 뺀다. 앞에 이미 AND 로 붙는다.
+
+    '남성 피부' 에서 피부를 떼면 '남성' 만 남아 훨씬 넓게 걸린다.
+    주제어가 앞에서 잡아 주므로 넓혀도 엉뚱한 게 들어오지 않는다.
+    """
+    lowered = {w.lower() for w in scope}
+    out = []
+    for raw in str(text or "").split(" OR "):
+        term = raw.strip().strip('"').strip()
+        if not term:
+            continue
+        parts = [p for p in term.split() if p.lower() not in lowered]
+        if not parts:
+            continue
+        cleaned = _phrase(" ".join(parts))
+        if cleaned not in out:
+            out.append(cleaned)
+    return " OR ".join(out)
+
+
+def news_query(text, scope):
+    """구글 뉴스용. 주제어를 괄호로 묶어 앞에 세운다."""
+    if not scope:
+        return str(text or "")
+    head = " OR ".join(_phrase(w) for w in scope)
+    if len(scope) > 1:
+        head = f"({head})"
+    terms = _terms(text, scope)
+    return f"{head} ({terms})" if terms else head
+
+
+def video_query(text, scope):
+    """유튜브용. 괄호를 모르므로 OR 는 | 로 바꾸고 주제어 하나를 앞에 둔다."""
+    terms = _terms(text, scope) if scope else str(text or "")
+    terms = terms.replace(" OR ", "|")
+    head = scope[0] if scope else ""
+    return " ".join(x for x in (head, terms) if x)
+
+
 def load(path=None):
     path = Path(path) if path else SETTINGS_PATH
     if not path.exists():
@@ -82,6 +143,13 @@ def apply(config, settings, config_name, slot_name):
         merged["keywords"] = digest["keywords"]
     if settings.get("exclude"):
         merged["exclude"] = settings["exclude"]
+    # 느리게 도는 주제는 48시간 안에 새 글이 없어 한 건도 못 보낸다.
+    if digest.get("lookback_hours"):
+        merged["lookback_hours"] = digest["lookback_hours"]
+
+    scope = scope_words(digest)
+    if scope:
+        merged["scope"] = scope
 
     # 어드민 페이지가 추가한 소스를 config 의 목록 뒤에 붙인다.
     # 검색어 하나는 뉴스와 유튜브 양쪽에 건다 — 구독 채널이 없는 새 주제도
@@ -91,13 +159,18 @@ def apply(config, settings, config_name, slot_name):
         name = query.get("name") if isinstance(query, dict) else query
         text = query.get("query") if isinstance(query, dict) else query
         tags = query.get("tags") if isinstance(query, dict) else None
-        entry = {"name": name, "query": text, "lang": "ko", "country": "KR"}
+        entry = {"name": name, "query": news_query(text, scope),
+                 "lang": "ko", "country": "KR"}
         if tags:
             entry["tags"] = tags
         sources.setdefault("google_news", []).append(entry)
 
         if not (isinstance(query, dict) and query.get("youtube") is False):
-            video = {"name": name, "query": text}
+            order = query.get("order") if isinstance(query, dict) else None
+            # 최신순으로 뽑으면 갓 올라온 조회수 0 짜리만 와서 조회수 기준에
+            # 전부 걸린다. 기간을 자른 뒤 조회수순으로 뽑아야 남는 게 있다.
+            video = {"name": name, "query": video_query(text, scope),
+                     "order": order or "viewCount"}
             if tags:
                 video["tags"] = tags
             sources.setdefault("youtube_search", []).append(video)

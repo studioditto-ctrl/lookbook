@@ -6,7 +6,7 @@ const FILE = "settings.yaml";
 const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 // 저장에 실패해도 고친 값을 잃지 않도록 이 기기에 남겨둔다
 const DRAFT = "settings_draft";
-const BUILD = "2026-08-19";   // 화면에 찍어 어느 판인지 확인한다
+const BUILD = "2026-08-23";   // 화면에 찍어 어느 판인지 확인한다
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -107,9 +107,18 @@ function render(){
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
           <button class="tiny" onclick="addKeyword(${di})">추가</button>
         </div>
+        <label style="margin-top:14px">주제어 — 이 말이 없는 글은 버립니다</label>
+        <div class="sub">쉼표로 구분합니다. 넓게 적어야 영어 기사까지 걸립니다.</div>
+        <div class="add">
+          <input id="sc${di}" value="${esc(scopeWords(dg).join(", "))}"
+                 placeholder="예: 러닝, 달리기, running" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off"
+                 onchange="setScope(${di}, this.value)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">
+        </div>
         <div class="note">
           ${(dg.queries || []).length
-            ? `검색에 쓰는 말: <b>${esc(dg.queries[0].query)}</b>`
+            ? `검색에 쓰는 말: <b>${esc(scopedQuery(dg))}</b>`
             : "키워드를 넣으면 그 말로 구글 뉴스와 유튜브를 찾습니다."}
         </div>
         <div class="add">
@@ -257,6 +266,40 @@ function asPhrase(word){
   return /\s/.test(word) ? `"${word.replace(/"/g, "")}"` : word;
 }
 
+/* 주제어. 검색어 앞에 AND 로 붙고, 들어온 글이 이 주제인지도 이 말로 본다.
+   '훈련 OR 루틴' 만으로는 한미연합훈련 기사가 그대로 딸려 왔다. */
+function scopeWords(dg){
+  const words = (dg.scope || []).map(w => String(w).trim()).filter(Boolean);
+  return words.length ? words : (dg.label ? [dg.label] : []);
+}
+
+/* 주제어와 겹치는 낱말은 뺀다 — 앞에 이미 붙어 있다.
+   '남성 피부' 에서 피부를 떼면 '남성' 만 남아 훨씬 넓게 걸린다. */
+function scopedQuery(dg){
+  const scope = scopeWords(dg);
+  const raw = ((dg.queries || [])[0] || {}).query || "";
+  if (!scope.length) return raw;
+  const lower = new Set(scope.map(w => w.toLowerCase()));
+  const terms = [];
+  for (const chunk of raw.split(" OR ")){
+    const parts = chunk.trim().replace(/"/g, "").split(/\s+/)
+                       .filter(w => w && !lower.has(w.toLowerCase()));
+    if (!parts.length) continue;
+    const term = asPhrase(parts.join(" "));
+    if (!terms.includes(term)) terms.push(term);
+  }
+  let head = scope.map(asPhrase).join(" OR ");
+  if (scope.length > 1) head = `(${head})`;
+  return terms.length ? `${head} (${terms.join(" OR ")})` : head;
+}
+
+function setScope(di, value){
+  const dg = data.digests[di];
+  dg.scope = String(value).split(",").map(w => w.trim()).filter(Boolean);
+  render(); touch();
+  toast(`'${esc(dg.label)}' 주제어를 바꿨습니다. 저장하는 중…`, "busy");
+}
+
 function syncQueries(dg){
   const words = Object.entries(dg.keywords)
     .sort((a, b) => b[1] - a[1])
@@ -400,7 +443,7 @@ function addTopic(){
   if (!label) return;
   const key = "t" + Date.now().toString(36);
   data.digests.push({
-    config: "", key, label,
+    config: "", key, label, scope: [label],
     slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
              enabled: true, articles: 2, videos: 3}],
     keywords: {[label]: 3},
@@ -1180,8 +1223,10 @@ Object.assign(window, {
   save,
   saveClientId,
   saveToken,
+  scopedQuery,   // 화면에 미리 보이는 검색어. 테스트에서 직접 부른다
   searchSubs,
   set,
+  setScope,
   suggestFor,
   testSend,
 });

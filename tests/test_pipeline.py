@@ -265,9 +265,6 @@ class TestMessage(unittest.TestCase):
         self.assertNotIn("🎬", message)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
 
 class TestWhoami(unittest.TestCase):
     """chat_id 추출은 실제 getUpdates 응답 모양으로 검증한다."""
@@ -1157,9 +1154,12 @@ class TestPageQueriesFanOut(unittest.TestCase):
         }]}
 
     def test_news_and_video(self):
+        """주제어(여기선 이름 IT)가 검색어 앞에 AND 로 붙는다."""
         cfg = self.apply({}, self.data, "it", "daily")
-        for key in ("google_news", "youtube_search"):
-            self.assertEqual([s["query"] for s in cfg["sources"][key]], ["IT 뉴스"], key)
+        self.assertEqual(
+            [s["query"] for s in cfg["sources"]["google_news"]], ["IT (뉴스)"])
+        self.assertEqual(
+            [s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
 
     def test_youtube_can_be_turned_off_per_query(self):
         self.data["digests"][0]["queries"][0]["youtube"] = False
@@ -1421,6 +1421,112 @@ class TestRelevanceGate(unittest.TestCase):
         self.assertEqual([a.title for a in articles], ["마라톤 훈련법"])
 
 
+class TestTopicScope(unittest.TestCase):
+    """키워드만으로는 못 거른다.
+
+    '훈련·기록·페이스' 는 한미연합훈련·기록적 폭염·페이스북 기사에도 그대로
+    들어 있어서, 키워드로 거르면 정치 기사가 러닝 회차에 실려 나간다.
+    주제어를 따로 두고 그 말이 있는 글만 남긴다.
+    """
+
+    def setUp(self):
+        from collect import Item
+        from filter import select
+
+        self.Item = Item
+        self.select = select
+        self.now = datetime.now(timezone.utc)
+        self.config = {
+            "slots": {"m": {"articles": 5, "videos": 5}},
+            "keywords": {"훈련": 3, "페이스": 2},
+            "scope": ["러닝", "달리기", "running"],
+        }
+
+    def make(self, title, summary=""):
+        return self.Item(id=title, title=title, url=f"https://x.test/{title}",
+                         source=title, kind="article", published=self.now,
+                         summary=summary, searched=True)
+
+    def test_keyword_alone_does_not_pass(self):
+        items = [self.make("한미연합훈련 이번 주 시작"),
+                 self.make("러닝 훈련 루틴 짜기")]
+        articles, _ = self.select(items, {}, self.config, "m")
+        self.assertEqual([a.title for a in articles], ["러닝 훈련 루틴 짜기"])
+
+    def test_scope_word_alone_is_enough(self):
+        """주제어가 있으면 키워드가 하나도 안 걸려도 남긴다."""
+        articles, _ = self.select([self.make("달리기 좋은 코스 열 곳")],
+                                  {}, self.config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_english_scope_word_catches_foreign_articles(self):
+        articles, _ = self.select([self.make("Best running shoes of 2026")],
+                                  {}, self.config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_summary_counts_too(self):
+        item = self.make("이번 주 정리", summary="달리기 기록을 모았다")
+        articles, _ = self.select([item], {}, self.config, "m")
+        self.assertEqual(len(articles), 1)
+
+    def test_without_scope_keywords_still_gate(self):
+        config = dict(self.config)
+        del config["scope"]
+        items = [self.make("한미연합훈련 이번 주 시작"), self.make("부동산 전망")]
+        articles, _ = self.select(items, {}, config, "m")
+        self.assertEqual([a.title for a in articles], ["한미연합훈련 이번 주 시작"])
+
+
+class TestScopedQueries(unittest.TestCase):
+    """검색 단계에서부터 주제어로 좁힌다. 걸러내기 전에 덜 긁어 오는 게 낫다."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.settings = settings_module
+        self.data = {"digests": [{
+            "key": "run", "label": "러닝",
+            "scope": ["러닝", "달리기"],
+            "slots": [{"slot": "daily", "title": "러닝", "articles": 2, "videos": 3}],
+            "queries": [{"name": "러닝", "query": "훈련 OR 루틴"}],
+        }]}
+
+    def test_news_query_puts_scope_in_front(self):
+        cfg = self.settings.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["sources"]["google_news"][0]["query"],
+                         "(러닝 OR 달리기) (훈련 OR 루틴)")
+
+    def test_video_query_uses_pipe_instead_of_or(self):
+        """유튜브는 괄호를 모르고 OR 를 그냥 낱말로 읽는다."""
+        cfg = self.settings.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["sources"]["youtube_search"][0]["query"],
+                         "러닝 훈련|루틴")
+
+    def test_scope_words_are_dropped_from_terms(self):
+        """'남성 피부' 에서 피부를 떼면 '남성' 만 남아 훨씬 넓게 걸린다."""
+        self.assertEqual(
+            self.settings.news_query('"남성 피부" OR "남성 화장품"', ["피부"]),
+            '피부 (남성 OR "남성 화장품")')
+
+    def test_scope_defaults_to_the_label(self):
+        del self.data["digests"][0]["scope"]
+        cfg = self.settings.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["scope"], ["러닝"])
+
+    def test_terms_that_are_only_scope_words_vanish(self):
+        self.assertEqual(self.settings.news_query("러닝", ["러닝"]), "러닝")
+
+    def test_videos_are_picked_by_view_count(self):
+        """최신순으로 뽑으면 갓 올라온 조회수 0 짜리만 와서 기준에 다 걸린다."""
+        cfg = self.settings.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["sources"]["youtube_search"][0]["order"], "viewCount")
+
+    def test_digest_can_widen_its_own_lookback(self):
+        self.data["digests"][0]["lookback_hours"] = 168
+        cfg = self.settings.apply({}, self.data, "run", "daily")
+        self.assertEqual(cfg["lookback_hours"], 168)
+
+
 class TestQueryPhrases(unittest.TestCase):
     """여러 낱말짜리 키워드는 따옴표로 묶어야 OR 가 뜻대로 걸린다.
 
@@ -1604,8 +1710,10 @@ class TestPageQueriesFeedBothSides(unittest.TestCase):
 
     def test_query_becomes_news_and_video_source(self):
         cfg = self.apply({}, self.data, "it", "daily")
-        self.assertEqual([s["query"] for s in cfg["sources"]["google_news"]], ["IT 뉴스"])
-        self.assertEqual([s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
+        self.assertEqual(
+            [s["query"] for s in cfg["sources"]["google_news"]], ["IT (뉴스)"])
+        self.assertEqual(
+            [s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
 
     def test_tags_carry_to_both(self):
         self.data["digests"][0]["queries"][0]["tags"] = ["tech"]
@@ -1916,3 +2024,7 @@ class TestPageCreatedTopic(unittest.TestCase):
         data["digests"] = [dict(self.data["digests"][0], config="config.yaml")]
         self.settings_module.apply(base, data, "config.yaml", "daily")
         self.assertEqual(len(base["sources"]["youtube"]), 1)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

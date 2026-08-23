@@ -11,6 +11,9 @@ function toYaml(d){
     out += "  - " + (dg.config ? `config: ${dg.config}\n` : `key: ${quote(dg.key)}\n`);
     if (dg.config && dg.key) out += `    key: ${quote(dg.key)}\n`;
     out += `    label: ${quote(dg.label)}\n`;
+    // 주제어. 검색어 앞에 AND 로 붙고, 걸러낼 때도 이 말로 판단한다.
+    if ((dg.scope || []).length) out += `    scope: [${dg.scope.join(", ")}]\n`;
+    if (dg.lookback_hours) out += `    lookback_hours: ${dg.lookback_hours}\n`;
     out += dg.slots.length ? "    slots:\n" : "    slots: []\n";
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
@@ -62,7 +65,8 @@ function fromYaml(text){
     if (mode !== "digests") continue;
 
     if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){
-      dg = {config: "", key: "", label: "", slots: [], keywords: {}, queries: [], channels: [], feeds: []};
+      dg = {config: "", key: "", label: "", scope: [], slots: [], keywords: {},
+            queries: [], channels: [], feeds: []};
       const [k, ...rest] = t.slice(2).split(":");
       dg[k.trim()] = unq(rest.join(":").trim());
       out.digests.push(dg); slot = null; continue;
@@ -70,6 +74,12 @@ function fromYaml(text){
     if (!dg) continue;
     if (indent === 4 && t.startsWith("key:")){ dg.key = unq(t.slice(4).trim()); continue; }
     if (indent === 4 && t.startsWith("label:")){ dg.label = unq(t.slice(6).trim()); continue; }
+    if (indent === 4 && t.startsWith("scope:")){
+      dg.scope = flowList(t.slice(6)); continue;
+    }
+    if (indent === 4 && t.startsWith("lookback_hours:")){
+      dg.lookback_hours = +t.slice(15).trim() || 0; continue;
+    }
     if (indent === 4 && t.startsWith("slots:")){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }
     if (indent === 4 && t === "queries:"){ dg._in = "queries"; continue; }
@@ -109,6 +119,10 @@ function fromYaml(text){
   out.digests.forEach(d => delete d._in);
   return out;
 }
+/* [가, 나, 다] 한 줄짜리 목록 */
+const flowList = s => s.replace(/[\[\]]/g, "").split(",")
+                       .map(x => unq(x.trim())).filter(Boolean);
+
 const unq = s => (s.startsWith('"') && s.endsWith('"')) ? JSON.parse(s) : s;
 
-export { toYaml, fromYaml, quote, unq };
+export { toYaml, fromYaml, quote, unq, flowList };
