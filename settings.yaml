@@ -38,7 +38,7 @@ digests:
     scope: [맛집, 음식, 식당, 레스토랑, 카페, 요리]
     slots:
       - slot: lunch
-        title: "맛집기행"
+        title: "맛집기행 (점심)"
         send_at: "11:00"
         enabled: true
         articles: 3
