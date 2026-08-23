@@ -1500,7 +1500,7 @@ class TestScopedQueries(unittest.TestCase):
         """유튜브는 괄호를 모르고 OR 를 그냥 낱말로 읽는다."""
         cfg = self.settings.apply({}, self.data, "run", "daily")
         self.assertEqual(cfg["sources"]["youtube_search"][0]["query"],
-                         "러닝 훈련|루틴")
+                         "러닝|달리기 훈련|루틴")
 
     def test_scope_words_are_dropped_from_terms(self):
         """'남성 피부' 에서 피부를 떼면 '남성' 만 남아 훨씬 넓게 걸린다."""

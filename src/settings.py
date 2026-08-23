@@ -82,10 +82,15 @@ def news_query(text, scope):
 
 
 def video_query(text, scope):
-    """유튜브용. 괄호를 모르므로 OR 는 | 로 바꾸고 주제어 하나를 앞에 둔다."""
+    """유튜브용. 괄호를 모르고 OR 를 낱말로 읽으므로 | 로 쓴다.
+
+    주제어를 하나만 앞에 두면 후보가 너무 적어 조회수 기준에 다 걸린다.
+    ('피부 남성' 은 최근 영상이 열댓 개뿐이었다.) 주제어를 모두 넣어 넓게
+    긁고, 주제에 맞는지는 뒤의 관련성 판단에서 가린다.
+    """
     terms = _terms(text, scope) if scope else str(text or "")
     terms = terms.replace(" OR ", "|")
-    head = scope[0] if scope else ""
+    head = "|".join(_phrase(w) for w in scope)
     return " ".join(x for x in (head, terms) if x)
 
 

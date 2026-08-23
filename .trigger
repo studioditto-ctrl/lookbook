@@ -1,1 +1,1 @@
-config.fashion.yaml:night
+tmsy0lgx6:daily
