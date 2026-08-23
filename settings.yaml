@@ -115,9 +115,10 @@ digests:
     keywords:
       돌파매매: 3
       추세추종: 2
+      깡토: 2
     queries:
       - name: 돌파매매
-        query: "돌파매매 OR 추세추종"
+        query: "돌파매매 OR 추세추종 OR 깡토"
 
 exclude:
   - 부고
