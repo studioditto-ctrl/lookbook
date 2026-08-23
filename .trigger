@@ -1,1 +1,1 @@
-config.yaml:morning
+config.food.yaml:lunch
