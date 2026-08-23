@@ -34,15 +34,19 @@ DEFAULTS = {
 # 주제어(러닝·달리기…)를 AND 로 앞에 세워 검색 단계에서부터 좁힌다.
 
 def scope_words(digest):
-    """이 주제를 가리키는 말들. 없으면 이름 하나를 쓴다."""
+    """이 주제를 가리키는 말들. 사람이 적어 넣은 것만 쓴다.
+
+    주제 이름을 기본값으로 쓰면 안 된다. '돌파매매' 주제에 강환국·깡토
+    같은 사람 이름을 키워드로 넣어 두면, 그 사람들 영상 제목에 '돌파매매'
+    라는 말이 들어갈 일이 없어 한 건도 남지 않는다. 보이지 않는 곳에서
+    회차 전체가 비는 것이 무관한 글 몇 건보다 나쁘다.
+
+    비어 있으면 검색어도 그대로 두고 걸러낼 때도 키워드로 판단한다.
+    """
     scope = digest.get("scope")
     if isinstance(scope, str):
         scope = [scope]
-    words = [str(w).strip() for w in (scope or []) if str(w).strip()]
-    if words:
-        return words
-    label = (digest.get("label") or "").strip()
-    return [label] if label else []
+    return [str(w).strip() for w in (scope or []) if str(w).strip()]
 
 
 def _phrase(word):

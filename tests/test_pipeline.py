@@ -1154,12 +1154,10 @@ class TestPageQueriesFanOut(unittest.TestCase):
         }]}
 
     def test_news_and_video(self):
-        """주제어(여기선 이름 IT)가 검색어 앞에 AND 로 붙는다."""
+        """주제어를 안 적었으면 검색어를 그대로 쓴다."""
         cfg = self.apply({}, self.data, "it", "daily")
-        self.assertEqual(
-            [s["query"] for s in cfg["sources"]["google_news"]], ["IT (뉴스)"])
-        self.assertEqual(
-            [s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
+        for key in ("google_news", "youtube_search"):
+            self.assertEqual([s["query"] for s in cfg["sources"][key]], ["IT 뉴스"], key)
 
     def test_youtube_can_be_turned_off_per_query(self):
         self.data["digests"][0]["queries"][0]["youtube"] = False
@@ -1508,10 +1506,32 @@ class TestScopedQueries(unittest.TestCase):
             self.settings.news_query('"남성 피부" OR "남성 화장품"', ["피부"]),
             '피부 (남성 OR "남성 화장품")')
 
-    def test_scope_defaults_to_the_label(self):
+    def test_no_scope_means_no_scoping(self):
+        """주제 이름을 주제어로 삼으면 안 된다.
+
+        '돌파매매' 주제에 강환국·깡토 같은 사람 이름을 키워드로 넣어 두면,
+        그 사람들 글 제목에 '돌파매매' 라는 말이 들어갈 일이 없어 한 건도
+        안 남는다. 회차가 통째로 비는 것이 무관한 글 몇 건보다 나쁘다.
+        """
         del self.data["digests"][0]["scope"]
+        self.data["digests"][0]["queries"] = [
+            {"name": "돌파매매", "query": "돌파매매 OR 강환국 OR 깡토"}]
         cfg = self.settings.apply({}, self.data, "run", "daily")
-        self.assertEqual(cfg["scope"], ["러닝"])
+        self.assertNotIn("scope", cfg)
+        self.assertEqual(cfg["sources"]["google_news"][0]["query"],
+                         "돌파매매 OR 강환국 OR 깡토")
+
+    def test_without_scope_a_lone_keyword_still_passes(self):
+        from collect import Item
+        from filter import select
+
+        item = Item(id="a", title="강환국 신간 출간", url="https://x.test/a",
+                    source="s", kind="article",
+                    published=datetime.now(timezone.utc), searched=True)
+        config = {"slots": {"m": {"articles": 3, "videos": 3}},
+                  "keywords": {"강환국": 2, "깡토": 2}}
+        articles, _ = select([item], {}, config, "m")
+        self.assertEqual(len(articles), 1)
 
     def test_terms_that_are_only_scope_words_vanish(self):
         self.assertEqual(self.settings.news_query("러닝", ["러닝"]), "러닝")
@@ -1710,10 +1730,8 @@ class TestPageQueriesFeedBothSides(unittest.TestCase):
 
     def test_query_becomes_news_and_video_source(self):
         cfg = self.apply({}, self.data, "it", "daily")
-        self.assertEqual(
-            [s["query"] for s in cfg["sources"]["google_news"]], ["IT (뉴스)"])
-        self.assertEqual(
-            [s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
+        self.assertEqual([s["query"] for s in cfg["sources"]["google_news"]], ["IT 뉴스"])
+        self.assertEqual([s["query"] for s in cfg["sources"]["youtube_search"]], ["IT 뉴스"])
 
     def test_tags_carry_to_both(self):
         self.data["digests"][0]["queries"][0]["tags"] = ["tech"]

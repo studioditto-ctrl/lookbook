@@ -6,7 +6,7 @@ const FILE = "settings.yaml";
 const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 // 저장에 실패해도 고친 값을 잃지 않도록 이 기기에 남겨둔다
 const DRAFT = "settings_draft";
-const BUILD = "2026-08-23";   // 화면에 찍어 어느 판인지 확인한다
+const BUILD = "2026-08-23b";   // 화면에 찍어 어느 판인지 확인한다
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -107,11 +107,15 @@ function render(){
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
           <button class="tiny" onclick="addKeyword(${di})">추가</button>
         </div>
-        <label style="margin-top:14px">주제어 — 이 말이 없는 글은 버립니다</label>
-        <div class="sub">쉼표로 구분합니다. 넓게 적어야 영어 기사까지 걸립니다.</div>
+        <label style="margin-top:14px">주제어 <span class="sub">(안 넣어도 됩니다)</span></label>
+        <div class="sub">
+          ${scopeWords(dg).length
+            ? "이 말이 하나도 없는 글은 버립니다. 쉼표로 구분합니다."
+            : "지금은 키워드로만 거릅니다. 무관한 글이 섞이면 그때 넣으세요."}
+        </div>
         <div class="add">
           <input id="sc${di}" value="${esc(scopeWords(dg).join(", "))}"
-                 placeholder="예: 러닝, 달리기, running" enterkeyhint="done"
+                 placeholder="비워두면 키워드로 거릅니다" enterkeyhint="done"
                  autocapitalize="off" autocomplete="off"
                  onchange="setScope(${di}, this.value)"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">
@@ -269,8 +273,10 @@ function asPhrase(word){
 /* 주제어. 검색어 앞에 AND 로 붙고, 들어온 글이 이 주제인지도 이 말로 본다.
    '훈련 OR 루틴' 만으로는 한미연합훈련 기사가 그대로 딸려 왔다. */
 function scopeWords(dg){
-  const words = (dg.scope || []).map(w => String(w).trim()).filter(Boolean);
-  return words.length ? words : (dg.label ? [dg.label] : []);
+  // 주제 이름을 기본값으로 쓰지 않는다. '돌파매매' 주제에 강환국·깡토 같은
+  // 사람 이름을 키워드로 넣으면 그 이름이 든 글에 '돌파매매' 라는 말이 없어
+  // 한 건도 안 남는다. 비어 있으면 키워드로만 거른다.
+  return (dg.scope || []).map(w => String(w).trim()).filter(Boolean);
 }
 
 /* 주제어와 겹치는 낱말은 뺀다 — 앞에 이미 붙어 있다.
@@ -297,7 +303,10 @@ function setScope(di, value){
   const dg = data.digests[di];
   dg.scope = String(value).split(",").map(w => w.trim()).filter(Boolean);
   render(); touch();
-  toast(`'${esc(dg.label)}' 주제어를 바꿨습니다. 저장하는 중…`, "busy");
+  toast(dg.scope.length
+    ? `'${esc(dg.label)}' 주제어를 바꿨습니다. 저장하는 중…`
+    : `'${esc(dg.label)}' 주제어를 비웠습니다. 키워드로만 거릅니다. 저장하는 중…`,
+    "busy");
 }
 
 function syncQueries(dg){
@@ -443,7 +452,7 @@ function addTopic(){
   if (!label) return;
   const key = "t" + Date.now().toString(36);
   data.digests.push({
-    config: "", key, label, scope: [label],
+    config: "", key, label, scope: [],
     slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
              enabled: true, articles: 2, videos: 3}],
     keywords: {[label]: 3},
