@@ -124,6 +124,15 @@ digests:
     queries:
       - name: 돌파매매
         query: "돌파매매 OR 추세추종 OR 깡토 OR 강환국 OR systrader79 OR \"니콜라스 다바스\""
+    channels:
+      - name: 할 수 있다! 알고 투자
+        channel_id: UCSWPuzlD337Y6VBkyFPwT8g
+      - name: 깡토의 추세추종
+        channel_id: UCdvDERW4YZdWhkacvDi9VMw
+      - name: TraderLion
+        channel_id: UCMgOSW62URSxzPCcNXyohLw
+      - name: Investor's Business Daily
+        channel_id: UC5fZv7bPcF5j2RsfO-9OiLA
 
 exclude:
   - 부고
