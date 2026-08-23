@@ -1678,7 +1678,7 @@ class TestAdminYamlRoundTrip(unittest.TestCase):
             script = Path(tmp) / "rt.mjs"
             script.write_text(
                 'import {readFileSync} from "node:fs";\n'
-                f'import {{toYaml, fromYaml}} from "{repo}/tests/js/yaml.mjs";\n'
+                f'import {{toYaml, fromYaml}} from "{repo}/docs/yaml.js";\n'
                 f'const t = readFileSync("{repo}/settings.yaml", "utf8");\n'
                 "process.stdout.write(toYaml(fromYaml(toYaml(fromYaml(t)))));\n",
                 encoding="utf-8",

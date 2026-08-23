@@ -1,3 +1,4 @@
+/* settings.yaml 을 읽고 쓰는 최소 구현. 브라우저와 테스트가 같은 파일을 쓴다. */
 /* ---------- YAML (이 파일의 구조에 한정한 최소 구현) ---------- */
 function quote(s){
   s = String(s);
@@ -110,5 +111,4 @@ function fromYaml(text){
 }
 const unq = s => (s.startsWith('"') && s.endsWith('"')) ? JSON.parse(s) : s;
 
-
-export { toYaml, fromYaml };
+export { toYaml, fromYaml, quote, unq };

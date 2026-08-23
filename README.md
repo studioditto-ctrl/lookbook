@@ -331,7 +331,10 @@ config.yaml                    러닝 — 소스 · 키워드 · 항목 수
 config.food.yaml               음식 — 같은 형식
 config.fashion.yaml            패션 — 같은 형식
 settings.yaml                  어드민 페이지가 덮어쓰는 값 (시각 · 개수 · 키워드)
-docs/index.html                모바일 어드민 페이지
+docs/index.html                어드민 페이지 (구조)
+docs/app.css                   스타일
+docs/yaml.js                   settings.yaml 읽기·쓰기 (테스트가 그대로 import)
+docs/app.js                    렌더 · 드래그 · GitHub 저장
 state/seen.json                발송 이력 (자동 갱신, 90일 보관)
 ```
 

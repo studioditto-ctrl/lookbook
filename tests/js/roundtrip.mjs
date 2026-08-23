@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { toYaml, fromYaml } from "./yaml.mjs";
+// 어드민 페이지가 실제로 쓰는 파일을 그대로 불러온다. 복사본을 두지 않는다.
+import { toYaml, fromYaml } from "../../docs/yaml.js";
 
 const original = readFileSync("settings.yaml", "utf8");
 const parsed = fromYaml(original);
