@@ -4,7 +4,6 @@
 digests:
   - config: config.yaml
     label: 러닝
-    # 이 말 중 하나라도 있어야 이 주제로 봅니다 (검색어 앞에도 붙습니다)
     scope: [러닝, 달리기, 마라톤, 러너, running, marathon, runner]
     slots:
       - slot: morning
@@ -36,7 +35,6 @@ digests:
         query: "훈련 OR 루틴 OR 마라톤 OR recovery OR 통증 OR 페이스"
   - config: config.food.yaml
     label: 음식
-    # 이 말 중 하나라도 있어야 이 주제로 봅니다 (검색어 앞에도 붙습니다)
     scope: [맛집, 음식, 식당, 레스토랑, 카페, 요리]
     slots:
       - slot: lunch
@@ -68,7 +66,6 @@ digests:
         query: "분당맛집 OR 판교맛집 OR 사당맛집 OR \"낙성대 맛집\" OR \"양재 맛집\" OR 성남맛집"
   - config: config.fashion.yaml
     label: 패션
-    # 이 말 중 하나라도 있어야 이 주제로 봅니다 (검색어 앞에도 붙습니다)
     scope: [패션, 스타일, 코디, 옷차림, fashion, style]
     slots:
       - slot: night
@@ -88,9 +85,7 @@ digests:
         query: "\"남성 패션\" OR \"남성 스타일\" OR \"남성 악세사리\" OR \"4050 패션\" OR \"중년 스타일\""
   - key: tmsy0lgx6
     label: 피부
-    # 이 말 중 하나라도 있어야 이 주제로 봅니다 (검색어 앞에도 붙습니다)
     scope: [피부, 스킨케어, 화장품, skincare, 그루밍]
-    # 새 글이 드문 주제라 기간을 넓게 봅니다
     lookback_hours: 168
     slots:
       - slot: daily
@@ -107,6 +102,21 @@ digests:
     queries:
       - name: 피부
         query: "\"남성 피부\" OR \"남성 피부관리\" OR \"남성 스킨케어\" OR \"남성 화장품\""
+  - key: tmt5dr93z
+    label: 돌파매매
+    scope: [돌파매매]
+    slots:
+      - slot: daily
+        title: "돌파매매 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      돌파매매: 3
+    queries:
+      - name: 돌파매매
+        query: "돌파매매"
 
 exclude:
   - 부고
