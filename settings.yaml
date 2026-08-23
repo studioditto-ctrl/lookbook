@@ -119,6 +119,7 @@ digests:
       강환국: 2
       systrader79: 2
       니콜라스 다바스: 2
+      스탁이지: 2
     queries:
       - name: 돌파매매
         query: "돌파매매 OR 추세추종 OR 깡토 OR 강환국 OR systrader79 OR \"니콜라스 다바스\""
