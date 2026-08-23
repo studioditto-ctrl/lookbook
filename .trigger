@@ -1,1 +1,1 @@
-config.food.yaml:lunch
+config.fashion.yaml:night
