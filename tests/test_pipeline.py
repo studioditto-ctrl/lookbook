@@ -584,8 +584,14 @@ class TestYouTubeDataAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         payload = {
             "items": [
                 {"snippet": {
@@ -602,7 +608,7 @@ class TestYouTubeDataAPI(unittest.TestCase):
             ]
         }
         cls.server = FeedServer({"api.json": json.dumps(payload), "bad.json": "not json"})
-        cls.saved_api = collect_module.YT_API
+        cls.saved_api = youtube_module.YT_API
 
     @classmethod
     def tearDownClass(cls):
@@ -611,13 +617,13 @@ class TestYouTubeDataAPI(unittest.TestCase):
 
     def test_uploads_playlist_id(self):
         self.assertEqual(
-            self.collect._uploads_playlist("UCL2AIZN201G3V3jhLIheeeg"),
+            self.youtube._uploads_playlist("UCL2AIZN201G3V3jhLIheeeg"),
             "UUL2AIZN201G3V3jhLIheeeg",
         )
 
     def test_parses_videos(self):
-        self.collect.YT_API = self.server.url("api.json")
-        items = self.collect._collect_via_api("UCxxxxxxxxxxxxxxxxxxxxxx", "채널", "key")
+        self.youtube.YT_API = self.server.url("api.json")
+        items = self.youtube._collect_via_api("UCxxxxxxxxxxxxxxxxxxxxxx", "채널", "key")
         self.assertEqual(len(items), 1)  # videoId 없는 항목은 제외
         item = items[0]
         self.assertEqual(item.url, "https://www.youtube.com/watch?v=vid123")
@@ -628,16 +634,16 @@ class TestYouTubeDataAPI(unittest.TestCase):
         self.assertEqual(item.published.year, 2026)
 
     def test_bad_json_is_recorded_not_raised(self):
-        self.collect.YT_API = self.server.url("bad.json")
+        self.youtube.YT_API = self.server.url("bad.json")
         problems = []
-        items = self.collect._collect_via_api("UCx", "채널", "key", problems)
+        items = self.youtube._collect_via_api("UCx", "채널", "key", problems)
         self.assertEqual(items, [])
         self.assertEqual(problems[0][0], "채널")
 
     def test_http_error_is_recorded_not_raised(self):
-        self.collect.YT_API = self.server.url("missing.json")
+        self.youtube.YT_API = self.server.url("missing.json")
         problems = []
-        self.assertEqual(self.collect._collect_via_api("UCx", "채널", "key", problems), [])
+        self.assertEqual(self.youtube._collect_via_api("UCx", "채널", "key", problems), [])
         self.assertEqual(len(problems), 1)
 
 
@@ -647,8 +653,14 @@ class TestChannelSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         hit = {"items": [{"id": {"channelId": "UCkoreanrunnerkoreanrun"},
                           "snippet": {"title": "런랜드"}}]}
         cls.server = FeedServer({
@@ -656,7 +668,7 @@ class TestChannelSearch(unittest.TestCase):
             "empty.json": json.dumps({"items": []}),
             "noid.json": json.dumps({"items": [{"snippet": {"title": "x"}}]}),
         })
-        cls.saved = collect_module.YT_SEARCH_API
+        cls.saved = youtube_module.YT_SEARCH_API
 
     @classmethod
     def tearDownClass(cls):
@@ -664,35 +676,35 @@ class TestChannelSearch(unittest.TestCase):
         cls.server.close()
 
     def test_finds_and_caches_channel_id(self):
-        self.collect.YT_SEARCH_API = self.server.url("hit.json")
+        self.youtube.YT_SEARCH_API = self.server.url("hit.json")
         cache = {}
-        found = self.collect.search_channel_id("런랜드", cache, "key")
+        found = self.youtube.search_channel_id("런랜드", cache, "key")
         self.assertEqual(found, "UCkoreanrunnerkoreanrun")
         self.assertEqual(cache["search:런랜드"], "UCkoreanrunnerkoreanrun")
 
     def test_cache_hit_makes_no_request(self):
-        self.collect.YT_SEARCH_API = self.server.url("missing.json")  # 404 를 낼 주소
+        self.youtube.YT_SEARCH_API = self.server.url("missing.json")  # 404 를 낼 주소
         cache = {"search:런랜드": "UCcachedcachedcachedcac"}
         self.assertEqual(
-            self.collect.search_channel_id("런랜드", cache, "key"), "UCcachedcachedcachedcac"
+            self.youtube.search_channel_id("런랜드", cache, "key"), "UCcachedcachedcachedcac"
         )
 
     def test_empty_result_is_recorded(self):
-        self.collect.YT_SEARCH_API = self.server.url("empty.json")
+        self.youtube.YT_SEARCH_API = self.server.url("empty.json")
         problems = []
-        self.assertIsNone(self.collect.search_channel_id("없는채널", {}, "key", problems))
+        self.assertIsNone(self.youtube.search_channel_id("없는채널", {}, "key", problems))
         self.assertEqual(problems[0][0], "없는채널")
 
     def test_result_without_channel_id_is_recorded(self):
-        self.collect.YT_SEARCH_API = self.server.url("noid.json")
+        self.youtube.YT_SEARCH_API = self.server.url("noid.json")
         problems = []
-        self.assertIsNone(self.collect.search_channel_id("x", {}, "key", problems))
+        self.assertIsNone(self.youtube.search_channel_id("x", {}, "key", problems))
         self.assertEqual(len(problems), 1)
 
     def test_request_failure_is_recorded_not_raised(self):
-        self.collect.YT_SEARCH_API = self.server.url("missing.json")
+        self.youtube.YT_SEARCH_API = self.server.url("missing.json")
         problems = []
-        self.assertIsNone(self.collect.search_channel_id("x", {}, "key", problems))
+        self.assertIsNone(self.youtube.search_channel_id("x", {}, "key", problems))
         self.assertEqual(len(problems), 1)
 
 
@@ -702,8 +714,14 @@ class TestNameOnlySourceWiring(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         search_hit = {"items": [{"id": {"channelId": "UCkoreanrunnerkoreanrun"},
                                  "snippet": {"title": "런랜드"}}]}
         uploads = {"items": [{"snippet": {
@@ -716,9 +734,9 @@ class TestNameOnlySourceWiring(unittest.TestCase):
             "search.json": json.dumps(search_hit, ensure_ascii=False),
             "uploads.json": json.dumps(uploads, ensure_ascii=False),
         })
-        cls.saved = (collect_module.YT_SEARCH_API, collect_module.YT_API)
-        collect_module.YT_SEARCH_API = cls.server.url("search.json")
-        collect_module.YT_API = cls.server.url("uploads.json")
+        cls.saved = (youtube_module.YT_SEARCH_API, youtube_module.YT_API)
+        youtube_module.YT_SEARCH_API = cls.server.url("search.json")
+        youtube_module.YT_API = cls.server.url("uploads.json")
 
     @classmethod
     def tearDownClass(cls):
@@ -954,8 +972,14 @@ class TestVideoSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         payload = {"items": [
             {"id": {"videoId": "abc123"},
              "snippet": {"title": "IT 뉴스 정리", "channelTitle": "테크채널",
@@ -968,7 +992,7 @@ class TestVideoSearch(unittest.TestCase):
             "search.json": json.dumps(payload, ensure_ascii=False),
             "bad.json": "not json",
         })
-        cls.saved = collect_module.YT_SEARCH_API
+        cls.saved = youtube_module.YT_SEARCH_API
 
     @classmethod
     def tearDownClass(cls):
@@ -976,8 +1000,8 @@ class TestVideoSearch(unittest.TestCase):
         cls.server.close()
 
     def test_parses_videos(self):
-        self.collect.YT_SEARCH_API = self.server.url("search.json")
-        items = self.collect.search_videos("IT", "IT", "key")
+        self.youtube.YT_SEARCH_API = self.server.url("search.json")
+        items = self.youtube.search_videos("IT", "IT", "key")
         self.assertEqual(len(items), 1)
         item = items[0]
         self.assertEqual(item.url, "https://www.youtube.com/watch?v=abc123")
@@ -988,9 +1012,9 @@ class TestVideoSearch(unittest.TestCase):
         self.assertEqual(item.summary, "이번 주 요약")
 
     def test_failure_is_reported_not_raised(self):
-        self.collect.YT_SEARCH_API = self.server.url("bad.json")
+        self.youtube.YT_SEARCH_API = self.server.url("bad.json")
         problems = []
-        self.assertEqual(self.collect.search_videos("IT", "IT", "key", problems=problems), [])
+        self.assertEqual(self.youtube.search_videos("IT", "IT", "key", problems=problems), [])
         self.assertEqual(problems[0][0], "IT")
 
 
@@ -1000,8 +1024,14 @@ class TestNaverBlogSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         payload = {"items": [
             {"title": "서브3 <b>마라톤</b> 훈련 &amp; 후기",
              "link": "https://blog.naver.com/runner/223456789?from=search",
@@ -1015,7 +1045,7 @@ class TestNaverBlogSearch(unittest.TestCase):
         }, statuses={"denied.json": (401, json.dumps(
             {"errorMessage": "Not Exist Client ID : Authentication failed.",
              "errorCode": "024"}))})
-        cls.saved = collect_module.NAVER_BLOG_API
+        cls.saved = news_module.NAVER_BLOG_API
 
     @classmethod
     def tearDownClass(cls):
@@ -1023,8 +1053,8 @@ class TestNaverBlogSearch(unittest.TestCase):
         cls.server.close()
 
     def test_parses_and_cleans(self):
-        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
-        items = self.collect.search_naver_blog("마라톤", "러닝 블로그", "id", "secret")
+        self.news.NAVER_BLOG_API = self.server.url("blog.json")
+        items = self.news.search_naver_blog("마라톤", "러닝 블로그", "id", "secret")
         self.assertEqual(len(items), 1)  # link 없는 항목은 제외
         item = items[0]
         # <b> 와 엔티티가 그대로 텔레그램에 나가면 안 된다
@@ -1038,45 +1068,47 @@ class TestNaverBlogSearch(unittest.TestCase):
         self.assertEqual(item.id, "naver:https://blog.naver.com/runner/223456789")
 
     def test_postdate_is_read_as_kst(self):
-        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
-        item = self.collect.search_naver_blog("마라톤", "블로그", "id", "secret")[0]
-        self.assertEqual(item.published.astimezone(self.collect.KST).date().isoformat(),
+        self.news.NAVER_BLOG_API = self.server.url("blog.json")
+        item = self.news.search_naver_blog("마라톤", "블로그", "id", "secret")[0]
+        self.assertEqual(item.published.astimezone(self.news.KST).date().isoformat(),
                          "2026-08-19")
 
     def test_failure_is_reported_not_raised(self):
-        self.collect.NAVER_BLOG_API = self.server.url("bad.json")
+        self.news.NAVER_BLOG_API = self.server.url("bad.json")
         problems = []
-        got = self.collect.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
+        got = self.news.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
         self.assertEqual(got, [])
         self.assertEqual(problems[0][0], "블로그")
 
     def test_scopes_empty_points_at_the_app_not_the_key(self):
         """024 는 원인이 둘이다. 키를 다시 넣으라고 하면 영영 못 고친다."""
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         class Response:
             def json(self):
                 return {"errorCode": "024",
                         "errorMessage": "Scopes are Empty : Authentication failed."}
 
-        reason = collect_module._naver_error(Response())
+        reason = news_module._naver_error(Response())
         self.assertIn("사용 API", reason)
         self.assertNotIn("Client ID 가 틀렸습니다", reason)
 
     def test_naver_error_body_is_surfaced(self):
         """상태 코드만으로는 무엇을 고쳐야 할지 알 수 없다."""
-        self.collect.NAVER_BLOG_API = self.server.url("denied.json")  # 401 을 낼 주소
+        self.news.NAVER_BLOG_API = self.server.url("denied.json")  # 401 을 낼 주소
         problems = []
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
-            self.collect.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
+            self.news.search_naver_blog("마라톤", "블로그", "id", "s", problems=problems)
         self.assertIn("네이버 응답", buffer.getvalue())
         self.assertIn("024", buffer.getvalue())
         self.assertIn("024", problems[0][1])
 
     def test_unknown_sort_falls_back(self):
-        self.collect.NAVER_BLOG_API = self.server.url("blog.json")
-        got = self.collect.search_naver_blog("마라톤", "블로그", "id", "s", sort="best")
+        self.news.NAVER_BLOG_API = self.server.url("blog.json")
+        got = self.news.search_naver_blog("마라톤", "블로그", "id", "s", sort="best")
         self.assertEqual(len(got), 1)
 
 
@@ -1085,8 +1117,14 @@ class TestNaverNeedsCredentials(unittest.TestCase):
 
     def setUp(self):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         self.collect = collect_module
+
+        self.news = news_module
+
+        self.youtube = youtube_module
         self.saved = {k: os.environ.pop(k, None)
                       for k in ("NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET", "YOUTUBE_API_KEY")}
 
@@ -1227,15 +1265,21 @@ class TestYoutubeThresholds(unittest.TestCase):
 
     def setUp(self):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
         from collect import Item
 
         self.collect = collect_module
+
+        self.news = news_module
+
+        self.youtube = youtube_module
         self.Item = Item
         self.config = {"youtube_filter": {"min_subscribers": 10000, "min_views": 5000}}
-        self.saved = (collect_module.video_views, collect_module.channel_subscribers)
+        self.saved = (youtube_module.video_views, youtube_module.channel_subscribers)
 
     def tearDown(self):
-        self.collect.video_views, self.collect.channel_subscribers = self.saved
+        self.youtube.video_views, self.youtube.channel_subscribers = self.saved
 
     def video(self, vid, channel):
         return self.Item(id=f"yt:video:{vid}", title=vid, url="u", source="s",
@@ -1243,8 +1287,8 @@ class TestYoutubeThresholds(unittest.TestCase):
                          channel_id=channel)
 
     def stub(self, views, subs, subs_ok=True):
-        self.collect.video_views = lambda ids, key, problems=None: views
-        self.collect.channel_subscribers = lambda ids, key, cache, problems=None: (subs, subs_ok)
+        self.youtube.video_views = lambda ids, key, problems=None: views
+        self.youtube.channel_subscribers = lambda ids, key, cache, problems=None: (subs, subs_ok)
 
     def test_curated_channels_skip_the_subscriber_floor(self):
         """직접 적어둔 채널은 크기를 따지려고 고른 게 아니다."""
@@ -1252,48 +1296,48 @@ class TestYoutubeThresholds(unittest.TestCase):
         mine.trusted = True
         found = self.video("found", "UC2")
         self.stub({"mine": 50000, "found": 50000}, {"UC2": 1200})
-        kept = self.collect.filter_youtube([mine, found], self.config, "key", {})
+        kept = self.youtube.filter_youtube([mine, found], self.config, "key", {})
         self.assertEqual([i.id for i in kept], ["yt:video:mine"])
 
     def test_curated_channels_still_need_views(self):
         mine = self.video("mine", "UC2")
         mine.trusted = True
         self.stub({"mine": 900}, {})
-        self.assertEqual(self.collect.filter_youtube([mine], self.config, "key", {}), [])
+        self.assertEqual(self.youtube.filter_youtube([mine], self.config, "key", {}), [])
 
     def test_subscribers_are_only_asked_for_unknown_channels(self):
         asked = []
-        self.collect.video_views = lambda ids, key, problems=None: {"mine": 50000}
-        self.collect.channel_subscribers = (
+        self.youtube.video_views = lambda ids, key, problems=None: {"mine": 50000}
+        self.youtube.channel_subscribers = (
             lambda ids, key, cache, problems=None: (asked.extend(ids), ({}, True))[1])
         mine = self.video("mine", "UC2")
         mine.trusted = True
-        self.collect.filter_youtube([mine], self.config, "key", {})
+        self.youtube.filter_youtube([mine], self.config, "key", {})
         self.assertEqual(asked, [])
 
     def test_low_views_and_small_channels_are_dropped(self):
         items = [self.video("big", "UC1"), self.video("few", "UC1"), self.video("small", "UC2")]
         self.stub({"big": 50000, "few": 900, "small": 80000}, {"UC1": 500000, "UC2": 1200})
-        kept = self.collect.filter_youtube(items, self.config, "key", {})
+        kept = self.youtube.filter_youtube(items, self.config, "key", {})
         self.assertEqual([i.id for i in kept], ["yt:video:big"])
 
     def test_unknown_numbers_pass(self):
         """모르는 것을 이유로 버리면 API 가 흔들릴 때 영상이 통째로 사라진다."""
         items = [self.video("x", "UC9")]
         self.stub({}, {})
-        self.assertEqual(self.collect.filter_youtube(items, self.config, "key", {}), items)
+        self.assertEqual(self.youtube.filter_youtube(items, self.config, "key", {}), items)
 
     def test_articles_are_untouched(self):
         article = self.Item(id="a", title="t", url="u", source="s", kind="article",
                             published=datetime.now(timezone.utc))
         self.stub({}, {})
-        self.assertIn(article, self.collect.filter_youtube([article], self.config, "key", {}))
+        self.assertIn(article, self.youtube.filter_youtube([article], self.config, "key", {}))
 
     def test_no_limits_means_no_api_calls(self):
         called = []
-        self.collect.video_views = lambda *a, **k: called.append(1) or {}
+        self.youtube.video_views = lambda *a, **k: called.append(1) or {}
         items = [self.video("x", "UC1")]
-        self.assertEqual(self.collect.filter_youtube(items, {}, "key", {}), items)
+        self.assertEqual(self.youtube.filter_youtube(items, {}, "key", {}), items)
         self.assertEqual(called, [])
 
     def test_subscriber_counts_are_cached(self):
@@ -1422,21 +1466,27 @@ class TestGoogleNewsWindow(unittest.TestCase):
 
     def setUp(self):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         self.collect = collect_module
 
+        self.news = news_module
+
+        self.youtube = youtube_module
+
     def test_window_never_narrows_below_lookback(self):
-        self.assertEqual(self.collect._fresh_window(6), "when:6h")
-        self.assertEqual(self.collect._fresh_window(23), "when:23h")
-        self.assertEqual(self.collect._fresh_window(24), "when:1d")
+        self.assertEqual(self.news._fresh_window(6), "when:6h")
+        self.assertEqual(self.news._fresh_window(23), "when:23h")
+        self.assertEqual(self.news._fresh_window(24), "when:1d")
         # 36시간을 1d 로 줄이면 열두 시간을 잃는다
-        self.assertEqual(self.collect._fresh_window(36), "when:2d")
-        self.assertEqual(self.collect._fresh_window(48), "when:2d")
-        self.assertEqual(self.collect._fresh_window(49), "when:3d")
+        self.assertEqual(self.news._fresh_window(36), "when:2d")
+        self.assertEqual(self.news._fresh_window(48), "when:2d")
+        self.assertEqual(self.news._fresh_window(49), "when:3d")
 
     def test_zero_and_negative_do_not_crash(self):
-        self.assertEqual(self.collect._fresh_window(0), "when:1h")
-        self.assertEqual(self.collect._fresh_window(-5), "when:1h")
+        self.assertEqual(self.news._fresh_window(0), "when:1h")
+        self.assertEqual(self.news._fresh_window(-5), "when:1h")
 
 
 class TestGoogleNewsFallback(unittest.TestCase):
@@ -1444,19 +1494,25 @@ class TestGoogleNewsFallback(unittest.TestCase):
 
     def setUp(self):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         self.collect = collect_module
+
+        self.news = news_module
+
+        self.youtube = youtube_module
         self.calls = []
-        self.saved = collect_module._parse_feed
+        self.saved = news_module._parse_feed
 
     def tearDown(self):
-        self.collect._parse_feed = self.saved
+        self.news._parse_feed = self.saved
 
     def _stub(self, results):
         def fake(url, name, kind, problems=None):
             self.calls.append(url)
             return results.pop(0)
-        self.collect._parse_feed = fake
+        self.news._parse_feed = fake
 
     def test_window_is_added_to_the_query(self):
         from collect import Item
@@ -1464,14 +1520,14 @@ class TestGoogleNewsFallback(unittest.TestCase):
         item = Item(id="a", title="t", url="u", source="s", kind="article",
                     published=datetime.now(timezone.utc))
         self._stub([[item]])
-        got = self.collect._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
+        got = self.news._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
         self.assertEqual(got, [item])
         self.assertEqual(len(self.calls), 1)
         self.assertIn("when%3A2d", self.calls[0])
 
     def test_empty_result_retries_without_the_window(self):
         self._stub([[], []])
-        self.collect._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
+        self.news._collect_google_news({"name": "뉴스", "query": "러닝"}, 48)
         self.assertEqual(len(self.calls), 2)
         self.assertIn("when%3A2d", self.calls[0])
         self.assertNotIn("when", self.calls[1])
@@ -1483,14 +1539,20 @@ class TestSearchOrder(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import collect as collect_module
+        import news as news_module
+        import youtube as youtube_module
 
         cls.collect = collect_module
+
+        cls.news = news_module
+
+        cls.youtube = youtube_module
         payload = {"items": [{"id": {"videoId": "v1"}, "snippet": {
             "title": "많이 본 영상", "channelTitle": "채널",
             "publishedAt": "2026-08-19T02:00:00Z", "description": ""}}]}
         cls.server = FeedServer({"s.json": json.dumps(payload, ensure_ascii=False)})
-        cls.saved = collect_module.YT_SEARCH_API
-        collect_module.YT_SEARCH_API = cls.server.url("s.json")
+        cls.saved = youtube_module.YT_SEARCH_API
+        youtube_module.YT_SEARCH_API = cls.server.url("s.json")
 
     @classmethod
     def tearDownClass(cls):
@@ -1498,13 +1560,13 @@ class TestSearchOrder(unittest.TestCase):
         cls.server.close()
 
     def test_known_orders_are_accepted(self):
-        for order in self.collect.SEARCH_ORDERS:
-            items = self.collect.search_videos("러닝", "러닝", "key", order=order)
+        for order in self.youtube.SEARCH_ORDERS:
+            items = self.youtube.search_videos("러닝", "러닝", "key", order=order)
             self.assertEqual(len(items), 1, order)
 
     def test_unknown_order_falls_back_to_date(self):
         # 오타가 있어도 그 회차를 통째로 잃지 않아야 한다
-        items = self.collect.search_videos("러닝", "러닝", "key", order="popular")
+        items = self.youtube.search_videos("러닝", "러닝", "key", order="popular")
         self.assertEqual(len(items), 1)
 
 

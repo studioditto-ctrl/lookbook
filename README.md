@@ -320,7 +320,10 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... \
 .github/workflows/digest.yml   cron 스케줄 + 실행 + 상태 커밋
 .github/workflows/setup.yml    chat_id 확인 (최초 1회)
 .github/workflows/test.yml     푸시할 때마다 테스트
-src/collect.py                 RSS·유튜브 수집, 채널 ID 변환
+src/collect.py                 소스를 모아 한 묶음으로
+src/feeds.py                   항목 모양 · HTTP · 피드 파싱
+src/youtube.py                 채널 · 검색 · 구독자와 조회수 기준
+src/news.py                    구글 뉴스 · 네이버 블로그
 src/filter.py                  중복 제거, 키워드 점수, 슬롯별 선별
 src/summarize.py               한국어 번역·요약 (Claude API)
 src/telegram.py                메시지 포맷팅, 전송 (재시도 포함)
