@@ -132,6 +132,8 @@ digests:
         url: "https://rss.blog.naver.com/jjtoj.xml"
       - name: PostList
         url: "https://rss.blog.naver.com/PostList.xml"
+      - name: tysinvs
+        url: "https://rss.blog.naver.com/tysinvs.xml"
     channels:
       - name: "할 수 있다! 알고 투자"
         channel_id: UCSWPuzlD337Y6VBkyFPwT8g
