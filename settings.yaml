@@ -128,6 +128,8 @@ digests:
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
+      - name: jjtoj
+        url: "https://rss.blog.naver.com/jjtoj.xml"
     channels:
       - name: "할 수 있다! 알고 투자"
         channel_id: UCSWPuzlD337Y6VBkyFPwT8g
