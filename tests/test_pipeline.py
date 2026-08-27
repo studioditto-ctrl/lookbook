@@ -1912,7 +1912,16 @@ class TestScheduleDue(unittest.TestCase):
     def test_still_due_when_the_run_is_late(self):
         self.assertEqual(self.keys(self.at(10, 30)), ["a.yaml:morning"])
 
+    def test_still_due_when_the_cron_skips_half_a_day(self):
+        """깃허브 크론이 열 시간씩 밀리는 날이 있다.
+
+        08:00 회차가 08:00~11:00 사이에 한 번도 안 깨어나면 그날은 없던
+        일이 됐다. 늦게 오는 것이 안 오는 것보다 낫다.
+        """
+        self.assertEqual(self.keys(self.at(18, 0)), ["a.yaml:morning"])
+
     def test_skipped_once_too_late(self):
+        """그래도 자정 가까이 어제치를 보내지는 않는다."""
         self.assertEqual(self.keys(self.at(23, 0)), [])
 
     def test_not_repeated_after_sending_today(self):
