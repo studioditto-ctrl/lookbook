@@ -85,25 +85,6 @@ digests:
     queries:
       - name: 패션
         query: "\"남성 패션\" OR \"남성 스타일\" OR \"남자 패션\" OR \"남자 스타일\" OR \"남성 악세사리\" OR \"4050 패션\""
-  - key: tmsy0lgx6
-    label: 피부
-    scope: [피부, 스킨케어, 화장품, skincare, 그루밍]
-    lookback_hours: 168
-    slots:
-      - slot: daily
-        title: "Skin Care"
-        send_at: "22:00"
-        enabled: true
-        articles: 3
-        videos: 3
-    keywords:
-      남성 피부: 3
-      남성 스킨케어: 2
-      남성 피부관리: 3
-      남성 화장품: 2
-    queries:
-      - name: 피부
-        query: "\"남성 피부\" OR \"남성 피부관리\" OR \"남성 스킨케어\" OR \"남성 화장품\""
   - key: tmt5dr93z
     label: 돌파매매
     lookback_hours: 168
