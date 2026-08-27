@@ -136,6 +136,8 @@ digests:
         url: "https://rss.blog.naver.com/tysinvs.xml"
       - name: press02
         url: "https://rss.blog.naver.com/press02.xml"
+      - name: graceysh
+        url: "https://rss.blog.naver.com/graceysh.xml"
     channels:
       - name: "할 수 있다! 알고 투자"
         channel_id: UCSWPuzlD337Y6VBkyFPwT8g
