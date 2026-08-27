@@ -9,7 +9,7 @@ const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 const DRAFT = "settings_draft";
 // 암호로 잠근 토큰. 페이지와 같이 배포되므로 어느 기기에서든 받아올 수 있다.
 const LOCK_FILE = "docs/token.enc";
-const BUILD = "2026-08-23c";   // 화면에 찍어 어느 판인지 확인한다
+const BUILD = "2026-08-23d";   // 화면에 찍어 어느 판인지 확인한다
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -133,18 +133,26 @@ function render(){
         </div>
         <div class="chips" id="sg${di}">${suggestionChips(di, dg)}</div>
 
-        <label style="margin-top:16px">네이버 블로그</label>
+        <label style="margin-top:16px">블로그 · RSS</label>
         <div class="chips">
           ${(dg.feeds || []).map((f, fi) => `
-            <span class="chip">${esc(f.name)}
+            <span class="chip" title="${esc(f.url)}">${esc(f.name)}
               <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음</span>'}
         </div>
         <div class="add">
-          <input id="bl${di}" placeholder="blog.naver.com/아이디 또는 아이디" enterkeyhint="done"
+          <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
                  autocapitalize="off" autocomplete="off"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
           <button class="tiny" onclick="addFeed(${di})">추가</button>
+        </div>
+        <div class="note">
+          네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
+          (브런치·티스토리·서브스택 등).<br>
+          <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
+          공식 API 가 남의 공개 계정을 안 열어 줍니다.
+          <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
+             style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
         </div>
 
         <label style="margin-top:16px">유튜브 채널</label>
@@ -830,20 +838,71 @@ function blogId(text){
   if (/^[A-Za-z0-9_-]+$/.test(s)) return s;
   return "";
 }
+
+/* 아이디만으로는 못 가져오는 곳들.
+   인스타는 Basic Display API 가 2024-12-04 에 닫혔고, Graph API 는 내가
+   소유·인증한 비즈니스 계정만 읽는다. 남의 공개 계정을 부를 방법이 공식으로
+   없다. 페이스북도 같다. 주소만 받아 두면 눌러도 아무것도 안 들어오는
+   칸이 되므로, 받지 않고 무엇을 넣어야 하는지 알려준다. */
+const NEEDS_BRIDGE = [
+  [/(^|\/\/|\.)instagram\.com/i, "인스타그램"],
+  [/(^|\/\/|\.)(facebook|fb)\.com/i, "페이스북"],
+  [/(^|\/\/|\.)(x|twitter)\.com/i, "X(트위터)"],
+];
+function needsBridge(text){
+  const hit = NEEDS_BRIDGE.find(([re]) => re.test(String(text)));
+  return hit ? hit[1] : "";
+}
+
+/* 피드 이름. 주소만 늘어놓으면 칩에서 구분이 안 된다. */
+function feedName(url){
+  try{
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/(rss|feed|atom)(\.xml)?\/?$/i, "")
+                           .replace(/\.(xml|rss|atom)$/i, "").replace(/^\/|\/$/g, "");
+    const host = u.hostname.replace(/^(www|rss|feeds?)\./, "");
+    return path ? `${host}/${path.split("/").pop()}` : host;
+  }catch{ return url; }
+}
+
 function addFeed(di){
-  const el = $("bl" + di), id = blogId(el.value);
-  if (!id){
-    toast("네이버 블로그 주소나 아이디를 넣어주세요. 예: blog.naver.com/myblog", "err");
+  const el = $("bl" + di);
+  const raw = (el.value || "").trim();
+  if (!raw) return;
+
+  const blocked = needsBridge(raw);
+  if (blocked){
+    toast(`${esc(blocked)} 은(는) 주소만으로는 가져올 수 없습니다. `
+        + `RSS 주소로 바꾼 뒤 그 주소를 넣어주세요. `
+        + `<a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
+             style="color:var(--accent)">RSS 주소 만들기 →</a>`, "err", true);
     return;
   }
-  const url = `https://rss.blog.naver.com/${id}.xml`;
+
+  // 네이버를 먼저 본다. blog.naver.com/아이디/223456789 은 글 주소라
+  // 그대로 쓰면 안 되고 RSS 주소로 바꿔야 한다.
+  let url, name;
+  const naver = /blog\.naver\.com/i.test(raw) || /^@?[A-Za-z0-9_-]+$/.test(raw);
+  if (naver){
+    const id = blogId(raw);
+    if (!id){ toast("네이버 블로그 아이디를 읽을 수 없습니다.", "err"); return; }
+    url = `https://rss.blog.naver.com/${id}.xml`; name = id;
+  }else if (/^https?:\/\//i.test(raw)){
+    // 그 밖의 주소는 그대로 쓴다 — 인스타·페이스북을 바꾼 RSS 주소,
+    // 브런치·티스토리·서브스택 등 무엇이든 들어온다.
+    url = raw; name = feedName(raw);
+  }else{
+    toast("RSS 주소, 또는 네이버 블로그 아이디를 넣어주세요.", "err");
+    return;
+  }
+
   const feeds = (data.digests[di].feeds ||= []);
-  if (feeds.some(f => f.url === url)){ toast(`'${esc(id)}' 은(는) 이미 있습니다.`, "err"); return; }
-  feeds.push({name: id, url});
+  if (feeds.some(f => f.url === url)){ toast(`'${esc(name)}' 은(는) 이미 있습니다.`, "err"); return; }
+  feeds.push({name, url});
   el.value = "";
   open.add("d" + di);
   render(); touch();
-  toast(`블로그 '${esc(id)}' 을(를) ${esc(data.digests[di].label)} 에 넣었습니다.`, "busy");
+  toast(`'${esc(name)}' 을(를) ${esc(data.digests[di].label)} 에 넣었습니다.`, "busy");
 }
 function delFeed(di, fi){ data.digests[di].feeds.splice(fi, 1); render(); touch(); }
 
