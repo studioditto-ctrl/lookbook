@@ -1,4 +1,5 @@
 import { toYaml, fromYaml } from "./yaml.js";
+import { lock, unlock, MIN_PASSPHRASE } from "./lock.js";
 
 const REPO = "studioditto-ctrl/lookbook";
 const BRANCH = "claude/running-news-telegram-delivery-hgx53y";
@@ -6,7 +7,9 @@ const FILE = "settings.yaml";
 const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 // 저장에 실패해도 고친 값을 잃지 않도록 이 기기에 남겨둔다
 const DRAFT = "settings_draft";
-const BUILD = "2026-08-23b";   // 화면에 찍어 어느 판인지 확인한다
+// 암호로 잠근 토큰. 페이지와 같이 배포되므로 어느 기기에서든 받아올 수 있다.
+const LOCK_FILE = "docs/token.enc";
+const BUILD = "2026-08-23c";   // 화면에 찍어 어느 판인지 확인한다
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -859,6 +862,19 @@ async function getFile(path){
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
 }
+async function deleteFile(path, shaRef, message){
+  const r = await fetch(api(path), {
+    method: "DELETE", headers: headers(),
+    body: JSON.stringify({message, sha: shaRef, branch: BRANCH}),
+  });
+  if (!r.ok){
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`${r.status} ${j.message || r.statusText}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
 async function putFile(path, text, shaRef, message){
   const body = {message, content: enc(text), branch: BRANCH};
   if (shaRef) body.sha = shaRef;
@@ -957,10 +973,19 @@ function authProblemCard(){
     </div>`;
 }
 
+// 암호를 잊었을 때 토큰을 직접 넣는 칸으로 돌아가는 길
+let forceTokenInput = false;
+function showTokenInput(){ forceTokenInput = true; renderToken(); }
+
 function renderToken(){
   const has = !!token();
   if (has && authProblem){ $("tokenCard").innerHTML = authProblemCard(); return; }
-  $("tokenCard").innerHTML = has ? `
+  // 토큰은 없는데 잠가 둔 것이 있으면, 붙여넣기보다 암호 한 줄이 빠르다
+  if (!has && lockedBox && !forceTokenInput){
+    $("tokenCard").innerHTML = unlockCard();
+    return;
+  }
+  $("tokenCard").innerHTML = (has ? `
     <div class="card" style="padding:10px 14px">
       <div class="row" style="justify-content:space-between">
         <span class="sub" style="color:var(--ok)">✓ GitHub 토큰 등록됨</span>
@@ -969,13 +994,13 @@ function renderToken(){
           <button class="tiny ghost" onclick="clearToken()">지우기</button>
         </span>
       </div>
-    </div>` : `
+    </div>` + lockCard() : `
     <div class="card" style="border-color:var(--accent)">
       <h2>먼저 GitHub 토큰을 넣어주세요</h2>
       <div class="sub">이걸 넣어야 바꾼 값이 저장됩니다. 이 기기에만 저장됩니다.</div>
       <div class="row" style="margin-top:10px">
         <input id="token" type="password" placeholder="github_pat_..."
-               autocomplete="off" enterkeyhint="done"
+               name="gh-token" autocomplete="current-password" enterkeyhint="done"
                onkeydown="if(event.key==='Enter'){event.preventDefault();saveToken()}">
       </div>
       <button class="primary wide" onclick="saveToken()">토큰 저장</button>
@@ -986,7 +1011,7 @@ function renderToken(){
         Repository permissions 의 <b>Contents</b> 를 <b>Read and write</b> 로.
         (Read-only 면 저장할 때 403 이 납니다)
       </div>
-    </div>`;
+    </div>`);
 }
 
 function saveToken(){
@@ -1000,6 +1025,119 @@ function saveToken(){
 function clearToken(){
   localStorage.removeItem("gh_token"); authProblem = null; renderToken();
   toast("토큰을 지웠습니다.", "ok");
+}
+
+/* ---------- 잠가서 어디서든 쓰기 ----------
+   토큰은 이 기기에만 남는다. 폰에서 넣은 것이 회사 PC 로 따라가지 않아
+   기기를 옮길 때마다 다시 붙여넣어야 했다.
+
+   서버가 없고 저장소가 공개라 토큰을 그대로 둘 수는 없다. 암호로 잠근
+   덩어리만 페이지 옆에 두고, 어느 기기에서든 암호를 쳐서 푼다. */
+
+let lockedBox = null;      // 저장소에 잠긴 토큰이 있으면 그 내용
+let lockChecked = false;
+
+/* 페이지와 같은 자리에서 받는다. 깃허브 API 는 토큰 없이 부르면 IP 당
+   시간당 60회라, 회사처럼 여럿이 한 주소를 쓰면 금세 바닥난다. */
+async function fetchLocked(){
+  if (lockChecked) return lockedBox;
+  lockChecked = true;
+  try{
+    const r = await fetch("./token.enc", {cache: "no-store"});
+    if (r.ok) lockedBox = await r.text();
+  }catch{ /* 없으면 없는 대로 둔다 */ }
+  return lockedBox;
+}
+
+async function unlockToken(){
+  const el = $("pass");
+  const pass = (el || {}).value || "";
+  if (!pass){ toast("암호를 넣어주세요.", "err"); return; }
+  toast("푸는 중…", "busy");
+  try{
+    const value = await unlock(await fetchLocked(), pass);
+    localStorage.setItem("gh_token", value);
+    if (el) el.value = "";
+    authProblem = null; renderToken();
+    toast("토큰을 풀었습니다. 이 기기에 저장해 두었습니다.", "ok");
+    load();
+  }catch(e){ toast(esc(e.message), "err"); }
+}
+
+async function lockToken(){
+  if (!token()){ toast("먼저 토큰을 넣어주세요.", "err"); return; }
+  const pass = ($("newPass") || {}).value || "";
+  const again = ($("newPass2") || {}).value || "";
+  if (pass !== again){ toast("두 암호가 다릅니다.", "err"); return; }
+  if (pass.length < MIN_PASSPHRASE){
+    toast(`암호는 ${MIN_PASSPHRASE}자 이상이어야 합니다.`, "err"); return;
+  }
+  toast("잠그는 중…", "busy");
+  try{
+    const box = await lock(token(), pass);
+    const cur = await getFile(LOCK_FILE);
+    await putFile(LOCK_FILE, box, cur && cur.sha, "토큰 잠금 갱신 (어드민)");
+    lockedBox = box; lockChecked = true;
+    renderToken();
+    toast("잠갔습니다. 1분쯤 뒤부터 다른 기기에서 암호로 열 수 있습니다.", "ok", true);
+  }catch(e){
+    if (e.status === 401 || e.status === 403) await showAuthProblem(`${e.status} ${e.message}`);
+    toast("잠그지 못했습니다: " + esc(e.message), "err");
+  }
+}
+
+async function removeLock(){
+  if (!lockedBox){ toast("잠긴 토큰이 없습니다.", "err"); return; }
+  toast("지우는 중…", "busy");
+  try{
+    const cur = await getFile(LOCK_FILE);
+    if (cur) await deleteFile(LOCK_FILE, cur.sha, "토큰 잠금 삭제 (어드민)");
+    lockedBox = null;
+    renderToken();
+    toast("잠긴 토큰을 지웠습니다.", "ok");
+  }catch(e){ toast("지우지 못했습니다: " + esc(e.message), "err"); }
+}
+
+function lockCard(){
+  const has = !!lockedBox;
+  return `
+    <details class="card" id="lockCard"${has ? "" : ""}>
+      <summary>다른 기기에서도 쓰기 ${has ? "· 잠금 있음" : "· 없음"}</summary>
+      <div class="note">
+        토큰은 이 기기에만 남습니다. 암호로 잠가 두면 어느 기기에서든
+        페이지를 열고 암호만 쳐서 꺼내 쓸 수 있습니다.
+        <b>잠긴 덩어리는 공개된 자리에 놓입니다</b> — 암호가 짧으면
+        시간을 들여 풀 수 있으니 ${MIN_PASSPHRASE}자 이상으로, 다른 곳에
+        쓰지 않는 것으로 정하세요.
+      </div>
+      <label style="margin-top:10px">암호</label>
+      <input id="newPass" type="password" autocomplete="new-password"
+             placeholder="${MIN_PASSPHRASE}자 이상" enterkeyhint="next">
+      <label style="margin-top:8px">암호 확인</label>
+      <input id="newPass2" type="password" autocomplete="new-password"
+             placeholder="한 번 더" enterkeyhint="done"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();lockToken()}">
+      <button class="primary wide" style="margin-top:10px" onclick="lockToken()">
+        ${has ? "암호 바꿔 다시 잠그기" : "잠가서 저장소에 두기"}</button>
+      ${has ? `<button class="tiny wide ghost danger" style="margin-top:8px"
+                 onclick="removeLock()">잠긴 토큰 지우기</button>` : ""}
+    </details>`;
+}
+
+function unlockCard(){
+  return `
+    <div class="card" style="border-color:var(--accent)">
+      <h2>암호를 넣어주세요</h2>
+      <div class="sub">이 기기에는 토큰이 없지만, 잠가 둔 것이 있습니다.</div>
+      <input id="pass" type="password" autocomplete="current-password"
+             placeholder="잠글 때 정한 암호" enterkeyhint="done"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();unlockToken()}">
+      <button class="primary wide" style="margin-top:10px" onclick="unlockToken()">열기</button>
+      <div class="note">
+        암호가 기억나지 않으면 토큰을 직접 넣어도 됩니다.
+        <a href="#" onclick="showTokenInput();return false" style="color:var(--accent)">토큰 직접 넣기 →</a>
+      </div>
+    </div>`;
 }
 
 async function load(){
@@ -1234,6 +1372,10 @@ Object.assign(window, {
   saveToken,
   scopedQuery,   // 화면에 미리 보이는 검색어. 테스트에서 직접 부른다
   searchSubs,
+  lockToken,
+  removeLock,
+  showTokenInput,
+  unlockToken,
   set,
   setScope,
   suggestFor,
@@ -1243,6 +1385,9 @@ Object.assign(window, {
 $("build").textContent = BUILD;
 bookmarkHelp();
 renderToken();
+// 잠가 둔 토큰이 있으면 붙여넣기 대신 암호 칸을 띄운다. 페이지와 같은
+// 자리에서 받아오므로 한 번 더 그리면 된다.
+fetchLocked().then(box => { if (box) renderToken(); });
 renderDrive();
 showState();
 load();
