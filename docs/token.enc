@@ -1,0 +1,9 @@
+{
+  "note": "GitHub 토큰을 암호로 잠근 것입니다. 암호 없이는 풀 수 없습니다.",
+  "v": 1,
+  "kdf": "PBKDF2-SHA256",
+  "iterations": 600000,
+  "salt": "PKNWjvPqG1CNaQMJAFZKrw==",
+  "iv": "hoQzpKJXqF4yPFyH",
+  "data": "JbhlggWfC3Mhy5ffchzS4h/WGgVNrJoa/LajUMivh7uqsWRsLs9jntj9xNB6Wmy0512WyK2cKIh/Y87rXBquO51B60PxYMvLgZIyzFo18xg4FMV3S7SChAOpc+fYiqC1ZRGXVoOpPVEGPngFlw=="
+}
