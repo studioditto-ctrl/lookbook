@@ -11,6 +11,21 @@ on:
     # 크론은 '이 시각에 돈다'가 아니라 '이 시각 뒤에 여유가 생기면 돈다'는
     # 뜻이고, 자주 부를수록 뒤로 밀린다. 정시마다(하루 24번)로 줄인다.
     - cron: '0 * * * *'
+  # 바깥에서 제시각에 깨우는 경로.
+  #
+  # 위 크론은 믿을 수 없다. 30분마다로 걸었다가 정시마다로 줄여 봤지만
+  # 8/27~28 에는 열 시간에 한 번꼴로만 왔고, 08:00 회차가 16:09 에
+  # 도착했다. 실행 시각을 정하는 것은 이 파일이 아니라 깃허브다.
+  #
+  # 그래서 발송 시각에 바깥(cron-job.org 등)에서 이 이벤트를 쏜다.
+  #   POST https://api.github.com/repos/<소유자>/<저장소>/dispatches
+  #   Authorization: Bearer <PAT>   (Contents: Read and write)
+  #   {"event_type": "digest"}
+  #
+  # 보낼 회차 판단은 그대로 --due 가 한다. 두 번 쏘거나 크론과 겹쳐도
+  # 발송 이력(schedule.json)이 같은 날 두 번 보내는 것을 막는다.
+  repository_dispatch:
+    types: [digest]
   # Actions 화면을 열 수 없을 때 발송을 돌리기 위한 경로.
   # .trigger 파일이 바뀐 푸시에서만 실행된다 — 일반 코드 푸시로는 발송되지 않는다.
   push:
