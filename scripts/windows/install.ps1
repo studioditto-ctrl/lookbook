@@ -70,12 +70,18 @@ $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
 
 foreach ($t in $Times){
-    if ($t -notmatch '^\d{1,2}:\d{2}$'){
+    # 정규식으로만 보면 25:99 같은 것이 통과해 등록 단계에서 엉뚱한 오류가
+    # 난다. 실제로 시각으로 읽히는지 본다.
+    $when = [datetime]::MinValue
+    $ok = [datetime]::TryParseExact($t, 'H:mm',
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::None, [ref]$when)
+    if (-not $ok){
         Write-Host ("시각을 읽을 수 없습니다: {0} — 건너뜁니다" -f $t) -ForegroundColor Yellow
         continue
     }
-    $name    = "$TaskPrefix $t"
-    $trigger = New-ScheduledTaskTrigger -Daily -At $t
+    $name    = "$TaskPrefix {0:HH:mm}" -f $when
+    $trigger = New-ScheduledTaskTrigger -Daily -At $when
     Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger `
         -Settings $settings -Description "발송 시각에 깃허브를 깨웁니다 ($t)" | Out-Null
     Write-Host ("등록했습니다: {0}" -f $name)

@@ -39,7 +39,12 @@ if (-not (Test-Path $TokenPath)){
     exit 1
 }
 
-$token = (Get-Content -Path $TokenPath -Raw).Trim()
+# 빈 파일이면 Get-Content -Raw 가 $null 을 준다. [string] 로 캐스팅해도
+# $null 그대로라서, 바로 .Trim() 을 걸면 안내 대신 PowerShell 예외가
+# 튀어나온다. 캐스팅에 기대지 말고 먼저 있는지 본다.
+$token = Get-Content -Path $TokenPath -Raw -ErrorAction SilentlyContinue
+if ($null -eq $token){ Write-Log "토큰 파일이 비어 있습니다: $TokenPath"; exit 1 }
+$token = $token.Trim()
 if (-not $token){ Write-Log "토큰 파일이 비어 있습니다: $TokenPath"; exit 1 }
 
 # TLS 1.2 미만으로 붙는 구형 설정이 남아 있으면 깃허브가 끊는다
@@ -59,14 +64,18 @@ try{
     Write-Log ("깨웠습니다 (HTTP {0})" -f [int]$response.StatusCode)
     exit 0
 }catch{
+    # switch 안에서는 $_ 가 에러 레코드가 아니라 switch 의 대상값으로 바뀐다.
+    # 먼저 붙잡아 두지 않으면 아래 메시지가 빈 채로 찍힌다.
+    $err    = $_
+    $detail = $err.Exception.Message
     $status = 0
-    if ($_.Exception.Response){ $status = [int]$_.Exception.Response.StatusCode }
+    if ($err.Exception.Response){ $status = [int]$err.Exception.Response.StatusCode }
     switch ($status){
         401 { Write-Log "401 — 토큰이 틀렸거나 만료됐습니다. token.txt 를 새 토큰으로 바꾸세요." }
         403 { Write-Log "403 — 토큰에 Contents: Read and write 권한이 없습니다." }
         404 { Write-Log "404 — 토큰의 Repository access 목록에 $Repo 가 없습니다." }
-        0   { Write-Log ("네트워크 오류: {0}" -f $_.Exception.Message) }
-        default { Write-Log ("실패 (HTTP {0}): {1}" -f $status, $_.Exception.Message) }
+        0   { Write-Log ("네트워크 오류: {0}" -f $detail) }
+        default { Write-Log ("실패 (HTTP {0}): {1}" -f $status, $detail) }
     }
     exit 1
 }
