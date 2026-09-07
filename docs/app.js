@@ -9,7 +9,12 @@ const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 const DRAFT = "settings_draft";
 // 암호로 잠근 토큰. 페이지와 같이 배포되므로 어느 기기에서든 받아올 수 있다.
 const LOCK_FILE = "docs/token.enc";
-const BUILD = "2026-08-23d";   // 화면에 찍어 어느 판인지 확인한다
+const BUILD = "2026-09-06";   // 화면에 찍어 어느 판인지 확인한다
+
+/* 넓은 화면에서는 주제를 한 번에 하나만 편다. 격자로 늘어놓으면 어느 것을
+   고치는 중인지 알기 어렵고 카드가 좁아 모바일과 다를 바가 없었다. */
+const wide = () => matchMedia("(min-width:900px)").matches;
+let selected = 0;
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -66,8 +71,9 @@ function stepper(di, si, key, val){
 
 function render(){
   $("digests").innerHTML = data.digests.map((dg, di) => `
-    <div class="card">
+    <div class="card${di === selected ? " sel" : ""}" data-di="${di}">
       <h2>${esc(dg.label)}</h2>
+      <div class="slots">
       ${dg.slots.map((s, si) => `
         <div class="slot">
           <div class="head">
@@ -91,6 +97,7 @@ function render(){
             <button class="tiny danger" onclick="delSlot(${di},${si})">이 시간 삭제</button>
           </div>
         </div>`).join("")}
+      </div>
       <button class="tiny wide dashed" onclick="addSlot(${di})">＋ 보낼 시간 추가</button>
 
       <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
@@ -173,6 +180,13 @@ function render(){
       </details>
     </div>`).join("");
 
+  if (selected >= data.digests.length) selected = Math.max(0, data.digests.length - 1);
+  $("topicNav").innerHTML = data.digests.map((dg, di) => `
+    <button aria-current="${di === selected}" onclick="pickTopic(${di})">
+      ${esc(dg.label)}
+      <span class="sub">${dg.slots.filter(s => s.enabled).map(s => s.send_at).join(" · ") || "발송 없음"}</span>
+    </button>`).join("");
+
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
       <button onclick="delExclude(${arg(w)})" aria-label="삭제">×</button>
@@ -180,6 +194,21 @@ function render(){
 }
 
 function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
+
+function pickTopic(di){
+  selected = di;
+  open.add("d" + di);      // 고르자마자 내용이 보여야 한다
+  render();
+  document.querySelector(`#digests .card.sel`)?.scrollIntoView({block: "start"});
+}
+
+/* 데스크탑에서는 주제 추가 카드를 숨겨 두고 사이드바 버튼이 꺼낸다 */
+function focusNewTopic(){
+  $("addTopicCard").classList.add("reveal");
+  const el = $("newTopic");
+  el.scrollIntoView({block: "center"});
+  el.focus();
+}
 
 /* 한 주제에 시간을 몇 개든 둘 수 있다. 회차 이름은 겹치지 않게 만든다. */
 function addSlot(di){
@@ -256,7 +285,8 @@ function tierFor(di){ return newTier[di] || 2; }
 function pickTier(di, weight){ newTier[di] = weight; render(); }
 
 function keywordTiers(di, dg){
-  return TIERS.map(([weight, label]) => {
+  // 감싸개가 있어야 넓은 화면에서 세 상자를 나란히 놓을 수 있다
+  return `<div class="tiers">` + TIERS.map(([weight, label]) => {
     const words = Object.entries(dg.keywords)
       .filter(([, w]) => tierOf(w) === weight)
       .map(([word]) => word);
@@ -270,7 +300,7 @@ function keywordTiers(di, dg){
             </span>`).join("") || '<span class="sub">비어 있음</span>'}
         </div>
       </div>`;
-  }).join("");
+  }).join("") + `</div>`;
 }
 
 /* 낱말이 여럿이면 따옴표로 묶는다.
@@ -472,7 +502,9 @@ function addTopic(){
     feeds: [],
   });
   $("newTopic").value = "";
+  $("addTopicCard").classList.remove("reveal");
   const di = data.digests.length - 1;
+  selected = di;
   syncQueries(data.digests[di]);
   open.add("d" + di);   // 붙은 채널과 추천을 바로 볼 수 있게
   render(); touch();
@@ -1220,6 +1252,7 @@ async function load(){
       return;
     }
     dirty = false;
+    if (wide() && data.digests.length) open.add("d" + selected);
     render(); showState();
 
     // 키워드와 검색어를 합치기 전에 만든 주제는 검색어가 비어 있다.
@@ -1425,6 +1458,8 @@ Object.assign(window, {
   panel,
   pickChannel,
   pickTier,
+  pickTopic,
+  focusNewTopic,
   reMatchAll,
   save,
   saveClientId,

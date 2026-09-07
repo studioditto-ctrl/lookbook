@@ -115,23 +115,54 @@
     border:1px solid var(--line); background:var(--bg);
   }
 
+  /* 사이드바는 데스크탑에서만 쓴다 */
+  #sidebar{display:none}
+  #topicNav button{
+    display:block; width:100%; text-align:left; border:0; background:none;
+    padding:9px 12px; border-radius:10px; min-height:0; font-size:15px;
+  }
+  #topicNav button .sub{font-size:12px}
+  #topicNav button[aria-current="true"]{background:var(--card); border:1px solid var(--line); font-weight:600}
+  #topicNav button:hover{background:var(--card)}
+
   /* ---------- 데스크탑 ----------
-     주제가 다섯 개를 넘어가면 세로로만 쌓여 스크롤이 길어진다.
-     넓은 화면에서는 카드를 나란히 놓고, 아래 막대를 오른쪽 아래로 띄운다. */
+     주제 카드를 격자로 늘어놓으면 어느 것을 고치는 중인지 알기 어렵고,
+     카드 폭이 좁아 모바일과 다를 바가 없었다. 왼쪽에 주제 목록을 두고
+     고른 하나만 넓게 편다. */
   @media (min-width:900px){
     body{padding-bottom:28px}
     header{padding:14px 28px}
     h1{font-size:20px}
-    main{max-width:1180px; padding:20px 28px}
 
-    #digests{
-      display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
-      gap:14px; align-items:start;
+    #shell{
+      display:grid; grid-template-columns:248px minmax(0, 1fr); gap:28px;
+      max-width:1400px; margin:0 auto; padding:20px 28px; align-items:start;
     }
-    #digests > .card{margin-bottom:0}
+    #sidebar{display:block; position:sticky; top:78px}
+    main{padding:0; max-width:none; margin:0}
 
-    /* 토큰·Drive·주제 추가는 폭을 다 쓰지 않아도 된다 */
-    #tokenCard > .card, #driveSetup > .card{max-width:640px}
+    /* 고른 주제 하나만 보인다 */
+    #digests > .card{display:none; margin-bottom:0}
+    #digests > .card.sel{display:block; padding:20px 22px}
+    #digests > .card > h2{font-size:20px; margin-bottom:12px}
+
+    /* 주제 추가는 사이드바가 대신한다 */
+    #addTopicCard{display:none}
+    #addTopicCard.reveal{display:block}
+
+    #tokenCard > .card, #driveSetup > .card{max-width:720px}
+
+    /* 시간 여러 개를 세로로만 쌓으면 아래 설정이 멀어진다.
+       auto-fill 은 빈 칸을 남겨서, 시간이 하나뿐일 때 오른쪽 절반이
+       비어 보였다. auto-fit 은 빈 칸을 접어 하나여도 폭을 다 쓴다. */
+    .slots{display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:12px}
+    .slots > .slot{margin-top:0}
+    /* 폭을 다 쓰더라도 시각 칸까지 늘어질 이유는 없다 */
+    .slot input[type=time]{max-width:200px}
+
+    /* 순위 상자를 나란히 — 끌어 옮길 거리가 짧아진다 */
+    .tiers{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; align-items:start}
+    .tiers > .tier{margin-top:0; min-height:76px}
 
     footer{
       left:auto; right:28px; bottom:28px; width:auto;
@@ -141,6 +172,12 @@
     }
     footer button{flex:0 0 auto; min-width:132px}
     .toast{left:auto; right:28px; bottom:104px; width:min(440px, 42vw)}
+  }
+  /* 편집 영역을 두 단으로 나눠 봤지만, 시간 설정은 짧고 키워드 쪽은 길어
+     왼쪽이 텅 비고 오른쪽만 늘어졌다. 한 단으로 두고 읽기 좋은 폭에서
+     끊는다 — 글줄이 너무 길어도 눈이 따라가기 어렵다. */
+  @media (min-width:900px){
+    #digests > .card.sel{max-width:880px}
   }
   @media (hover:hover){
     button:hover{border-color:var(--accent)}

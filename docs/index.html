@@ -18,12 +18,18 @@
   <div id="saveState">불러오는 중…</div>
 </header>
 
+<div id="shell">
+<aside id="sidebar">
+  <nav id="topicNav"></nav>
+  <button class="tiny wide dashed" onclick="focusNewTopic()">＋ 새 주제</button>
+</aside>
+
 <main>
   <div id="tokenCard"></div>
   <div id="driveSetup"></div>
 
-  <!-- 맨 위: 주제 추가 -->
-  <div class="card">
+  <!-- 맨 위: 주제 추가. 데스크탑에서는 사이드바의 ＋ 새 주제 가 여기로 보낸다 -->
+  <div class="card" id="addTopicCard">
     <h2>주제 추가</h2>
     <div class="sub">넣은 말로 구글 뉴스와 <b>유튜브</b> 를 찾고, 구독 목록에서 이름이 맞는
       채널도 붙입니다. 영상이 들어와야 텔레그램 썸네일이 뜹니다.</div>
@@ -58,6 +64,7 @@
   </details>
 
 </main>
+</div>
 
 <div class="toast" id="toast"></div>
 
