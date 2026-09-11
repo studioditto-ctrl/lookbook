@@ -1,0 +1,57 @@
+name: 소스 추천
+
+on:
+  # 어드민 페이지의 '새 주제 만들기' 마법사가 테마를 입력하면 이 이벤트를 쏜다.
+  #   POST https://api.github.com/repos/<소유자>/<저장소>/dispatches
+  #   Authorization: Bearer <PAT>   (Contents: Read and write)
+  #   {"event_type": "recommend_sources", "client_payload": {"theme": "...", "slug": "..."}}
+  #
+  # 결과는 state/recommend/<slug>.json 에 커밋되고, 페이지는 그 파일이
+  # 생길 때까지 폴링한다. API 키를 브라우저에 둘 수 없어 이 경로로 돈다.
+  repository_dispatch:
+    types: [recommend_sources]
+
+permissions:
+  contents: write
+
+jobs:
+  recommend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 추천 생성
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || secrets.RUNNING_API }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          python src/recommend.py \
+            --theme "${{ github.event.client_payload.theme }}" \
+            --slug "${{ github.event.client_payload.slug }}"
+
+      - name: 결과 커밋
+        run: |
+          if [ -z "$(git status --porcelain state/recommend)" ]; then
+            echo "변경된 결과 파일이 없습니다."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/recommend
+          git commit -m "chore: 소스 추천 결과 저장"
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "푸시 실패, 리베이스 후 재시도 ($attempt/3)"
+            sleep $((attempt * 3))
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          done
+          exit 1

@@ -161,6 +161,10 @@ def apply(config, settings, config_name, slot_name):
     # 느리게 도는 주제는 48시간 안에 새 글이 없어 한 건도 못 보낸다.
     if digest.get("lookback_hours"):
         merged["lookback_hours"] = digest["lookback_hours"]
+    # AI 추천으로 채널을 한꺼번에 붙인 주제는 사람이 하나씩 고른 게 아니라
+    # 채널 항목도 주제와 맞는지 다시 확인해야 한다 (filter.select 참고).
+    if digest.get("strict"):
+        merged["strict"] = True
 
     scope = scope_words(digest)
     if scope:

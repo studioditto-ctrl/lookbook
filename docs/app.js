@@ -9,6 +9,9 @@ const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 const DRAFT = "settings_draft";
 // 암호로 잠근 토큰. 페이지와 같이 배포되므로 어느 기기에서든 받아올 수 있다.
 const LOCK_FILE = "docs/token.enc";
+// AI 추천은 repository_dispatch 로 워크플로를 깨우고, 결과 파일이 생길 때까지 이 자리에서 기다린다.
+const DISPATCH_URL = `https://api.github.com/repos/${REPO}/dispatches`;
+const RECOMMEND_PATH = slug => `state/recommend/${slug}.json`;
 const BUILD = "2026-09-11";   // 화면에 찍어 어느 판인지 확인한다
 
 /* 넓은 화면에서는 주제를 한 번에 하나만 편다. 격자로 늘어놓으면 어느 것을
@@ -18,6 +21,10 @@ let selected = 0;
 /* 데스크탑 가운데 단(섹션 목록)이 지금 보여주는 것. 모바일은 안 쓴다 —
    모바일은 예전처럼 발송 일정은 늘 보이고 나머지는 한 번에 접어 둔다. */
 let section = "schedule";
+/* 화면 전체가 지금 무엇을 보여주는지 — 주제 목록 / 새 주제 마법사 / 공통 설정.
+   예전에는 토큰·Drive·제외어 카드가 주제 목록 위에 늘 떠 있었다. 자주 안
+   쓰는 것들을 공통 설정으로 옮기고, 주제 만들기는 단계별 마법사로 뺐다. */
+let mode = "topics";
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -187,7 +194,36 @@ function sourcesSectionHTML(di, dg){
       <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
              oninput="searchSubs(${di})" enterkeyhint="search">
     </div>
-    <div class="chips" id="cr${di}"></div>`;
+    <div class="chips" id="cr${di}"></div>
+
+    ${((dg.feeds || []).length + (dg.channels || []).length) ? `
+    <button class="tiny ghost" style="margin-top:16px" onclick="exportSourcesCSV(${di})">
+      ⬇ 소스 목록 CSV로 내보내기</button>` : ""}`;
+}
+
+/* 이 주제의 채널·블로그 목록을 CSV 로 내려받는다.
+   구글 시트 API 를 새로 붙이면 쓰기 범위가 넓어져야 해서, 대신 엑셀·구글
+   시트 어느 쪽에서든 그대로 열리는 CSV 로 내보낸다. */
+function csvCell(v){
+  const s = String(v == null ? "" : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportSourcesCSV(di){
+  const dg = data.digests[di];
+  const rows = [["name", "kind", "id_or_url", "region", "reason"]];
+  for (const c of dg.channels || []){
+    rows.push([c.name, "youtube", c.channel_id, c.region || "", c.reason || ""]);
+  }
+  for (const f of dg.feeds || []){
+    rows.push([f.name, "blog", f.url, f.region || "", f.reason || ""]);
+  }
+  const csv = rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], {type: "text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${dg.label || "sources"}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 function dangerSectionHTML(di, dg){
@@ -227,6 +263,7 @@ function renderSectionNav(){
 }
 
 function render(){
+  if (!data) return;   // 아직 불러오는 중일 때 눌러도(예: 사이드바) 죽지 않는다
   const desktop = wide();
   if (selected >= data.digests.length) selected = Math.max(0, data.digests.length - 1);
 
@@ -271,12 +308,21 @@ function render(){
   }).join("");
 
   $("topicNav").innerHTML = data.digests.map((dg, di) => `
-    <button aria-current="${di === selected}" onclick="pickTopic(${di})">
+    <button aria-current="${mode === "topics" && di === selected}" onclick="pickTopic(${di})">
       ${esc(dg.label)}
       <span class="sub">${dg.slots.filter(s => s.enabled).map(s => s.send_at).join(" · ") || "발송 없음"}</span>
     </button>`).join("");
+  $("navWizard").setAttribute("aria-current", mode === "wizard");
+  $("navSettings").setAttribute("aria-current", mode === "settings");
 
-  if (desktop) renderSectionNav();
+  $("topicsView").hidden = mode !== "topics";
+  $("wizardView").hidden = mode !== "wizard";
+  $("settingsView").hidden = mode !== "settings";
+  if (desktop) $("sectionNav").hidden = mode !== "topics";
+  else $("sectionNav").innerHTML = "";
+
+  if (desktop && mode === "topics") renderSectionNav();
+  if (mode === "wizard") renderWizard();
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
@@ -289,6 +335,7 @@ function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
 function pickTopic(di){
   selected = di;
   section = "schedule";    // 주제를 바꾸면 처음 항목으로 되돌아간다
+  mode = "topics";
   open.add("d" + di);      // 고르자마자 내용이 보여야 한다 (모바일)
   render();
   document.querySelector(`#digests .card.sel`)?.scrollIntoView({block: "start"});
@@ -300,12 +347,12 @@ function pickSection(name){
   render();
 }
 
-/* 데스크탑에서는 주제 추가 카드를 숨겨 두고 사이드바 버튼이 꺼낸다 */
-function focusNewTopic(){
-  $("addTopicCard").classList.add("reveal");
-  const el = $("newTopic");
-  el.scrollIntoView({block: "center"});
-  el.focus();
+/* 주제 목록 / 새 주제 마법사 / 공통 설정 — 화면 전체를 바꾼다. */
+function setMode(m){
+  mode = m;
+  if (m === "wizard" && (!wizard || wizard.step === "done")) startWizard();
+  render();
+  window.scrollTo({top: 0});
 }
 
 /* 한 주제에 시간을 몇 개든 둘 수 있다. 회차 이름은 겹치지 않게 만든다. */
@@ -589,8 +636,9 @@ function matchChannels(label){
              .map(s => ({name: s.title, channel_id: s.id}));
 }
 
-function addTopic(){
-  const label = $("newTopic").value.trim();
+/* AI 추천 없이 이름만으로 바로 만든다 (마법사 1단계의 '빠르게 만들기'). */
+function addTopic(label){
+  label = String(label || "").trim();
   if (!label) return;
   const key = "t" + Date.now().toString(36);
   data.digests.push({
@@ -602,22 +650,327 @@ function addTopic(){
     channels: matchChannels(label),
     feeds: [],
   });
-  $("newTopic").value = "";
-  $("addTopicCard").classList.remove("reveal");
   const di = data.digests.length - 1;
+  mode = "topics";
   selected = di;
   section = "schedule";
   syncQueries(data.digests[di]);
   open.add("d" + di);   // 붙은 채널과 추천을 바로 볼 수 있게
   render(); touch();
   suggestFor(di, true);
-  const n = data.digests[data.digests.length - 1].channels.length;
+  const n = data.digests[di].channels.length;
   toast(n
     ? `'${esc(label)}' 주제를 만들고 구독 채널 ${n}개를 붙였습니다. 아래에서 확인하세요.`
     : `'${esc(label)}' 주제를 만들었습니다. 이름이 맞는 구독 채널은 없지만 `
       + `유튜브 검색으로 영상이 들어옵니다.`,
     "busy");
 }
+
+/* ---------- 새 주제 만들기 마법사 ----------
+   테마 입력 → AI 추천 → 채널/키워드 선택 → 자동세팅 완료 → 실행 조건 →
+   테스트 → 실행. 키를 브라우저에 둘 수 없어 추천은 repository_dispatch 로
+   워크플로를 깨우고, 결과 파일(state/recommend/<slug>.json)이 저장소에
+   생길 때까지 이 화면에서 기다린다 — testSend() 의 .trigger 방식과 같은
+   '요청하고 기다리는' 구조다. */
+
+const WIZARD_STEPS = [
+  ["theme", "테마 입력"], ["recommend", "AI 추천"], ["pick", "채널/키워드 선택"],
+  ["setup", "자동세팅 완료"], ["condition", "실행 조건"], ["test", "테스트"], ["done", "실행"],
+];
+
+let wizard = null;
+
+function startWizard(){
+  wizard = {
+    step: "theme", theme: "", slug: "", result: null,
+    picked: new Set(), di: null, busy: false, error: null,
+  };
+}
+
+async function dispatchRecommend(theme, slug){
+  const r = await fetch(DISPATCH_URL, {
+    method: "POST", headers: headers(),
+    body: JSON.stringify({event_type: "recommend_sources", client_payload: {theme, slug}}),
+  });
+  if (!r.ok){
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`${r.status} ${j.message || r.statusText}`);
+    err.status = r.status;
+    throw err;
+  }
+}
+
+/* 결과 파일이 커밋될 때까지 기다린다. 워크플로 기동 + 실행 + 커밋까지
+   보통 30초~2분 걸린다. 못 받으면 시간 초과로 알리고, 다시 시도할 수 있다. */
+async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 240000} = {}){
+  const path = RECOMMEND_PATH(slug);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs){
+    const j = await getFile(path).catch(() => null);
+    if (j) return JSON.parse(dec(j.content));
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  throw new Error("추천 결과를 받지 못했습니다 (시간 초과). 워크플로 실행 기록을 확인해 주세요.");
+}
+
+async function wizardStartRecommend(){
+  if (!wizard) startWizard();
+  const theme = ($("wzTheme") || {}).value?.trim();
+  if (!theme){ toast("테마를 입력해 주세요.", "err"); return; }
+  if (!token()){ toast("먼저 공통 설정에서 GitHub 토큰을 넣어주세요.", "err"); setMode("settings"); return; }
+
+  wizard.theme = theme;
+  wizard.slug = "r" + Date.now().toString(36);
+  wizard.step = "recommend";
+  wizard.busy = true; wizard.error = null; wizard.result = null;
+  render();
+
+  try{
+    await dispatchRecommend(theme, wizard.slug);
+    const result = await pollRecommend(wizard.slug);
+    wizard.result = result;
+    if (result.error){
+      wizard.error = result.error;
+    }else{
+      wizard.picked = new Set((result.candidates || []).map((_, i) => i));
+      wizard.step = "pick";
+    }
+  }catch(e){
+    wizard.error = e.message;
+  }
+  wizard.busy = false;
+  render();
+}
+
+function wizardRetry(){
+  wizard.step = "theme";
+  wizard.error = null;
+  render();
+}
+
+function wizardTogglePick(i){
+  if (wizard.picked.has(i)) wizard.picked.delete(i); else wizard.picked.add(i);
+  render();
+}
+
+function wizardApply(){
+  const chosen = (wizard.result.candidates || []).filter((_, i) => wizard.picked.has(i));
+  if (!chosen.length){ toast("최소 한 개는 선택해 주세요.", "err"); return; }
+
+  const key = "t" + Date.now().toString(36);
+  const channels = chosen
+    .filter(c => c.kind === "youtube" && c.channel_id)
+    .map(c => ({name: c.name, channel_id: c.channel_id, region: c.region, reason: c.reason}));
+  const feeds = chosen
+    .filter(c => c.kind === "blog" && c.url)
+    .map(c => ({name: c.name, url: c.url, region: c.region, reason: c.reason}));
+
+  const keywords = {};
+  (wizard.result.keywords || []).forEach((w, i) => { keywords[w] = i < 3 ? 3 : (i < 6 ? 2 : 1); });
+  if (!Object.keys(keywords).length) keywords[wizard.theme] = 3;
+
+  data.digests.push({
+    config: "", key, label: wizard.theme, scope: wizard.result.scope || [],
+    slots: [{slot: "daily", title: `${wizard.theme} 브리핑`, send_at: "18:00",
+             enabled: true, articles: 2, videos: 3}],
+    keywords, queries: [], channels, feeds,
+    // AI 로 한꺼번에 붙인 채널이라 사람이 하나씩 고른 게 아니다 — 발송 전에
+    // 다시 한 번 주제와 맞는지 확인한다 (filter.select 의 strict).
+    strict: true,
+  });
+  const di = data.digests.length - 1;
+  syncQueries(data.digests[di]);
+  wizard.di = di;
+  wizard.step = "setup";
+  render(); touch();
+}
+
+function wizardGoto(step){
+  wizard.step = step;
+  render();
+}
+
+async function wizardTestSend(){
+  if (wizard.di == null) return;
+  await testSend(wizard.di, 0);
+}
+
+function wizardFinish(){
+  const di = wizard.di;
+  wizard = null;
+  mode = "topics";
+  if (di != null) pickTopic(di); else render();
+}
+
+function wizardStepsHTML(){
+  const order = WIZARD_STEPS.map(([id]) => id);
+  const at = order.indexOf(wizard.step);
+  return `<div class="wzsteps">${WIZARD_STEPS.map(([id, label], i) => {
+    const cls = i === at ? "now" : (i < at ? "done" : "");
+    return `<span class="${cls}">${i + 1}. ${label}</span>`;
+  }).join("")}</div>`;
+}
+
+function candidateHTML(c, i){
+  const picked = wizard.picked.has(i);
+  const kindLabel = c.kind === "youtube" ? "유튜브" : "블로그·매체";
+  const regionLabel = c.region === "domestic" ? "국내" : "해외";
+  const meta = c.kind === "youtube"
+    ? (c.subscribers != null ? `구독자 ${c.subscribers.toLocaleString("ko-KR")}명` : "구독자 비공개")
+    : (c.verified ? "RSS 확인됨" : "RSS 확인 필요 — 직접 확인해 주세요");
+  return `
+    <label class="cand">
+      <input type="checkbox" ${picked ? "checked" : ""} onchange="wizardTogglePick(${i})">
+      <div class="body">
+        <div class="name">${esc(c.name)}</div>
+        <div class="tags">
+          <span class="tag ${c.kind}">${kindLabel}</span>
+          <span class="tag">${regionLabel}</span>
+          ${!c.verified ? '<span class="tag unverified">확인 필요</span>' : ""}
+        </div>
+        <div class="reason">${esc(c.reason || "")}</div>
+        <div class="sub" style="margin-top:4px">${esc(meta)}</div>
+      </div>
+    </label>`;
+}
+
+function renderWizard(){
+  const el = $("wizardView");
+  if (!wizard) startWizard();
+  const w = wizard;
+
+  if (w.step === "theme"){
+    el.innerHTML = `
+      <div class="card">
+        <h2>새 주제 만들기</h2>
+        ${wizardStepsHTML()}
+        <div class="sub">테마를 입력하면 AI 가 어울리는 유튜브 채널·매체·블로그를
+          국내/해외 절반씩 찾아 추천합니다. 고른 것만 자동으로 채널·키워드로
+          등록됩니다.</div>
+        <div class="add" style="margin-top:10px">
+          <input id="wzTheme" placeholder="예: 러닝, 홈베이킹, 스타트업 투자" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off" value="${esc(w.theme)}"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();wizardStartRecommend()}">
+          <button class="primary" onclick="wizardStartRecommend()">AI 추천 받기</button>
+        </div>
+        <div class="note">
+          <a href="#" onclick="event.preventDefault();
+            addTopic((document.getElementById('wzTheme')||{}).value)">
+            AI 추천 없이 이름만으로 빠르게 만들기 →</a>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (w.step === "recommend"){
+    el.innerHTML = `
+      <div class="card">
+        <h2>'${esc(w.theme)}' 추천 소스를 찾는 중</h2>
+        ${wizardStepsHTML()}
+        ${w.busy ? `
+          <div class="sub"><span class="spin"></span>AI 가 후보를 만들고, 실제로 존재하는 채널인지
+            하나씩 확인하고 있습니다. 보통 30초~2분 걸립니다.</div>` : ""}
+        ${w.error ? `
+          <div class="note" style="color:var(--danger)">찾지 못했습니다: ${esc(w.error)}</div>
+          <div class="duo" style="margin-top:10px">
+            <button class="tiny" onclick="wizardRetry()">다시 시도</button>
+            <button class="tiny ghost" onclick="addTopic(${arg(w.theme)})">그냥 이름으로 만들기</button>
+          </div>` : ""}
+      </div>`;
+    return;
+  }
+
+  if (w.step === "pick"){
+    const cands = w.result.candidates || [];
+    const domestic = cands.filter(c => c.region === "domestic").length;
+    const intl = cands.length - domestic;
+    el.innerHTML = `
+      <div class="card">
+        <h2>'${esc(w.theme)}' 추천 채널 ${cands.length}개</h2>
+        ${wizardStepsHTML()}
+        <div class="sub">국내 ${domestic}개 · 해외 ${intl}개. 이유를 보고 넣을 것만 고르세요.
+          체크한 것만 채널·키워드로 자동 등록됩니다.</div>
+        ${cands.length ? cands.map((c, i) => candidateHTML(c, i)).join("")
+          : '<div class="note">실제로 확인되는 채널을 찾지 못했습니다. 이름만으로 만들거나 다시 시도해 주세요.</div>'}
+        ${(w.result.keywords || []).length ? `
+          <label style="margin-top:16px">같이 등록될 키워드</label>
+          <div class="chips">${w.result.keywords.map(k => `<span class="chip plain">${esc(k)}</span>`).join("")}</div>
+        ` : ""}
+        <div class="wzcount">
+          <span class="sub">${w.picked.size}개 선택됨</span>
+          <button class="primary" onclick="wizardApply()">선택한 것만 추가</button>
+        </div>
+        <div class="note" style="margin-top:10px">
+          <a href="#" onclick="event.preventDefault();wizardRetry()">테마 바꿔 다시 찾기</a> ·
+          <a href="#" onclick="event.preventDefault();addTopic(${arg(w.theme)})">AI 추천 없이 이름만으로 만들기</a>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (w.step === "setup"){
+    const dg = data.digests[w.di];
+    el.innerHTML = `
+      <div class="card">
+        <h2>자동세팅 완료</h2>
+        ${wizardStepsHTML()}
+        <div class="note" style="color:var(--ok)">
+          ✓ '${esc(dg.label)}' 주제를 만들고 채널 ${(dg.channels || []).length}개 ·
+          블로그 ${(dg.feeds || []).length}개 · 키워드 ${Object.keys(dg.keywords).length}개를
+          등록했습니다. AI 로 붙인 채널이라, 발송 전 주제와 맞는 내용인지 한 번 더
+          확인하도록 켜 두었습니다.
+        </div>
+        <button class="primary wide" style="margin-top:12px"
+                onclick="wizardGoto('condition')">다음: 보낼 시간 정하기</button>
+      </div>`;
+    return;
+  }
+
+  if (w.step === "condition"){
+    const dg = data.digests[w.di];
+    el.innerHTML = `
+      <div class="card">
+        <h2>실행 조건 — 언제, 몇 건씩 보낼지</h2>
+        ${wizardStepsHTML()}
+        ${slotCardHTML(w.di, 0, dg.slots[0])}
+        <button class="primary wide" style="margin-top:14px"
+                onclick="wizardGoto('test')">다음: 테스트 발송</button>
+      </div>`;
+    return;
+  }
+
+  if (w.step === "test"){
+    el.innerHTML = `
+      <div class="card">
+        <h2>테스트 발송</h2>
+        ${wizardStepsHTML()}
+        <div class="sub">지금 한 번 보내서 텔레그램에 어떻게 오는지 확인해 보세요.
+          이미 보낸 것으로 치지 않으니 정식 발송 시각에도 그대로 나갑니다.</div>
+        <button class="primary wide" style="margin-top:10px" onclick="wizardTestSend()">지금 테스트 발송</button>
+        <button class="tiny wide ghost" style="margin-top:10px" onclick="wizardGoto('done')">건너뛰고 완료</button>
+      </div>`;
+    return;
+  }
+
+  // done
+  const dg = data.digests[w.di];
+  el.innerHTML = `
+    <div class="card">
+      <h2>설정 완료</h2>
+      ${wizardStepsHTML()}
+      <div class="note" style="color:var(--ok)">
+        ✓ '${esc(dg.label)}' 주제가 앞으로 지정한 시각에 자동으로 발송됩니다.
+      </div>
+      <div class="duo" style="margin-top:12px">
+        <button class="primary" onclick="wizardFinish()">주제 목록에서 보기</button>
+        <button class="ghost" onclick="exportSourcesCSV(${w.di})">CSV로 내보내기</button>
+      </div>
+      <button class="tiny wide dashed" style="margin-top:10px" onclick="wizardRestart()">
+        ＋ 새 주제 하나 더 만들기</button>
+    </div>`;
+}
+
+function wizardRestart(){ startWizard(); render(); }
 
 /* ---------- 구독 채널 — Google Drive 에서 읽어 이 브라우저에만 보관 ---------- */
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
@@ -1170,12 +1523,24 @@ function authProblemCard(){
 let forceTokenInput = false;
 function showTokenInput(){ forceTokenInput = true; renderToken(); }
 
+/* 공통 설정 화면에 넣기 전에는 토큰·잠금 카드가 늘 눈에 띄었다. 이제는
+   화면 맨 위에 막힌 상태만 알약 하나로 알리고, 눌러야 공통 설정이 열린다. */
+function updateStatusPill(){
+  const pill = $("statusPill");
+  if (!pill) return;
+  if (authProblem){ pill.hidden = false; pill.textContent = "⚠ 저장 권한 문제"; return; }
+  if (!token() && lockedBox){ pill.hidden = false; pill.textContent = "🔒 잠금 풀기 필요"; return; }
+  if (!token()){ pill.hidden = false; pill.textContent = "⚠ 토큰 필요"; return; }
+  pill.hidden = true;
+}
+
 function renderToken(){
   const has = !!token();
-  if (has && authProblem){ $("tokenCard").innerHTML = authProblemCard(); return; }
+  if (has && authProblem){ $("tokenCard").innerHTML = authProblemCard(); updateStatusPill(); return; }
   // 토큰은 없는데 잠가 둔 것이 있으면, 붙여넣기보다 암호 한 줄이 빠르다
   if (!has && lockedBox && !forceTokenInput){
     $("tokenCard").innerHTML = unlockCard();
+    updateStatusPill();
     return;
   }
   $("tokenCard").innerHTML = (has ? `
@@ -1205,6 +1570,7 @@ function renderToken(){
         (Read-only 면 저장할 때 403 이 납니다)
       </div>
     </div>`);
+  updateStatusPill();
 }
 
 function saveToken(){
@@ -1556,13 +1922,13 @@ Object.assign(window, {
   driveOpen,
   drivePick,
   driveResync,
+  exportSourcesCSV,
   load,
   panel,
   pickChannel,
   pickSection,
   pickTier,
   pickTopic,
-  focusNewTopic,
   reMatchAll,
   save,
   saveClientId,
@@ -1571,12 +1937,22 @@ Object.assign(window, {
   searchSubs,
   lockToken,
   removeLock,
+  setMode,
   showTokenInput,
+  startWizard,
   unlockToken,
   set,
   setScope,
   suggestFor,
   testSend,
+  wizardApply,
+  wizardFinish,
+  wizardGoto,
+  wizardRestart,
+  wizardRetry,
+  wizardStartRecommend,
+  wizardTestSend,
+  wizardTogglePick,
 });
 
 /* 데스크탑과 모바일은 이제 같은 CSS 가 아니라 서로 다른 HTML 을 그린다

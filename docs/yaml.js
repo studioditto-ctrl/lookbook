@@ -14,6 +14,9 @@ function toYaml(d){
     // 주제어. 검색어 앞에 AND 로 붙고, 걸러낼 때도 이 말로 판단한다.
     if ((dg.scope || []).length) out += `    scope: [${dg.scope.join(", ")}]\n`;
     if (dg.lookback_hours) out += `    lookback_hours: ${dg.lookback_hours}\n`;
+    // AI 추천으로 채널을 한꺼번에 붙인 주제만 켠다 — 채널 항목도 주제와
+    // 맞는지 다시 확인한다 (사람이 하나씩 고른 채널은 그대로 믿는다).
+    if (dg.strict) out += `    strict: true\n`;
     out += dg.slots.length ? "    slots:\n" : "    slots: []\n";
     for (const s of dg.slots){
       out += `      - slot: ${s.slot}\n`;
@@ -36,6 +39,8 @@ function toYaml(d){
       for (const f of dg.feeds){
         out += `      - name: ${quote(f.name)}\n        url: ${JSON.stringify(f.url)}\n`;
         if (f.tags && f.tags.length) out += `        tags: [${f.tags.join(", ")}]\n`;
+        if (f.region) out += `        region: ${f.region}\n`;
+        if (f.reason) out += `        reason: ${JSON.stringify(f.reason)}\n`;
       }
     }
     if ((dg.channels || []).length){
@@ -43,6 +48,8 @@ function toYaml(d){
       for (const c of dg.channels){
         out += `      - name: ${quote(c.name)}\n        channel_id: ${c.channel_id}\n`;
         if (c.tags && c.tags.length) out += `        tags: [${c.tags.join(", ")}]\n`;
+        if (c.region) out += `        region: ${c.region}\n`;
+        if (c.reason) out += `        reason: ${JSON.stringify(c.reason)}\n`;
       }
     }
   }
@@ -79,6 +86,9 @@ function fromYaml(text){
     }
     if (indent === 4 && t.startsWith("lookback_hours:")){
       dg.lookback_hours = +t.slice(15).trim() || 0; continue;
+    }
+    if (indent === 4 && t.startsWith("strict:")){
+      dg.strict = t.slice(7).trim() === "true"; continue;
     }
     if (indent === 4 && t.startsWith("slots:")){ dg._in = "slots"; continue; }
     if (indent === 4 && t === "keywords:"){ dg._in = "keywords"; continue; }

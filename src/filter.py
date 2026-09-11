@@ -136,7 +136,12 @@ def select(items, seen, config, slot):
 
     # 검색으로 찾아온 항목에만 적용한다. 사람이 골라둔 채널·피드는
     # 채널을 믿고 담는 것이라 낱말이 안 걸려도 남긴다.
+    #
+    # strict 가 켜진 주제는 예외다 — AI 추천으로 한꺼번에 붙인 채널은
+    # 사람이 하나씩 확인하고 고른 것이 아니라, 주제와 무관한 영상을 종종
+    # 올리는 채널이 섞여 있을 수 있다. 그런 주제는 채널 항목도 걸러낸다.
     require_keyword = config.get("require_keyword", True)
+    strict = bool(config.get("strict"))
     scope = config.get("scope") or []
 
     fresh = []
@@ -153,7 +158,8 @@ def select(items, seen, config, slot):
             continue
         if _excluded(item, exclude):
             continue
-        if require_keyword and item.searched and not _relevant(item, keywords, scope):
+        gate = item.searched or strict
+        if require_keyword and gate and not _relevant(item, keywords, scope):
             off_topic += 1
             continue
         item.score = _score(item, keywords)

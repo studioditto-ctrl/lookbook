@@ -494,6 +494,165 @@ class TestSummarize(unittest.TestCase):
         self.assertFalse(self.mod.summarize([], {}))
 
 
+class TestRecommend(unittest.TestCase):
+    """테마 추천 — Claude 후보는 실존 확인 전까지 믿지 않는다."""
+
+    def setUp(self):
+        import recommend as recommend_module
+
+        self.mod = recommend_module
+
+    def fake_client(self, text=None, stop_reason="end_turn"):
+        from types import SimpleNamespace
+
+        blocks = [SimpleNamespace(type="text", text=text)]
+        response = SimpleNamespace(stop_reason=stop_reason, content=blocks)
+        captured = {}
+
+        def create(**kwargs):
+            captured.update(kwargs)
+            return response
+
+        return SimpleNamespace(messages=SimpleNamespace(create=create)), captured
+
+    def test_request_sends_schema(self):
+        client, captured = self.fake_client(
+            text='{"candidates": [], "keywords": [], "scope": []}'
+        )
+        self.mod._request(client, "러닝")
+        self.assertEqual(captured["model"], "claude-opus-5")
+        self.assertEqual(
+            captured["output_config"]["format"]["schema"]["required"],
+            ["candidates", "keywords", "scope"],
+        )
+
+    def test_request_raises_on_refusal(self):
+        client, _ = self.fake_client(text="{}", stop_reason="refusal")
+        with self.assertRaises(RuntimeError):
+            self.mod._request(client, "러닝")
+
+    def test_request_raises_on_truncation(self):
+        client, _ = self.fake_client(
+            text='{"candidates": [], "keywords": [], "scope": []}',
+            stop_reason="max_tokens",
+        )
+        with self.assertRaises(RuntimeError):
+            self.mod._request(client, "러닝")
+
+    def test_youtube_candidate_dropped_when_not_found(self):
+        import youtube as youtube_module
+
+        server = FeedServer({"empty.json": json.dumps({"items": []})})
+        saved = youtube_module.YT_SEARCH_API
+        try:
+            youtube_module.YT_SEARCH_API = server.url("empty.json")
+            self.assertIsNone(self.mod._verify_youtube("없는채널", "key", {}))
+        finally:
+            youtube_module.YT_SEARCH_API = saved
+            server.close()
+
+    def test_youtube_candidate_found_returns_channel_and_subs(self):
+        import youtube as youtube_module
+
+        search_payload = {"items": [
+            {"id": {"channelId": "UCabc"}, "snippet": {"title": "채널명"}}
+        ]}
+        subs_payload = {"items": [
+            {"id": "UCabc", "statistics": {"subscriberCount": "12345"}}
+        ]}
+        server = FeedServer({
+            "search.json": json.dumps(search_payload, ensure_ascii=False),
+            "channels.json": json.dumps(subs_payload),
+        })
+        saved_search = youtube_module.YT_SEARCH_API
+        saved_channels = youtube_module.YT_CHANNELS_API
+        try:
+            youtube_module.YT_SEARCH_API = server.url("search.json")
+            youtube_module.YT_CHANNELS_API = server.url("channels.json")
+            found = self.mod._verify_youtube("채널명", "key", {})
+            self.assertEqual(found, ("UCabc", 12345))
+        finally:
+            youtube_module.YT_SEARCH_API = saved_search
+            youtube_module.YT_CHANNELS_API = saved_channels
+            server.close()
+
+    def test_verify_feed_detects_rss_marker(self):
+        server = FeedServer({
+            "feed.xml": '<?xml version="1.0"?><rss><channel></channel></rss>'
+        })
+        try:
+            self.assertTrue(self.mod._verify_feed(server.url("feed.xml")))
+        finally:
+            server.close()
+
+    def test_verify_feed_rejects_plain_html(self):
+        server = FeedServer({"page.html": "<html><body>hello</body></html>"})
+        try:
+            self.assertFalse(self.mod._verify_feed(server.url("page.html")))
+        finally:
+            server.close()
+
+    def test_recommend_drops_unverifiable_youtube_and_keeps_flagged_blog(self):
+        import youtube as youtube_module
+
+        parsed = {
+            "candidates": [
+                {"name": "존재안함채널", "kind": "youtube", "region": "domestic",
+                 "reason": "이유", "url": ""},
+                {"name": "블로그", "kind": "blog", "region": "international",
+                 "reason": "이유2", "url": "http://example/feed"},
+            ],
+            "keywords": ["키워드1", "키워드2"],
+            "scope": ["주제"],
+        }
+        server = FeedServer({"empty.json": json.dumps({"items": []})})
+        saved = youtube_module.YT_SEARCH_API
+        try:
+            youtube_module.YT_SEARCH_API = server.url("empty.json")
+            with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+                 unittest.mock.patch.object(self.mod, "_verify_feed", return_value=False):
+                result = self.mod.recommend("주제", youtube_key="key")
+            self.assertEqual(len(result["candidates"]), 1)
+            self.assertEqual(result["candidates"][0]["kind"], "blog")
+            self.assertFalse(result["candidates"][0]["verified"])
+            self.assertEqual(result["keywords"], ["키워드1", "키워드2"])
+        finally:
+            youtube_module.YT_SEARCH_API = saved
+            server.close()
+
+    def test_youtube_candidates_without_key_are_skipped(self):
+        parsed = {
+            "candidates": [{"name": "채널", "kind": "youtube", "region": "domestic",
+                             "reason": "x", "url": ""}],
+            "keywords": [], "scope": [],
+        }
+        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed):
+            result = self.mod.recommend("주제", youtube_key=None)
+        self.assertEqual(result["candidates"], [])
+
+    def test_main_writes_result_file_even_on_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            recommend_dir = Path(tmp) / "state" / "recommend"
+            with unittest.mock.patch.object(self.mod, "RECOMMEND_DIR", recommend_dir), \
+                 unittest.mock.patch.object(self.mod, "recommend", side_effect=RuntimeError("boom")):
+                self.mod.main(["--theme", "테마", "--slug", "test-slug"])
+            data = json.loads((recommend_dir / "test-slug.json").read_text(encoding="utf-8"))
+            self.assertEqual(data["error"], "boom")
+            self.assertEqual(data["theme"], "테마")
+
+    def test_main_writes_successful_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            recommend_dir = Path(tmp) / "state" / "recommend"
+            ok = {"theme": "테마", "candidates": [], "keywords": [], "scope": [],
+                  "generated_at": "now"}
+            with unittest.mock.patch.object(self.mod, "RECOMMEND_DIR", recommend_dir), \
+                 unittest.mock.patch.object(self.mod, "recommend", return_value=ok):
+                self.mod.main(["--theme", "테마", "--slug", "test-slug"])
+            data = json.loads((recommend_dir / "test-slug.json").read_text(encoding="utf-8"))
+            self.assertNotIn("error", data)
+            self.assertEqual(data["theme"], "테마")
+
+
 class TestMessageWithSummaries(unittest.TestCase):
     def item(self, n, summary_ko=""):
         return Item(
@@ -1379,6 +1538,14 @@ class TestRelevanceGate(unittest.TestCase):
         items = [self.make("제주도 브이로그", searched=False, kind="video")]
         _, videos = self.select(items, {}, self.config, "m")
         self.assertEqual(len(videos), 1)
+
+    def test_strict_mode_gates_curated_sources_too(self):
+        """AI 추천으로 한꺼번에 붙인 채널은 strict 로 다시 확인한다."""
+        config = dict(self.config, strict=True)
+        items = [self.make("제주도 브이로그", searched=False, kind="video"),
+                 self.make("서울 마라톤 완주 후기", searched=False, kind="video")]
+        _, videos = self.select(items, {}, config, "m")
+        self.assertEqual([v.title for v in videos], ["서울 마라톤 완주 후기"])
 
     def test_summary_counts_too(self):
         # '이번 주 정리' 같은 맹숭한 제목의 알맹이 있는 글을 살린다

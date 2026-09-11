@@ -15,58 +15,61 @@
     <h1>다이제스트 설정</h1>
     <div class="sub">studioditto-ctrl/lookbook · <span id="build"></span></div>
   </div>
-  <div id="saveState">불러오는 중…</div>
+  <div class="row" style="gap:8px">
+    <button id="statusPill" class="tiny" onclick="setMode('settings')" hidden></button>
+    <div id="saveState">불러오는 중…</div>
+  </div>
 </header>
 
 <div id="shell">
 <aside id="sidebar">
   <nav id="topicNav" class="navlist"></nav>
-  <button class="tiny wide dashed" onclick="focusNewTopic()">＋ 새 주제</button>
+  <button class="tiny wide dashed" id="navWizard" onclick="setMode('wizard')">＋ 새 주제</button>
+  <div class="divider"></div>
+  <button class="tiny wide ghost" id="navSettings" onclick="setMode('settings')">⚙ 공통 설정</button>
 </aside>
 
-<!-- 가운데 단. 데스크탑에서만 쓴다 — 고른 주제 안에서 무엇을 보고 있는지
-     (발송 일정 / 키워드 / 검색 범위 / 소스 / 주제 삭제) 여기서 고른다. -->
+<!-- 가운데 단. 데스크탑에서만, 주제 목록 화면일 때만 쓴다 — 고른 주제 안에서
+     무엇을 보고 있는지 (발송 일정 / 키워드 / 검색 범위 / 소스 / 주제 삭제)
+     여기서 고른다. -->
 <aside id="sectionNav"></aside>
 
 <main>
-  <div id="tokenCard"></div>
-  <div id="driveSetup"></div>
-
-  <!-- 맨 위: 주제 추가. 데스크탑에서는 사이드바의 ＋ 새 주제 가 여기로 보낸다 -->
-  <div class="card" id="addTopicCard">
-    <h2>주제 추가</h2>
-    <div class="sub">넣은 말로 구글 뉴스와 <b>유튜브</b> 를 찾고, 구독 목록에서 이름이 맞는
-      채널도 붙입니다. 영상이 들어와야 텔레그램 썸네일이 뜹니다.</div>
-    <div class="add">
-      <input id="newTopic" placeholder="예: 커피" enterkeyhint="done"
-             autocapitalize="off" autocomplete="off"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();addTopic()}">
-      <button class="primary" onclick="addTopic()">만들기</button>
-    </div>
+  <!-- 주제 목록: 기존 3단 드릴다운 화면 -->
+  <div id="topicsView">
+    <div id="digests"></div>
   </div>
 
-  <div id="digests"></div>
+  <!-- 새 주제 만들기: 테마 입력 → AI 추천 → 채널/키워드 선택 →
+       자동세팅 완료 → 실행 조건 → 테스트 → 실행 순서의 마법사 -->
+  <div id="wizardView" hidden></div>
 
-  <details class="card" id="advanced">
-    <summary>고급 설정</summary>
-
-    <label style="margin-top:8px">내 구독 채널 (Google Drive)</label>
-    <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
-    <div id="driveBox"></div>
-
-    <label style="margin-top:18px">즐겨찾기에 두기</label>
-    <div class="note" id="bookmarkHelp"></div>
-
-    <label style="margin-top:18px">공통 제외어</label>
-    <div class="sub">제목에 이 단어가 있으면 보내지 않습니다.</div>
-    <div class="chips" id="excludeChips"></div>
-    <div class="add">
-      <input id="excludeInput" placeholder="예: 협찬" enterkeyhint="done"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();addExclude()}">
-      <button class="tiny" onclick="addExclude()">추가</button>
+  <!-- 공통 설정: 토큰 · 다른 기기에서 쓰기 · 구독 채널 가져오기 · 제외어 등
+       주제마다 반복되지 않는 것들을 한데 모은다 -->
+  <div id="settingsView" hidden>
+    <h2 style="margin:4px 0 14px">공통 설정</h2>
+    <div id="tokenCard"></div>
+    <div id="driveSetup"></div>
+    <div class="card">
+      <h2>내 구독 채널 (Google Drive)</h2>
+      <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>
+      <div id="driveBox"></div>
     </div>
-  </details>
-
+    <div class="card">
+      <h2>공통 제외어</h2>
+      <div class="sub">제목에 이 단어가 있으면 어느 주제든 보내지 않습니다.</div>
+      <div class="chips" id="excludeChips"></div>
+      <div class="add">
+        <input id="excludeInput" placeholder="예: 협찬" enterkeyhint="done"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addExclude()}">
+        <button class="tiny" onclick="addExclude()">추가</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>즐겨찾기에 두기</h2>
+      <div class="note" id="bookmarkHelp"></div>
+    </div>
+  </div>
 </main>
 </div>
 
