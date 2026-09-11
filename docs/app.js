@@ -9,12 +9,15 @@ const RUNS = `https://github.com/${REPO}/actions/workflows/digest.yml`;
 const DRAFT = "settings_draft";
 // 암호로 잠근 토큰. 페이지와 같이 배포되므로 어느 기기에서든 받아올 수 있다.
 const LOCK_FILE = "docs/token.enc";
-const BUILD = "2026-09-06";   // 화면에 찍어 어느 판인지 확인한다
+const BUILD = "2026-09-11";   // 화면에 찍어 어느 판인지 확인한다
 
 /* 넓은 화면에서는 주제를 한 번에 하나만 편다. 격자로 늘어놓으면 어느 것을
    고치는 중인지 알기 어렵고 카드가 좁아 모바일과 다를 바가 없었다. */
 const wide = () => matchMedia("(min-width:900px)").matches;
 let selected = 0;
+/* 데스크탑 가운데 단(섹션 목록)이 지금 보여주는 것. 모바일은 안 쓴다 —
+   모바일은 예전처럼 발송 일정은 늘 보이고 나머지는 한 번에 접어 둔다. */
+let section = "schedule";
 
 let data = null, sha = null;
 let dirty = false, saving = false, savedAt = null, loadedAt = null, timer = null;
@@ -69,123 +72,211 @@ function stepper(di, si, key, val){
   </div>`;
 }
 
-function render(){
-  $("digests").innerHTML = data.digests.map((dg, di) => `
-    <div class="card${di === selected ? " sel" : ""}" data-di="${di}">
-      <h2>${esc(dg.label)}</h2>
-      <div class="slots">
-      ${dg.slots.map((s, si) => `
-        <div class="slot">
-          <div class="head">
-            <input class="title" value="${esc(s.title)}" aria-label="메시지 제목"
-                   onchange="set(${di},${si},'title',this.value)">
-            <label class="sw" style="margin:0">
-              <input type="checkbox" ${s.enabled ? "checked" : ""}
-                     onchange="set(${di},${si},'enabled',this.checked)" aria-label="발송"><i></i>
-            </label>
-          </div>
-          <div style="margin-top:10px">
-            <label>보내는 시각</label>
-            <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)">
-          </div>
-          <div class="duo">
-            <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
-            <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
-          </div>
-          <div class="duo">
-            <button class="tiny ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
-            <button class="tiny danger" onclick="delSlot(${di},${si})">이 시간 삭제</button>
-          </div>
-        </div>`).join("")}
+function slotCardHTML(di, si, s){
+  return `
+    <div class="slot">
+      <div class="head">
+        <input class="title" value="${esc(s.title)}" aria-label="메시지 제목"
+               onchange="set(${di},${si},'title',this.value)">
+        <label class="sw" style="margin:0">
+          <input type="checkbox" ${s.enabled ? "checked" : ""}
+                 onchange="set(${di},${si},'enabled',this.checked)" aria-label="발송"><i></i>
+        </label>
       </div>
-      <button class="tiny wide dashed" onclick="addSlot(${di})">＋ 보낼 시간 추가</button>
+      <div style="margin-top:10px">
+        <label>보내는 시각</label>
+        <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)">
+      </div>
+      <div class="duo">
+        <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
+        <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
+      </div>
+      <div class="duo">
+        <button class="tiny ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
+        <button class="tiny danger" onclick="delSlot(${di},${si})">이 시간 삭제</button>
+      </div>
+    </div>`;
+}
 
-      <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
-               ontoggle="panel('d${di}',this.open)">
-        <summary>키워드 ${Object.keys(dg.keywords).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
+/* 아래 다섯 개가 한 주제 안의 실제 내용이다. 모바일과 데스크탑이 이걸
+   그대로 나눠 쓴다 — 모바일은 발송 일정만 늘 보이고 나머지 넷을 한 덩어리로
+   접고, 데스크탑은 다섯을 각각 가운데 단에서 골라 하나씩 본다. */
 
-        <label style="margin-top:6px">키워드 — 이 말로 찾고, 위 순위일수록 먼저 골라집니다</label>
-        <div class="sub">칩을 끌어다 다른 순위로 옮길 수 있습니다.</div>
-        ${keywordTiers(di, dg)}
-        <div class="seg" style="margin-top:10px">
-          ${TIERS.map(([w, label]) => `<button aria-pressed="${tierFor(di) === w}"
-              onclick="pickTier(${di},${w})">${label}</button>`).join("")}
-        </div>
-        <div class="add">
-          <input id="kw${di}" placeholder="예: 인터벌" enterkeyhint="done"
-                 autocapitalize="off" autocomplete="off"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
-          <button class="tiny" onclick="addKeyword(${di})">추가</button>
-        </div>
-        <label style="margin-top:14px">주제어 <span class="sub">(안 넣어도 됩니다)</span></label>
-        <div class="sub">
-          ${scopeWords(dg).length
-            ? "이 말이 하나도 없는 글은 버립니다. 쉼표로 구분합니다."
-            : "지금은 키워드로만 거릅니다. 무관한 글이 섞이면 그때 넣으세요."}
-        </div>
-        <div class="add">
-          <input id="sc${di}" value="${esc(scopeWords(dg).join(", "))}"
-                 placeholder="비워두면 키워드로 거릅니다" enterkeyhint="done"
-                 autocapitalize="off" autocomplete="off"
-                 onchange="setScope(${di}, this.value)"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">
-        </div>
-        <div class="note">
-          ${(dg.queries || []).length
-            ? `검색에 쓰는 말: <b>${esc(scopedQuery(dg))}</b>`
-            : "키워드를 넣으면 그 말로 구글 뉴스와 유튜브를 찾습니다."}
-        </div>
-        <div class="add">
-          <button class="tiny ghost" style="flex:1" onclick="suggestFor(${di})">추천 키워드 보기</button>
-        </div>
-        <div class="chips" id="sg${di}">${suggestionChips(di, dg)}</div>
+function scheduleSectionHTML(di, dg){
+  return `<div class="slots">
+      ${dg.slots.map((s, si) => slotCardHTML(di, si, s)).join("")}
+    </div>
+    <button class="tiny wide dashed" onclick="addSlot(${di})">＋ 보낼 시간 추가</button>`;
+}
 
-        <label style="margin-top:16px">블로그 · RSS</label>
-        <div class="chips">
-          ${(dg.feeds || []).map((f, fi) => `
-            <span class="chip" title="${esc(f.url)}">${esc(f.name)}
-              <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
-            || '<span class="sub">없음</span>'}
-        </div>
-        <div class="add">
-          <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
-                 autocapitalize="off" autocomplete="off"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
-          <button class="tiny" onclick="addFeed(${di})">추가</button>
-        </div>
-        <div class="note">
-          네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
-          (브런치·티스토리·서브스택 등).<br>
-          <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
-          공식 API 가 남의 공개 계정을 안 열어 줍니다.
-          <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
-             style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
-        </div>
+function keywordsSectionHTML(di, dg){
+  return `
+    <label style="margin-top:6px">키워드 — 이 말로 찾고, 위 순위일수록 먼저 골라집니다</label>
+    <div class="sub">칩을 끌어다 다른 순위로 옮길 수 있습니다.</div>
+    ${keywordTiers(di, dg)}
+    <div class="seg" style="margin-top:10px">
+      ${TIERS.map(([w, label]) => `<button aria-pressed="${tierFor(di) === w}"
+          onclick="pickTier(${di},${w})">${label}</button>`).join("")}
+    </div>
+    <div class="add">
+      <input id="kw${di}" placeholder="예: 인터벌" enterkeyhint="done"
+             autocapitalize="off" autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addKeyword(${di})}">
+      <button class="tiny" onclick="addKeyword(${di})">추가</button>
+    </div>
+    <div class="add">
+      <button class="tiny ghost" style="flex:1" onclick="suggestFor(${di})">추천 키워드 보기</button>
+    </div>
+    <div class="chips" id="sg${di}">${suggestionChips(di, dg)}</div>`;
+}
 
-        <label style="margin-top:16px">유튜브 채널</label>
-        <div class="chips">
-          ${(dg.channels || []).map((c, ci) => `
-            <span class="chip">${esc(c.name)}
-              <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
-            || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
-        </div>
-        <div class="add">
-          <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
-                 oninput="searchSubs(${di})" enterkeyhint="search">
-        </div>
-        <div class="chips" id="cr${di}"></div>
+function scopeSectionHTML(di, dg){
+  return `
+    <label style="margin-top:6px">주제어 <span class="sub">(안 넣어도 됩니다)</span></label>
+    <div class="sub">
+      ${scopeWords(dg).length
+        ? "이 말이 하나도 없는 글은 버립니다. 쉼표로 구분합니다."
+        : "지금은 키워드로만 거릅니다. 무관한 글이 섞이면 그때 넣으세요."}
+    </div>
+    <div class="add">
+      <input id="sc${di}" value="${esc(scopeWords(dg).join(", "))}"
+             placeholder="비워두면 키워드로 거릅니다" enterkeyhint="done"
+             autocapitalize="off" autocomplete="off"
+             onchange="setScope(${di}, this.value)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">
+    </div>
+    <div class="note">
+      ${(dg.queries || []).length
+        ? `검색에 쓰는 말: <b>${esc(scopedQuery(dg))}</b>`
+        : "키워드를 넣으면 그 말로 구글 뉴스와 유튜브를 찾습니다."}
+    </div>`;
+}
 
-        <button class="tiny wide danger" style="margin-top:16px"
-                onclick="delTopic(${di})">'${esc(dg.label)}' 주제 삭제</button>
-      </details>
-    </div>`).join("");
+function sourcesSectionHTML(di, dg){
+  return `
+    <label style="margin-top:6px">블로그 · RSS</label>
+    <div class="chips">
+      ${(dg.feeds || []).map((f, fi) => `
+        <span class="chip" title="${esc(f.url)}">${esc(f.name)}
+          <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
+        || '<span class="sub">없음</span>'}
+    </div>
+    <div class="add">
+      <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
+             autocapitalize="off" autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
+      <button class="tiny" onclick="addFeed(${di})">추가</button>
+    </div>
+    <div class="note">
+      네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
+      (브런치·티스토리·서브스택 등).<br>
+      <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
+      공식 API 가 남의 공개 계정을 안 열어 줍니다.
+      <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
+         style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
+    </div>
 
+    <label style="margin-top:16px">유튜브 채널</label>
+    <div class="chips">
+      ${(dg.channels || []).map((c, ci) => `
+        <span class="chip">${esc(c.name)}
+          <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
+        || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+    </div>
+    <div class="add">
+      <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
+             oninput="searchSubs(${di})" enterkeyhint="search">
+    </div>
+    <div class="chips" id="cr${di}"></div>`;
+}
+
+function dangerSectionHTML(di, dg){
+  return `
+    <div class="sub">'${esc(dg.label)}' 주제를 지우면 발송 일정 · 키워드 · 검색 범위 · 소스가
+      모두 사라집니다.${dg.config ? ` <b>${esc(dg.config)}</b> 파일은 그대로 두고 발송만 멈춥니다.` : ""}</div>
+    <button class="tiny wide danger" style="margin-top:12px"
+            onclick="delTopic(${di})">'${esc(dg.label)}' 주제 삭제</button>`;
+}
+
+/* 가운데 단 — 고른 주제 안의 항목 목록. 데스크탑에서만 그린다. */
+const SECTIONS = [
+  ["schedule", "발송 일정", dg => dg.slots.length],
+  ["keywords", "키워드", dg => Object.keys(dg.keywords).length],
+  ["scope", "검색 범위", dg => scopeWords(dg).length || null],
+  ["sources", "소스", dg => (dg.feeds || []).length + (dg.channels || []).length],
+];
+
+function renderSectionNav(){
+  const dg = data.digests[selected];
+  if (!dg){ $("sectionNav").innerHTML = ""; return; }
+  $("sectionNav").innerHTML = `
+    <div class="sub" style="margin-bottom:8px; font-weight:600; color:var(--ink)">${esc(dg.label)}</div>
+    <nav class="navlist">
+      ${SECTIONS.map(([name, label, count]) => {
+        const n = count(dg);
+        return `<button aria-current="${section === name}" onclick="pickSection('${name}')">
+          ${label}${n != null ? ` <span class="sub">${n}</span>` : ""}
+        </button>`;
+      }).join("")}
+    </nav>
+    <div class="divider"></div>
+    <nav class="navlist">
+      <button class="danger" aria-current="${section === "danger"}"
+              onclick="pickSection('danger')">주제 삭제</button>
+    </nav>`;
+}
+
+function render(){
+  const desktop = wide();
   if (selected >= data.digests.length) selected = Math.max(0, data.digests.length - 1);
+
+  $("digests").innerHTML = data.digests.map((dg, di) => {
+    const sel = di === selected;
+    const schedule = scheduleSectionHTML(di, dg);
+    const keywords = keywordsSectionHTML(di, dg);
+    const scope = scopeSectionHTML(di, dg);
+    const sources = sourcesSectionHTML(di, dg);
+    const danger = dangerSectionHTML(di, dg);
+
+    if (desktop){
+      // 다섯 항목을 각각 감싼다. 고른 것만 CSS 가 보여준다.
+      const sec = (name, title, body) => `
+        <section class="tsec${sel && section === name ? " sel" : ""}" data-section="${name}">
+          <h2>${title}</h2>${body}
+        </section>`;
+      return `
+        <div class="card${sel ? " sel" : ""}" data-di="${di}">
+          ${sec("schedule", "발송 일정", schedule)}
+          ${sec("keywords", "키워드 우선순위", keywords)}
+          ${sec("scope", "검색 범위", scope)}
+          ${sec("sources", "콘텐츠 소스", sources)}
+          ${sec("danger", "위험 구역", danger)}
+        </div>`;
+    }
+
+    // 모바일: 발송 일정은 늘 보이고, 나머지 넷은 한 덩어리로 접는다 — 예전과 같다.
+    return `
+      <div class="card" data-di="${di}">
+        <h2>${esc(dg.label)}</h2>
+        ${schedule}
+        <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
+                 ontoggle="panel('d${di}',this.open)">
+          <summary>키워드 ${Object.keys(dg.keywords).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
+          ${keywords}
+          ${scope}
+          ${sources}
+          <div style="margin-top:16px">${danger}</div>
+        </details>
+      </div>`;
+  }).join("");
+
   $("topicNav").innerHTML = data.digests.map((dg, di) => `
     <button aria-current="${di === selected}" onclick="pickTopic(${di})">
       ${esc(dg.label)}
       <span class="sub">${dg.slots.filter(s => s.enabled).map(s => s.send_at).join(" · ") || "발송 없음"}</span>
     </button>`).join("");
+
+  if (desktop) renderSectionNav();
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
@@ -197,9 +288,16 @@ function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
 
 function pickTopic(di){
   selected = di;
-  open.add("d" + di);      // 고르자마자 내용이 보여야 한다
+  section = "schedule";    // 주제를 바꾸면 처음 항목으로 되돌아간다
+  open.add("d" + di);      // 고르자마자 내용이 보여야 한다 (모바일)
   render();
   document.querySelector(`#digests .card.sel`)?.scrollIntoView({block: "start"});
+}
+
+/* 데스크탑 가운데 단에서 항목을 고른다. */
+function pickSection(name){
+  section = name;
+  render();
 }
 
 /* 데스크탑에서는 주제 추가 카드를 숨겨 두고 사이드바 버튼이 꺼낸다 */
@@ -252,6 +350,9 @@ function delTopic(di, confirmed){
   if (!confirmed && !confirm(`'${dg.label}' 주제를 통째로 지울까요?`)) return;
   data.digests.splice(di, 1);
   open.delete("d" + di);
+  // '위험 구역'에서 지운 채로 두면 다음 주제도 곧바로 그 주제의 삭제
+  // 화면으로 열린다 — 놀랄 수 있으니 처음 항목으로 되돌린다.
+  section = "schedule";
   render(); touch();
   toast(`'${esc(dg.label)}' 주제를 지웠습니다.`
     + (dg.config ? ` (${esc(dg.config)} 파일은 그대로 둡니다)` : ""), "busy");
@@ -505,6 +606,7 @@ function addTopic(){
   $("addTopicCard").classList.remove("reveal");
   const di = data.digests.length - 1;
   selected = di;
+  section = "schedule";
   syncQueries(data.digests[di]);
   open.add("d" + di);   // 붙은 채널과 추천을 바로 볼 수 있게
   render(); touch();
@@ -1457,6 +1559,7 @@ Object.assign(window, {
   load,
   panel,
   pickChannel,
+  pickSection,
   pickTier,
   pickTopic,
   focusNewTopic,
@@ -1474,6 +1577,15 @@ Object.assign(window, {
   setScope,
   suggestFor,
   testSend,
+});
+
+/* 데스크탑과 모바일은 이제 같은 CSS 가 아니라 서로 다른 HTML 을 그린다
+   (가운데 단, 항목별 <section>). 폭을 가로지르며 창을 늘이거나 줄이면
+   다시 그려야 한다 — 데이터가 안 바뀌면 render() 가 저절로 불리지 않는다. */
+let wasWide = wide();
+addEventListener("resize", () => {
+  const nowWide = wide();
+  if (nowWide !== wasWide){ wasWide = nowWide; if (data) render(); }
 });
 
 $("build").textContent = BUILD;

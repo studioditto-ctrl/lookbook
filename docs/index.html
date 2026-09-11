@@ -20,9 +20,13 @@
 
 <div id="shell">
 <aside id="sidebar">
-  <nav id="topicNav"></nav>
+  <nav id="topicNav" class="navlist"></nav>
   <button class="tiny wide dashed" onclick="focusNewTopic()">＋ 새 주제</button>
 </aside>
+
+<!-- 가운데 단. 데스크탑에서만 쓴다 — 고른 주제 안에서 무엇을 보고 있는지
+     (발송 일정 / 키워드 / 검색 범위 / 소스 / 주제 삭제) 여기서 고른다. -->
+<aside id="sectionNav"></aside>
 
 <main>
   <div id="tokenCard"></div>
