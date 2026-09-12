@@ -1,0 +1,186 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCejeuL7B6s8UpsNaYWWzeEQ",
+      "kind": "youtube",
+      "name": "런저씨",
+      "reason": "국내 러너들이 즐겨 보는 마라톤·러닝 훈련 콘텐츠 채널입니다.",
+      "region": "domestic",
+      "subscribers": 853000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC9hOiJfiGTaB2tV3IGCb09A",
+      "kind": "youtube",
+      "name": "러닝하는 사람들",
+      "reason": "러닝 대회와 훈련 일상을 공유하는 국내 러닝 채널입니다.",
+      "region": "domestic",
+      "subscribers": 3,
+      "verified": true
+    },
+    {
+      "channel_id": "UCnU624-3EMfpj9LgPS-QTcQ",
+      "kind": "youtube",
+      "name": "마라톤TV",
+      "reason": "국내 마라톤 대회와 러닝 정보를 다룹니다.",
+      "region": "domestic",
+      "subscribers": 20800,
+      "verified": true
+    },
+    {
+      "channel_id": "UCtDBpcdvB2TZ-zymCKAbz2A",
+      "kind": "youtube",
+      "name": "러닝화 리뷰어 런하이",
+      "reason": "러닝화 리뷰와 러닝 장비 정보를 제공합니다.",
+      "region": "domestic",
+      "subscribers": 86400,
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "마니아타임즈 러닝",
+      "reason": "국내 마라톤·러닝 대회 소식을 꾸준히 보도하는 매체입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "러너스클럽 (마라톤온라인)",
+      "reason": "국내 마라톤 대회 일정과 러닝 정보를 모아 제공합니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "동아일보 스포츠(마라톤)",
+      "reason": "서울국제마라톤 주최사로 마라톤 관련 기사를 자주 싣습니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "channel_id": "UCJVMrR290HU9pDxaP35u_cg",
+      "kind": "youtube",
+      "name": "Global Triathlon Network",
+      "reason": "러닝을 포함한 지구력 스포츠 훈련 콘텐츠를 다룹니다.",
+      "region": "international",
+      "subscribers": 1100000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCOBM9FasII4dKbyE_HKkbjw",
+      "kind": "youtube",
+      "name": "The Run Testers",
+      "reason": "러닝화와 러닝 기어를 전문적으로 리뷰하는 채널입니다.",
+      "region": "international",
+      "subscribers": 122000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCZPqG0yh_xPm2AyLjffbDvw",
+      "kind": "youtube",
+      "name": "Ben Parkes",
+      "reason": "마라톤 훈련기와 러닝화 리뷰로 유명한 러너 채널입니다.",
+      "region": "international",
+      "subscribers": 363000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCUwGYfvGvmqMnvQTOY8E_qg",
+      "kind": "youtube",
+      "name": "Göran Winblad",
+      "reason": "과학 기반 러닝 훈련 정보를 제공하는 채널입니다.",
+      "region": "international",
+      "subscribers": 206000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCbVEx9qG_hLrb6FrWQJz_Tg",
+      "kind": "youtube",
+      "name": "Nick Bare",
+      "reason": "하이브리드 러닝·마라톤 훈련 콘텐츠로 인기 있는 채널입니다.",
+      "region": "international",
+      "subscribers": 1520000,
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Runner's World",
+      "reason": "세계적으로 가장 널리 읽히는 러닝 전문 매체입니다.",
+      "region": "international",
+      "url": "https://www.runnersworld.com/",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "LetsRun.com",
+      "reason": "엘리트 육상과 마라톤 뉴스를 빠르게 전하는 사이트입니다.",
+      "region": "international",
+      "url": "https://www.letsrun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Believe in the Run",
+      "reason": "러닝화 리뷰 중심의 대표적인 러닝 블로그입니다.",
+      "region": "international",
+      "url": "https://believeintherun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Canadian Running Magazine",
+      "reason": "러닝 훈련·대회·연구 소식을 매일 업데이트합니다.",
+      "region": "international",
+      "url": "https://runningmagazine.ca/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Running Shoes Guru",
+      "reason": "러닝화 리뷰와 비교 정보를 제공합니다.",
+      "region": "international",
+      "url": "https://www.runningshoesguru.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "World Athletics",
+      "reason": "국제 육상·마라톤 공식 뉴스를 제공합니다.",
+      "region": "international",
+      "url": "https://worldathletics.org/rss/",
+      "verified": true
+    }
+  ],
+  "generated_at": "2026-09-12T00:50:27.970019+00:00",
+  "keywords": [
+    "러닝",
+    "마라톤",
+    "러닝화",
+    "페이스",
+    "인터벌",
+    "하프마라톤",
+    "러닝크루",
+    "훈련",
+    "기록",
+    "조깅"
+  ],
+  "scope": [
+    "러닝",
+    "런닝",
+    "달리기",
+    "마라톤",
+    "조깅",
+    "러닝화",
+    "러닝크루",
+    "하프마라톤",
+    "트레일러닝",
+    "running",
+    "marathon",
+    "jogging",
+    "trail running"
+  ],
+  "theme": "러닝"
+}
