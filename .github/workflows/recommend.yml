@@ -49,6 +49,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          # 계정 등급이나 모델이 또 바뀌면 코드를 고치지 않고 저장소 변수
+          # (Settings → Secrets and variables → Actions → Variables)로
+          # GEMINI_MODEL 을 넣어 바꿀 수 있다. 안 넣으면 코드 기본값을 쓴다.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             theme="${{ inputs.theme }}"; slug="${{ inputs.slug }}"; exclude="${{ inputs.exclude }}"

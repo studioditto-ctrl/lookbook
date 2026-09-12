@@ -545,6 +545,41 @@ class TestRecommend(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.mod._request(client, "러닝")
 
+    def test_rate_limit_is_retried_then_succeeds(self):
+        # 진짜 일시적인 쿼터 초과라면 한 번 더 시도해서 풀릴 수 있다.
+        from google.genai import errors
+
+        calls = {"n": 0}
+
+        def flaky_request(client, theme, exclude_names=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise errors.APIError(429, {"error": {"message": "quota exceeded"}})
+            return {"candidates": [], "keywords": [], "scope": []}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=flaky_request), \
+             unittest.mock.patch("time.sleep", return_value=None), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod._ask_gemini("러닝")
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(result, {"candidates": [], "keywords": [], "scope": []})
+
+    def test_rate_limit_gives_up_after_max_retries(self):
+        from google.genai import errors
+
+        calls = {"n": 0}
+
+        def always_flaky(client, theme, exclude_names=None):
+            calls["n"] += 1
+            raise errors.APIError(429, {"error": {"message": "quota exceeded"}})
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=always_flaky), \
+             unittest.mock.patch("time.sleep", return_value=None), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(RuntimeError):
+                self.mod._ask_gemini("러닝")
+        self.assertEqual(calls["n"], self.mod.RATE_LIMIT_RETRIES + 1)
+
     def test_youtube_candidate_dropped_when_not_found(self):
         import youtube as youtube_module
 

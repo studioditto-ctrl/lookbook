@@ -21,12 +21,24 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-MODEL = "gemini-3.1-pro-preview"
+# gemini-2.5-pro 는 신규 사용자에게 막혔고, 그다음 쓴 gemini-3.1-pro-preview
+# 는 무료 등급 쿼터가 0(유료 결제가 있어야 쓸 수 있는 등급)이었다. flash 계열은
+# 보통 무료 등급에도 쿼터가 있어 기본값으로 둔다. 계정 등급이 바뀌거나 모델이
+# 또 바뀌면, GEMINI_MODEL 환경변수(워크플로 시크릿/변수)로 코드를 안 고치고
+# 바꿀 수 있다.
+MODEL = os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash"
 MAX_TOKENS = 12000
 # 후보를 늘릴수록 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
+
+# 진짜 일시적인 쿼터 초과(순간적으로 몰렸을 때)라면 잠깐 기다리면 풀린다.
+# 등급 자체에 쿼터가 0 인 경우(이번에 겪은 것)는 재시도해도 똑같이 막히지만,
+# 몇 초 더 기다리는 비용이 크지 않아 구분하지 않고 한 번은 재시도해 본다.
+RATE_LIMIT_RETRIES = 2
+RATE_LIMIT_BACKOFF_SECONDS = 20
 
 REPO = Path(__file__).resolve().parent.parent
 RECOMMEND_DIR = REPO / "state" / "recommend"
@@ -159,14 +171,22 @@ def _ask_gemini(theme, exclude_names=None):
     from google.genai import errors
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    try:
-        return _request(client, theme, exclude_names=exclude_names)
-    except errors.APIError as e:
-        if e.code == 429:
-            raise RuntimeError(f"요청 한도 초과: {e.message}") from e
-        raise RuntimeError(f"API 오류 {e.code}: {e.message}") from e
-    except httpx.HTTPError as e:
-        raise RuntimeError(f"API 연결 실패: {e}") from e
+    attempt = 0
+    while True:
+        try:
+            return _request(client, theme, exclude_names=exclude_names)
+        except errors.APIError as e:
+            if e.code == 429 and attempt < RATE_LIMIT_RETRIES:
+                attempt += 1
+                print(f"[recommend] 요청 한도 초과, {RATE_LIMIT_BACKOFF_SECONDS}초 후 재시도"
+                      f" ({attempt}/{RATE_LIMIT_RETRIES}): {e.message}")
+                time.sleep(RATE_LIMIT_BACKOFF_SECONDS)
+                continue
+            if e.code == 429:
+                raise RuntimeError(f"요청 한도 초과: {e.message}") from e
+            raise RuntimeError(f"API 오류 {e.code}: {e.message}") from e
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"API 연결 실패: {e}") from e
 
 
 def _verify_youtube(name, key, cache):
