@@ -1,0 +1,5 @@
+{
+  "error": "API 오류 404: This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.6-flash for the latest features and improvements. We recommend you to use the Interactions API.",
+  "generated_at": "2026-09-12T08:15:14.284814+00:00",
+  "theme": "러닝"
+}
