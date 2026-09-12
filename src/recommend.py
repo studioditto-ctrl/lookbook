@@ -123,7 +123,7 @@ _REFUSAL_FINISH_REASONS = {
 }
 
 
-def _request(client, theme, exclude_names=None):
+def _request(client, theme, exclude_names=None, model=None):
     from google.genai import types
 
     content = f"주제: {theme}"
@@ -132,7 +132,7 @@ def _request(client, theme, exclude_names=None):
             + ", ".join(exclude_names)
 
     response = client.models.generate_content(
-        model=MODEL,
+        model=model or MODEL,
         contents=content,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM,
@@ -162,6 +162,27 @@ def _request(client, theme, exclude_names=None):
     return json.loads(text)
 
 
+def _generate_content_models(client):
+    """실제로 generateContent 를 지원하는 모델 이름 목록을 물어본다.
+
+    모델 이름은 계정 등급·시기에 따라 계속 바뀐다(이번에 세 번 겪었다).
+    추측 대신 API 에 직접 물어서 지금 이 키로 실제 쓸 수 있는 것만 고른다.
+    실패하면 빈 목록 — 호출자가 알아서 최종 오류로 안내한다.
+    """
+    try:
+        names = []
+        for m in client.models.list():
+            if "generateContent" not in (m.supported_actions or []):
+                continue
+            name = (m.name or "").removeprefix("models/")
+            if name:
+                names.append(name)
+        return names
+    except Exception as e:
+        print(f"[recommend] 사용 가능한 모델 목록을 가져오지 못했습니다: {e}")
+        return []
+
+
 def _ask_gemini(theme, exclude_names=None):
     if not os.environ.get("GEMINI_API_KEY"):
         raise RuntimeError("GEMINI_API_KEY 가 없습니다")
@@ -171,11 +192,28 @@ def _ask_gemini(theme, exclude_names=None):
     from google.genai import errors
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    model = MODEL
+    fallback_tried = False
     attempt = 0
     while True:
         try:
-            return _request(client, theme, exclude_names=exclude_names)
+            return _request(client, theme, exclude_names=exclude_names, model=model)
         except errors.APIError as e:
+            # 모델 이름이 더 이상 없거나(404) 이 계정으로는 못 쓰는 경우 —
+            # 추측 대신 실제 목록을 물어 쓸 수 있는 것으로 한 번 바꿔본다.
+            if e.code == 404 and not fallback_tried:
+                fallback_tried = True
+                available = _generate_content_models(client)
+                fallback = next((n for n in available if "flash" in n.lower()), None) \
+                    or (available[0] if available else None)
+                if fallback and fallback != model:
+                    print(f"[recommend] '{model}' 모델을 쓸 수 없어(404) 실제 사용 가능한"
+                          f" '{fallback}' 로 다시 시도합니다. (전체 목록: "
+                          f"{', '.join(available)})")
+                    model = fallback
+                    continue
+                hint = f" 사용 가능한 모델: {', '.join(available)}" if available else ""
+                raise RuntimeError(f"API 오류 404: {e.message}.{hint}") from e
             if e.code == 429 and attempt < RATE_LIMIT_RETRIES:
                 attempt += 1
                 print(f"[recommend] 요청 한도 초과, {RATE_LIMIT_BACKOFF_SECONDS}초 후 재시도"

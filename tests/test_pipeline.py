@@ -551,7 +551,7 @@ class TestRecommend(unittest.TestCase):
 
         calls = {"n": 0}
 
-        def flaky_request(client, theme, exclude_names=None):
+        def flaky_request(client, theme, exclude_names=None, model=None):
             calls["n"] += 1
             if calls["n"] == 1:
                 raise errors.APIError(429, {"error": {"message": "quota exceeded"}})
@@ -569,7 +569,7 @@ class TestRecommend(unittest.TestCase):
 
         calls = {"n": 0}
 
-        def always_flaky(client, theme, exclude_names=None):
+        def always_flaky(client, theme, exclude_names=None, model=None):
             calls["n"] += 1
             raise errors.APIError(429, {"error": {"message": "quota exceeded"}})
 
@@ -579,6 +579,59 @@ class TestRecommend(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.mod._ask_gemini("러닝")
         self.assertEqual(calls["n"], self.mod.RATE_LIMIT_RETRIES + 1)
+
+    def test_generate_content_models_filters_by_supported_action(self):
+        from types import SimpleNamespace
+
+        client = SimpleNamespace(models=SimpleNamespace(list=lambda: iter([
+            SimpleNamespace(name="models/gemini-2.0-flash", supported_actions=["generateContent"]),
+            SimpleNamespace(name="models/embedding-001", supported_actions=["embedContent"]),
+        ])))
+        self.assertEqual(self.mod._generate_content_models(client), ["gemini-2.0-flash"])
+
+    def test_generate_content_models_returns_empty_list_on_failure(self):
+        from types import SimpleNamespace
+
+        def boom():
+            raise RuntimeError("no access")
+
+        client = SimpleNamespace(models=SimpleNamespace(list=boom))
+        self.assertEqual(self.mod._generate_content_models(client), [])
+
+    def test_model_not_found_falls_back_to_available_model_and_retries(self):
+        # 모델 이름은 계정 등급·시기에 따라 계속 바뀐다 — 추측 대신 실제
+        # 사용 가능한 목록에서 골라 한 번 더 시도해야 한다.
+        from google.genai import errors
+
+        calls = []
+
+        def flaky_request(client, theme, exclude_names=None, model=None):
+            calls.append(model)
+            if model == self.mod.MODEL:
+                raise errors.APIError(404, {"error": {"message": "not found"}})
+            return {"candidates": [], "keywords": [], "scope": []}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=flaky_request), \
+             unittest.mock.patch.object(self.mod, "_generate_content_models",
+                                        return_value=["gemini-2.0-pro", "gemini-2.0-flash"]), \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod._ask_gemini("러닝")
+        self.assertEqual(calls, [self.mod.MODEL, "gemini-2.0-flash"])
+        self.assertEqual(result, {"candidates": [], "keywords": [], "scope": []})
+
+    def test_model_not_found_raises_with_list_when_fallback_also_missing(self):
+        from google.genai import errors
+
+        def always_404(client, theme, exclude_names=None, model=None):
+            raise errors.APIError(404, {"error": {"message": "not found"}})
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=always_404), \
+             unittest.mock.patch.object(self.mod, "_generate_content_models", return_value=[]), \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(RuntimeError):
+                self.mod._ask_gemini("러닝")
 
     def test_youtube_candidate_dropped_when_not_found(self):
         import youtube as youtube_module
