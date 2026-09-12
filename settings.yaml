@@ -83,7 +83,7 @@ digests:
     slots:
       - slot: daily
         title: "맨몸운동 브리핑"
-        send_at: "18:00"
+        send_at: "06:00"
         enabled: true
         articles: 2
         videos: 3
