@@ -1,0 +1,290 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UC6VzIz8tJLnetS79VbsHPGg",
+      "kind": "youtube",
+      "name": "런업",
+      "rank": 1,
+      "reason": "감각적인 스트릿 패션 패션 하울과 라이프스타일 트렌드를 공유하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 242000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCJdZej-O_M69bB4M6aiiLcw",
+      "kind": "youtube",
+      "name": "패션유튜브 삭형",
+      "rank": 2,
+      "reason": "기본 아이템을 활용한 깔끔한 남성 데일리룩 스타일링을 이해하기 쉽게 설명합니다.",
+      "region": "domestic",
+      "subscribers": 240000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC3FKRf9yBdtCvsrB8lcIAKg",
+      "kind": "youtube",
+      "name": "호수",
+      "rank": 3,
+      "reason": "깔끔하고 세련된 남성 미니멀 룩과 시즌별 아이템을 추천해 주는 패션 채널입니다.",
+      "region": "domestic",
+      "subscribers": 239000,
+      "verified": true
+    },
+    {
+      "channel_id": "UChqMfxxQhPIPPQGT0gIknAg",
+      "kind": "youtube",
+      "name": "키큰형",
+      "rank": 4,
+      "reason": "체형별 남성 패션 팁과 현실적인 코디 팁을 다양하게 제시합니다.",
+      "region": "domestic",
+      "subscribers": 6540,
+      "verified": true
+    },
+    {
+      "channel_id": "UCDHnXzXMy11cWm95J-Lw-bQ",
+      "kind": "youtube",
+      "name": "Parker York Smith",
+      "rank": 1,
+      "reason": "TPO에 맞는 남성 스타일링과 실용적인 룩북을 다채롭게 소개하는 채널입니다.",
+      "region": "international",
+      "subscribers": 1160000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCHdPuKshPHyRHE3rz75rXdw",
+      "kind": "youtube",
+      "name": "Dre Drexler",
+      "rank": 2,
+      "reason": "남성 패션 코디뿐만 아니라 머리 스타일링과 그루밍 정보까지 다루는 채널입니다.",
+      "region": "international",
+      "subscribers": 1000000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCOgz_YflAsYnGbdvzXuKNCA",
+      "kind": "youtube",
+      "name": "Daniel Simmons",
+      "rank": 3,
+      "reason": "미니멀하고 감각적인 남성 핏과 색감 조합을 보여주는 런던 기반의 패션 유튜버입니다.",
+      "region": "international",
+      "subscribers": 802000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCgL9g1sShIgPcseyyKzhG5Q",
+      "kind": "youtube",
+      "name": "Gallucks",
+      "rank": 4,
+      "reason": "하이엔드 디자이너 브랜드와 스트릿 웨어 위주의 남성 트렌드를 선보입니다.",
+      "region": "international",
+      "subscribers": 155000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "W Korea",
+      "reason": "트렌디한 남성 패션 화보와 글로벌 패션 하우스의 신상 소식을 전합니다.",
+      "region": "domestic",
+      "url": "https://www.wkorea.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "루엘",
+      "reason": "3040 남성을 타깃으로 한 고급스러운 클래식 패션과 라이프스타일을 소개합니다.",
+      "region": "domestic",
+      "url": "http://www.luel.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "하퍼스 바자 코리아",
+      "reason": "감각적인 남성 스타 화보 및 럭셔리 패션 트렌드를 다루는 매거진입니다.",
+      "region": "domestic",
+      "url": "https://www.harpersbazaar.co.kr/rss/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "싱글즈",
+      "reason": "2030 남성을 위한 트렌디한 패션 트렌드와 스타일링 기사를 제공합니다.",
+      "region": "domestic",
+      "url": "https://m.thesingle.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "패션엔",
+      "reason": "패션 산업 전반의 신속한 뉴스와 최신 스타일 트렌드를 다루는 전문 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.fashionn.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Popeye Web",
+      "reason": "시티보이 룩의 원조 격인 일본 대표 남성 패션 라이프스타일 매거진입니다.",
+      "region": "international",
+      "url": "https://popeyemagazine.jp/feed/podcast",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Vogue Hommes",
+      "reason": "세계 최고의 럭셔리 남성 패션 트렌드와 하이엔드 수트 스타일을 소개합니다.",
+      "region": "international",
+      "url": "https://www.vogue.fr/feed/rss",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Men's Health",
+      "reason": "남성 패션, 스포티 룩, 그루밍 및 웰니스 정보를 폭넓게 다룹니다.",
+      "region": "international",
+      "url": "https://www.menshealth.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Wallpaper*",
+      "reason": "패션, 미니멀 디자인, 아키텍처가 어우러진 남성 트렌드를 다룹니다.",
+      "region": "international",
+      "url": "https://www.wallpaper.com/feeds.xml",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Esquire US",
+      "reason": "글로벌 남성 스타일과 수트, 캐주얼 웨어 트렌드를 정통으로 다루는 매체입니다.",
+      "region": "international",
+      "url": "https://www.esquire.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "어미새",
+      "reason": "국내 최고 수준의 남성 패션 커뮤니티로 세일 정보와 착샷 공유가 활발합니다.",
+      "region": "domestic",
+      "url": "https://eomisae.co.kr/rss",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "벨보이 매거진",
+      "reason": "패션 에디터 시각에서 본 정교하고 감각적인 남성 패션 칼럼을 연재합니다.",
+      "region": "domestic",
+      "url": "http://bellboymagazine.com/rss/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "디젤매니아",
+      "reason": "대중적인 남성 패션 브랜드 정보와 데일리룩 추천이 풍부한 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "https://cafe.naver.com/dieselmania",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "무신사 스냅",
+      "reason": "실제 대중들의 다양한 남성 스트릿 및 데일리 스타일링을 확인할 수 있습니다.",
+      "region": "domestic",
+      "url": "https://www.musinsa.com/snap",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "힙합퍼",
+      "reason": "스트릿 패션 문화와 유스 카테고리의 남성 코디 룩북을 다루는 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.hiphoper.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "The Sartorialist",
+      "reason": "전 세계 도시들의 남성 스트릿 패션을 사진으로 기록하는 명성 높은 블로그입니다.",
+      "region": "international",
+      "url": "https://www.thesartorialist.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "He Spoke Style",
+      "reason": "남성 클래식 수트와 품격 있는 드레스코드 스타일링 가이드를 전문으로 전합니다.",
+      "region": "international",
+      "url": "https://hespokestyle.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Primer Magazine",
+      "reason": "실용적이고 가성비 높은 남성 스마트 캐주얼 코디 가이드를 제시합니다.",
+      "region": "international",
+      "url": "https://www.primermagazine.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Valet Magazine",
+      "reason": "독립 스타일 매거진으로 남성 의류, 액세서리, 그루밍 팁을 독립적으로 다룹니다.",
+      "region": "international",
+      "url": "https://www.valetmag.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Styleforum",
+      "reason": "클래식 수트, 맞춤복, 구두 등 깊이 있는 남성 패션 지식을 나누는 포럼입니다.",
+      "region": "international",
+      "url": "https://www.styleforum.net",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T09:01:07.281126+00:00",
+  "keywords": [
+    "남성패션",
+    "남성코디",
+    "남자옷",
+    "스트릿패션",
+    "클래식룩",
+    "시티보이룩",
+    "남성스타일링",
+    "스니커즈",
+    "menswear",
+    "mensfashion",
+    "streetwear",
+    "ootd",
+    "styleguide",
+    "grooming",
+    "데일리룩",
+    "남자패션",
+    "패션하울",
+    "브랜드추천",
+    "mensstyle",
+    "fashiontrend"
+  ],
+  "scope": [
+    "남성패션",
+    "남자패션",
+    "남성 코디",
+    "남자 코디",
+    "남성스타일",
+    "남자 스타일",
+    "menswear",
+    "men's fashion",
+    "mens fashion",
+    "남성복"
+  ],
+  "theme": "남성패션"
+}
