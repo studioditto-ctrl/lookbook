@@ -2,37 +2,6 @@
 # 채널 목록은 config*.yaml 에 있습니다.
 
 digests:
-  - config: config.yaml
-    label: 러닝
-    scope: [러닝, 달리기, 마라톤, 러너, running, marathon, runner]
-    slots:
-      - slot: morning
-        title: "러닝 브리핑"
-        send_at: "08:00"
-        enabled: true
-        articles: 3
-        videos: 3
-    keywords:
-      통증: 2
-      훈련: 3
-      루틴: 3
-      페이스: 2
-      기록: 2
-      마라톤: 3
-      러닝화: 2
-      스트레칭: 2
-      자세: 2
-      초보: 1
-      호흡: 1
-      training: 2
-      workout: 2
-      pace: 2
-      recovery: 3
-      shoes: 2
-      beginner: 1
-    queries:
-      - name: 러닝
-        query: "훈련 OR 루틴 OR 마라톤 OR recovery OR 통증 OR 페이스"
   - key: tmt5dr93z
     label: 돌파매매
     lookback_hours: 168
