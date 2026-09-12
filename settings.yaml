@@ -11,8 +11,8 @@ digests:
         title: "러닝 브리핑"
         send_at: "08:00"
         enabled: true
-        articles: 2
-        videos: 3
+        articles: 7
+        videos: 4
     keywords:
       러닝: 3
       달리기: 3
