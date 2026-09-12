@@ -81,18 +81,30 @@ def resolve_channel_id(url, cache, problems=None, source_name=None):
     return channel_id
 
 
+_NAME_NOISE_RE = re.compile(r"[^0-9a-z가-힣]+")
+
+
+def _normalize_channel_name(name):
+    return _NAME_NOISE_RE.sub("", (name or "").lower())
+
+
 def search_channel_id(query, cache, key, problems=None, source_name=None):
     """채널 이름으로 channel_id 를 찾는다. URL이나 핸들을 몰라도 등록할 수 있게.
 
     search 호출은 100 유닛으로 비싸지만, 찾은 결과를 state/channels.json 에
-    캐시하므로 채널당 한 번만 든다. 검색이라 다른 채널이 잡힐 수 있어
-    찾은 채널 이름을 로그에 남긴다 — 틀렸으면 캐시에서 지우고 고치면 된다.
+    캐시하므로 채널당 한 번만 든다. 관련도 1위가 늘 맞는 채널은 아니다 —
+    이름이 흔하면 동명의 소규모 채널이 관련도 1위로 잡히고, 정작 찾던
+    채널은 몇 번째 결과에 있기도 하다(그러면 구독자 수를 엉뚱한 채널에서
+    읽어 크게 틀린 값이 나온다). 상위 몇 개 중 이름이 가장 비슷한 것을
+    고르고, 비슷한 이름이 하나도 없으면 유튜브가 매긴 관련도 1위를 그대로
+    쓴다. 검색이라 그래도 다른 채널이 잡힐 수 있어 찾은 채널 이름을 로그에
+    남긴다 — 틀렸으면 캐시에서 지우고 고치면 된다.
     """
     cache_key = f"search:{query}"
     if cache_key in cache:
         return cache[cache_key]
 
-    params = {"part": "snippet", "type": "channel", "q": query, "maxResults": 1, "key": key}
+    params = {"part": "snippet", "type": "channel", "q": query, "maxResults": 5, "key": key}
     try:
         resp = requests.get(
             YT_SEARCH_API, params=params, timeout=TIMEOUT,
@@ -111,12 +123,23 @@ def search_channel_id(query, cache, key, problems=None, source_name=None):
         _note(problems, source_name or query, "검색 결과 없음")
         return None
 
-    top = results[0]
-    channel_id = (top.get("id") or {}).get("channelId")
-    if not channel_id:
+    valid = [r for r in results if (r.get("id") or {}).get("channelId")]
+    if not valid:
         _note(problems, source_name or query, "검색 결과에 channel_id 없음")
         return None
 
+    target = _normalize_channel_name(query)
+
+    def match_score(item):
+        title = _normalize_channel_name((item.get("snippet") or {}).get("title", ""))
+        if title and title == target:
+            return 2
+        if title and (title in target or target in title):
+            return 1
+        return 0
+
+    top = max(valid, key=match_score)
+    channel_id = top["id"]["channelId"]
     found = (top.get("snippet") or {}).get("title", "?")
     print(f"[collect] '{query}' 검색 → '{found}' ({channel_id})")
     cache[cache_key] = channel_id

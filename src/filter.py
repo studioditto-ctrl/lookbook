@@ -99,28 +99,37 @@ def _fold_similar(items):
     return kept, dropped
 
 
-def _pick(candidates, limit):
-    """점수 높은 순으로 뽑되, 한 출처가 연달아 독식하지 않게 분산한다."""
-    picked, used = [], {}
-    pool = sorted(candidates, key=lambda i: (-i.score, -i.published.timestamp()))
-
-    # 1순위: 출처당 1건씩
-    for item in pool:
+def _fill(pool, picked, used, limit):
+    """출처당 1건씩 우선 채우고, 자리가 남으면 점수순으로 채운다."""
+    ordered = sorted(pool, key=lambda i: (-i.score, -i.published.timestamp()))
+    for item in ordered:
         if len(picked) >= limit:
-            break
+            return
         if used.get(item.source):
             continue
         picked.append(item)
         used[item.source] = 1
-
-    # 자리가 남으면 점수순으로 채운다
-    for item in pool:
+    for item in ordered:
         if len(picked) >= limit:
-            break
+            return
         if item in picked:
             continue
         picked.append(item)
 
+
+def _pick(candidates, limit):
+    """점수 높은 순으로 뽑되, 한 출처가 연달아 독식하지 않게 분산한다.
+
+    사람이 직접 골라 적어둔(trusted) 채널·피드가 먼저다 — 검색으로 찾아온
+    영상은 검색어가 제목에 그대로 박혀 있어 키워드 점수가 높게 나오지만,
+    직접 고른 채널의 영상은 제목에 그 낱말이 없으면 점수가 낮아 밀려날 수
+    있다. trusted 를 최우선으로 채우고, 남는 자리만 나머지로 채운다.
+    """
+    trusted = [i for i in candidates if i.trusted]
+    rest = [i for i in candidates if not i.trusted]
+    picked, used = [], {}
+    _fill(trusted, picked, used, limit)
+    _fill(rest, picked, used, limit)
     return picked
 
 

@@ -1181,6 +1181,35 @@ class TestChannelSearch(unittest.TestCase):
         self.assertIsNone(self.youtube.search_channel_id("x", {}, "key", problems))
         self.assertEqual(len(problems), 1)
 
+    def test_prefers_exact_name_match_over_top_relevance_result(self):
+        """관련도 1위가 동명이인 소규모 채널이고, 찾던 채널이 2순위로 밀린 경우."""
+        hit = {"items": [
+            {"id": {"channelId": "UCsmallimpostorchannel1"},
+             "snippet": {"title": "런랜드 클립 모음"}},
+            {"id": {"channelId": "UCtherealbigchannelaaaa"},
+             "snippet": {"title": "런랜드"}},
+        ]}
+        server = FeedServer({"ambiguous.json": json.dumps(hit, ensure_ascii=False)})
+        try:
+            self.youtube.YT_SEARCH_API = server.url("ambiguous.json")
+            found = self.youtube.search_channel_id("런랜드", {}, "key")
+            self.assertEqual(found, "UCtherealbigchannelaaaa")
+        finally:
+            server.close()
+
+    def test_falls_back_to_top_relevance_when_nothing_matches_closely(self):
+        hit = {"items": [
+            {"id": {"channelId": "UConlyresultavailablehe"},
+             "snippet": {"title": "전혀 다른 이름"}},
+        ]}
+        server = FeedServer({"noexact.json": json.dumps(hit, ensure_ascii=False)})
+        try:
+            self.youtube.YT_SEARCH_API = server.url("noexact.json")
+            found = self.youtube.search_channel_id("런랜드", {}, "key")
+            self.assertEqual(found, "UConlyresultavailablehe")
+        finally:
+            server.close()
+
 
 class TestNameOnlySourceWiring(unittest.TestCase):
     """이름만 적힌 채널이 collect() 에서 검색 경로를 타는지."""
@@ -1823,6 +1852,50 @@ class TestYoutubeThresholds(unittest.TestCase):
         subs, ok = self.saved[1](["UC1"], "key", cache)
         self.assertEqual(subs, {"UC1": 500000})
         self.assertTrue(ok)
+
+
+class TestTrustedChannelPriority(unittest.TestCase):
+    """직접 골라 적어둔 채널이 검색으로 찾아온 영상보다 먼저 뽑혀야 한다.
+
+    검색 결과는 검색어가 제목에 그대로 있어 키워드 점수가 높게 나오지만,
+    그건 채널을 직접 고른 것보다 우선순위가 낮아야 한다."""
+
+    def setUp(self):
+        from collect import Item
+        from filter import select
+
+        self.Item = Item
+        self.select = select
+        self.now = datetime.now(timezone.utc)
+
+    def video(self, ident, title, source, trusted=False, searched=False):
+        return self.Item(id=ident, title=title, url=f"https://x.test/{ident}",
+                         source=source, kind="video", published=self.now,
+                         trusted=trusted, searched=searched)
+
+    def test_trusted_video_picked_over_higher_scoring_search_result(self):
+        mine = self.video("mine", "오늘의 브이로그", "채널A", trusted=True)
+        found = self.video("found", "러닝 꿀팁 모음", "검색:러닝", searched=True)
+        config = {"slots": {"m": {"articles": 0, "videos": 1}},
+                  "keywords": {"러닝": 3}}
+        _, videos = self.select([mine, found], {}, config, "m")
+        self.assertEqual([v.id for v in videos], ["mine"])
+
+    def test_search_results_still_fill_remaining_slots(self):
+        mine = self.video("mine", "오늘의 브이로그", "채널A", trusted=True)
+        found = self.video("found", "러닝 꿀팁 모음", "검색:러닝", searched=True)
+        config = {"slots": {"m": {"articles": 0, "videos": 2}},
+                  "keywords": {"러닝": 3}}
+        _, videos = self.select([mine, found], {}, config, "m")
+        self.assertEqual({v.id for v in videos}, {"mine", "found"})
+
+    def test_trusted_channels_still_diversify_among_themselves(self):
+        a = self.video("a1", "달리기 자세 교정 방법", "채널A", trusted=True)
+        a2 = self.video("a2", "마라톤 완주 후기", "채널A", trusted=True)
+        b = self.video("b1", "홈트레이닝 루틴 공유", "채널B", trusted=True)
+        config = {"slots": {"m": {"articles": 0, "videos": 2}}}
+        _, videos = self.select([a, a2, b], {}, config, "m")
+        self.assertEqual({v.source for v in videos}, {"채널A", "채널B"})
 
 
 class TestRelevanceGate(unittest.TestCase):
