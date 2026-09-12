@@ -1,0 +1,110 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCdtRAcd3L_UpV4tMXCw63NQ",
+      "kind": "youtube",
+      "name": "김계란 [피지컬갤러리]",
+      "reason": "맨몸운동 루틴과 홈트레이닝 콘텐츠를 대중적으로 다루는 국내 대표 채널입니다.",
+      "region": "domestic",
+      "subscribers": 2980000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCu8Oj6fqmD5tG4Nch2ijG4Q",
+      "kind": "youtube",
+      "name": "에이더 ADER",
+      "reason": "맨몸운동과 근력운동 자세 교정 콘텐츠를 꾸준히 올립니다.",
+      "region": "domestic",
+      "subscribers": 6900,
+      "verified": true
+    },
+    {
+      "channel_id": "UC3hRpIQ4x5niJDwjajQSVPg",
+      "kind": "youtube",
+      "name": "핏블리 FITVELY",
+      "reason": "운동 과학 기반으로 맨몸운동·홈트 루틴을 설명합니다.",
+      "region": "domestic",
+      "subscribers": 1420000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCpg89Ys3E4BaLGgEEWVmI9g",
+      "kind": "youtube",
+      "name": "땅끄부부",
+      "reason": "기구 없이 따라 할 수 있는 맨몸 홈트레이닝 영상을 다수 제공합니다.",
+      "region": "domestic",
+      "subscribers": 3190000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCGy944aplGzhn9AGQ-K9DnA",
+      "kind": "youtube",
+      "name": "칼리스데닉스 코리아",
+      "reason": "국내 칼리스데닉스(맨몸운동) 동작과 대회 소식을 다룹니다.",
+      "region": "domestic",
+      "subscribers": 3870,
+      "verified": true
+    },
+    {
+      "channel_id": "UCqjwF8rxRsotnojGl4gM0Zw",
+      "kind": "youtube",
+      "name": "THENX",
+      "reason": "크리스 히리아의 대표적인 칼리스데닉스 전문 채널입니다.",
+      "region": "international",
+      "subscribers": 7830000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC1CVzH-XVr3E-kTT6D8hhfg",
+      "kind": "youtube",
+      "name": "FitnessFAQs",
+      "reason": "맨몸운동 프로그래밍과 스트렝스 향상법을 과학적으로 설명합니다.",
+      "region": "international",
+      "subscribers": 2210000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCZIIRX8rkNjVpP-oLMHpeDw",
+      "kind": "youtube",
+      "name": "Calisthenicmovement",
+      "reason": "맨몸운동 동작 분석과 루틴 설계로 유명한 해외 채널입니다.",
+      "region": "international",
+      "subscribers": 4270000,
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "GMB Fitness",
+      "reason": "맨몸운동·움직임 훈련 관련 상세 가이드 글을 제공합니다.",
+      "region": "international",
+      "url": "https://gmb.io/blog/",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Nerd Fitness",
+      "reason": "초보자용 맨몸운동 루틴과 홈트 가이드를 꾸준히 발행합니다.",
+      "region": "international",
+      "url": "https://www.nerdfitness.com/blog/",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T00:12:44.054939+00:00",
+  "keywords": [
+    "맨몸운동",
+    "칼리스데닉스",
+    "홈트레이닝",
+    "푸시업",
+    "턱걸이",
+    "코어운동",
+    "스트렝스",
+    "기구없이",
+    "바디웨이트"
+  ],
+  "scope": [
+    "맨몸운동",
+    "칼리스데닉스",
+    "홈트레이닝"
+  ],
+  "theme": "맨몸운동"
+}
