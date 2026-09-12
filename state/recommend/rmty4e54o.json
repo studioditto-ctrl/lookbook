@@ -1,0 +1,309 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCCG6BEYjfQMGzypJw2EJCDQ",
+      "kind": "youtube",
+      "name": "815모니터톡",
+      "rank": 1,
+      "reason": "다양한 실전 투자 전문가들이 나와 돌파매매 등 주식 매매 전략을 공유하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 1290000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC6ij59Gy_HnqO4pFu9A_zgQ",
+      "kind": "youtube",
+      "name": "단테TV",
+      "rank": 2,
+      "reason": "주식 기술적 분석과 저항선 돌파매매 기법을 상세히 설명하는 주식 유튜브 채널입니다.",
+      "region": "domestic",
+      "subscribers": 602000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCqsuesS39x5nUWcBH-1Q6YA",
+      "kind": "youtube",
+      "name": "창원개미TV",
+      "rank": 3,
+      "reason": "주식 시장에서 전고점 돌파매매 및 실전 단타 전략을 집중적으로 다루는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 405000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC9HkKfb8u9r3GbYKoTsBUJQ",
+      "kind": "youtube",
+      "name": "주식시그널",
+      "rank": 4,
+      "reason": "실시간 차트 분석을 통해 주식 및 코인 돌파매매 타이밍을 분석하는 유튜브 채널입니다.",
+      "region": "domestic",
+      "subscribers": 25000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCVqjwXde3zUk2GYHWbpqE3A",
+      "kind": "youtube",
+      "name": "하승훈의 주식투자",
+      "rank": 5,
+      "reason": "차트 패턴 분석과 신고가 및 전고점 돌파매매 타점을 체계적으로 강의하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 2370,
+      "verified": true
+    },
+    {
+      "channel_id": "UCGL9ubdGcvZh_dvSV2z1hoQ",
+      "kind": "youtube",
+      "name": "The Trading Channel",
+      "rank": 1,
+      "reason": "외환 및 주식 차트의 주요 저항선 돌파 매매 전략을 교육하는 해외 채널입니다.",
+      "region": "international",
+      "subscribers": 2870000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCFSn-h8wTnhpKJMteN76Abg",
+      "kind": "youtube",
+      "name": "Rayner Teo",
+      "rank": 2,
+      "reason": "프라이스 액션 기반의 돌파매매 및 추세 추종 전략을 가르치는 유명 해외 주식 채널입니다.",
+      "region": "international",
+      "subscribers": 2210000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCBayuhgYpKNbhJxfExYkPfA",
+      "kind": "youtube",
+      "name": "Warrior Trading",
+      "rank": 3,
+      "reason": "데이 트레이딩 시 거래량과 모멘텀을 활용한 돌파매매 기법을 전문적으로 방송하는 채널입니다.",
+      "region": "international",
+      "subscribers": 2100000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCcIvNGMBSQWwo1v3n-ZRBCw",
+      "kind": "youtube",
+      "name": "Humbled Trader",
+      "rank": 4,
+      "reason": "단기 매매에서 돌파 패턴과 리스크 관리를 현실적으로 다루는 트레이딩 채널입니다.",
+      "region": "international",
+      "subscribers": 1490000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCYBI0zHsYhXPvVWThQOXkGA",
+      "kind": "youtube",
+      "name": "ForexSignals TV",
+      "rank": 5,
+      "reason": "외환 및 금융시장에서의 브레이크아웃(돌파) 트레이딩 기법을 분석해 주는 채널입니다.",
+      "region": "international",
+      "subscribers": 440000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "한국경제",
+      "reason": "증시 주요 종목의 신고가 경신 및 기술적 돌파 상황에 관한 기사를 제공하는 언론사입니다.",
+      "region": "domestic",
+      "url": "https://www.hankyung.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "매일경제",
+      "reason": "주식 시장 시황 및 기술적 분석에 기반한 종목 돌파 동향을 보도하는 전문 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.mk.co.kr/rss/30000001/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "이데일리",
+      "reason": "증권 시장의 주요 저항선 돌파 이슈와 모멘텀 종목 정보를 신속히 전하는 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.edaily.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "삼프로TV",
+      "reason": "금융 및 증권 트렌드를 보도하며 다양한 기술적 매매 기법을 다루는 경제 전문 미디어입니다.",
+      "region": "domestic",
+      "url": "https://www.3protv.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "연합인포맥스",
+      "reason": "금융 시장의 상세한 기술적 지표 및 변동성 돌파 분석 리포트를 제공하는 매체입니다.",
+      "region": "domestic",
+      "url": "https://news.einfomax.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Investopedia",
+      "reason": "브레이크아웃 트레이딩(돌파매매)의 개념과 전략을 상세히 소개하는 금융 전문 매체입니다.",
+      "region": "international",
+      "url": "https://feeds-api.dotdashmeredith.com/v1/rss/google/f8466ec3-5044-46bc-94b7-2df65f770eff",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "TradingView",
+      "reason": "전 세계 트레이더들이 돌파매매 아이디어와 차트 분석을 공유하는 금융 플랫폼 매체입니다.",
+      "region": "international",
+      "url": "https://www.tradingview.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "MarketWatch",
+      "reason": "미국 증시 종목들의 신고가 경신 및 돌파 트렌드를 실시간으로 전하는 경제 매체입니다.",
+      "region": "international",
+      "url": "https://www.marketwatch.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Bloomberg",
+      "reason": "글로벌 금융 시장의 기술적 분석과 모멘텀 돌파 기사를 다루는 외신 매체입니다.",
+      "region": "international",
+      "url": "https://www.bloomberg.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "CNBC",
+      "reason": "글로벌 주식 및 자산 시장의 주요 저항선 돌파 뉴스를 보도하는 경제 방송 매체입니다.",
+      "region": "international",
+      "url": "https://www.cnbc.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "팍스넷",
+      "reason": "국내 개인 트레이더들이 실전 돌파매매 일지와 차트 분석 글을 게재하는 주식 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "http://www.paxnet.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "38커뮤니티",
+      "reason": "주식 매매 기법과 신고가 돌파 종목에 관한 개인 게시글이 활발히 올라오는 공간입니다.",
+      "region": "domestic",
+      "url": "http://www.38.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "와우넷",
+      "reason": "전문가들의 기술적 분석 노하우와 돌파매매 전략 칼럼을 게재하는 주식 포털입니다.",
+      "region": "domestic",
+      "url": "https://www.wownet.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "네이버 주식 카페",
+      "reason": "개인 투자자들이 신고가 돌파매매 일지 및 매수 타점을 공유하는 블로그형 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "티스토리 주식 차트 연구소",
+      "reason": "전고점 돌파와 거래량 분석을 중심으로 매매 타점을 연구하는 개인 기술적 분석 블로그입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "BabyPips",
+      "reason": "초보 및 중급 트레이더를 위한 돌파매매 수칙과 프라이스 액션 블로그 콘텐츠를 제공합니다.",
+      "region": "international",
+      "url": "https://www.babypips.com/feed.rss",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Tradeciety",
+      "reason": "차트 패턴과 브레이크아웃 매매 시의 리스크 관리를 깊이 있게 다루는 전문 교육 블로그입니다.",
+      "region": "international",
+      "url": "https://www.tradeciety.com/rss.xml",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "DailyFX",
+      "reason": "외환 및 차트 브레이크아웃(돌파) 트레이딩 전략 가이드를 전문적으로 게재하는 블로그입니다.",
+      "region": "international",
+      "url": "https://www.dailyfx.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "StockCharts Blog",
+      "reason": "차트의 저항선 돌파 및 기술적 패턴 분석 칼럼을 지속적으로 발행하는 블로그입니다.",
+      "region": "international",
+      "url": "https://stockcharts.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Vantage Point Trading",
+      "reason": "단기 데이 트레이딩 시 차트 돌파 패턴을 매매하는 구체적 아티클을 게재하는 블로그입니다.",
+      "region": "international",
+      "url": "https://vantagepointtrading.com",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T08:29:32.265964+00:00",
+  "keywords": [
+    "돌파매매",
+    "breakout trading",
+    "전고점",
+    "저항선",
+    "신고가",
+    "거래량",
+    "차트 분석",
+    "기술적 분석",
+    "breakout",
+    "resistance level",
+    "volume breakout",
+    "price action",
+    "눌림목",
+    "손절매",
+    "stop loss",
+    "상승돌파",
+    "모멘텀",
+    "momentum",
+    "day trading",
+    "단타"
+  ],
+  "scope": [
+    "돌파매매",
+    "breakout trading",
+    "신고가 매매",
+    "돌파 매매",
+    "breakout strategy",
+    "전고점 돌파",
+    "저항선 돌파",
+    "breakout",
+    "신고가돌파"
+  ],
+  "theme": "돌파매매"
+}
