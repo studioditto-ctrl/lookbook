@@ -2,49 +2,6 @@
 # 채널 목록은 config*.yaml 에 있습니다.
 
 digests:
-  - key: tmt5dr93z
-    label: 돌파매매
-    lookback_hours: 168
-    slots:
-      - slot: daily
-        title: "돌파매매 브리핑"
-        send_at: "18:00"
-        enabled: true
-        articles: 3
-        videos: 3
-    keywords:
-      돌파매매: 3
-      추세추종: 3
-      깡토: 2
-      강환국: 2
-      systrader79: 2
-      니콜라스 다바스: 2
-      스탁이지: 2
-    queries:
-      - name: 돌파매매
-        query: "돌파매매 OR 추세추종 OR 깡토 OR 강환국 OR systrader79 OR \"니콜라스 다바스\""
-    feeds:
-      - name: love392722
-        url: "https://rss.blog.naver.com/love392722.xml"
-      - name: jjtoj
-        url: "https://rss.blog.naver.com/jjtoj.xml"
-      - name: PostList
-        url: "https://rss.blog.naver.com/PostList.xml"
-      - name: tysinvs
-        url: "https://rss.blog.naver.com/tysinvs.xml"
-      - name: press02
-        url: "https://rss.blog.naver.com/press02.xml"
-      - name: graceysh
-        url: "https://rss.blog.naver.com/graceysh.xml"
-    channels:
-      - name: "할 수 있다! 알고 투자"
-        channel_id: UCSWPuzlD337Y6VBkyFPwT8g
-      - name: 깡토의 추세추종
-        channel_id: UCdvDERW4YZdWhkacvDi9VMw
-      - name: TraderLion
-        channel_id: UCMgOSW62URSxzPCcNXyohLw
-      - name: "Investor's Business Daily"
-        channel_id: UC5fZv7bPcF5j2RsfO-9OiLA
   - key: tmtxmt963
     label: 맨몸운동
     scope: [맨몸운동, 칼리스데닉스, 캘리스테닉스, 홈트레이닝, 홈트, 바디웨이트, 근력운동, calisthenics, bodyweight]
