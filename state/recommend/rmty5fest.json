@@ -1,0 +1,249 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UC8a6z7i9qypp9PqJ_0HhBrw",
+      "kind": "youtube",
+      "name": "깡스타일리스트",
+      "rank": 1,
+      "reason": "다양한 스타일링 팁과 체형별 남성 패션 코디 정보를 전문적으로 전달하는 대표 채널입니다.",
+      "region": "domestic",
+      "subscribers": 1150000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCKWv0ScT6PpZcpg7ivUVWLA",
+      "kind": "youtube",
+      "name": "핏더사이즈",
+      "rank": 2,
+      "reason": "남성 패션 브랜드 리뷰와 스트릿 및 캐주얼 스타일링을 다루는 영향력 높은 채널입니다.",
+      "region": "domestic",
+      "subscribers": 739000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCcSepD5GRKpskptBW2TSKGg",
+      "kind": "youtube",
+      "name": "짱구대대",
+      "rank": 3,
+      "reason": "실용적인 미니멀룩과 일상적인 남성 트렌드 아이템을 소개하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 539000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCOHYlves6oxhyIQBRIIpPTQ",
+      "kind": "youtube",
+      "name": "와디의 신발장",
+      "rank": 4,
+      "reason": "스니커즈와 남성 스트릿웨어 중심의 패션 아이템 및 컬처를 소개합니다.",
+      "region": "domestic",
+      "subscribers": 246000,
+      "verified": true
+    },
+    {
+      "channel_id": "UChNN7VBxPTiNrqjUaQd9bxA",
+      "kind": "youtube",
+      "name": "Teachingmensfashion",
+      "rank": 1,
+      "reason": "남성 스타일, 그루밍, 패션 가이드를 다루는 글로벌 패션 채널입니다.",
+      "region": "international",
+      "subscribers": 7410000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC1KbedtKa3d5dleFR6OjQMg",
+      "kind": "youtube",
+      "name": "Alpha M.",
+      "rank": 2,
+      "reason": "남성 패션, 체형별 스타일링 및 그루밍 팁을 제공하는 대표적인 채널입니다.",
+      "region": "international",
+      "subscribers": 6940000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCyL0RJe41itDFjd70KKZIZQ",
+      "kind": "youtube",
+      "name": "Frugal Aesthetic",
+      "rank": 3,
+      "reason": "위트 있는 입담으로 스트릿웨어 트렌드와 남성 패션을 분석하는 유튜버입니다.",
+      "region": "international",
+      "subscribers": 1610000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCfJrdVVcWZMHLC--a4ovLLQ",
+      "kind": "youtube",
+      "name": "Tim Dessaint",
+      "rank": 4,
+      "reason": "미니멀 패션과 캐주얼 스타일링을 세련된 영상미로 전달하는 채널입니다.",
+      "region": "international",
+      "subscribers": 1580000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCoxWvJUqQWuWY6kkx1CBHZw",
+      "kind": "youtube",
+      "name": "One Dapper Street",
+      "rank": 5,
+      "reason": "클래식부터 스트릿까지 다양한 남성 데일리룩과 신발 코디를 소개합니다.",
+      "region": "international",
+      "subscribers": 1080000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "에스콰이어 코리아",
+      "reason": "남성 스타일, 시계, 라이프스타일 전반을 다루는 대표적인 남성 패션 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.esquirekorea.co.kr/rss/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "아레나 옴므 플러스",
+      "reason": "트렌디한 남성 패션 화보와 컬처 소식을 전달하는 라이프스타일 매거진입니다.",
+      "region": "domestic",
+      "url": "https://www.smlounge.co.kr/arena",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "아이즈매거진",
+      "reason": "최신 스트릿 패션, 스니커즈 소식 및 남성 트렌드를 신속하게 전달하는 웹진입니다.",
+      "region": "domestic",
+      "url": "https://www.eyesmag.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "무신사 매거진",
+      "reason": "국내 최대 패션 플랫폼에서 제공하는 남성 패션 트렌드 및 스타일 가이드입니다.",
+      "region": "domestic",
+      "url": "https://www.musinsa.com/mz/news",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "GQ",
+      "reason": "전 세계 남성 패션과 라이프스타일 트렌드를 이끄는 대표적인 매체입니다.",
+      "region": "international",
+      "url": "https://www.gq.com/feed/rss",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Hypebeast",
+      "reason": "스트릿웨어, 스니커즈, 남성 패션 컬처 소식을 전하는 글로벌 매체입니다.",
+      "region": "international",
+      "url": "https://hypebeast.com/feed",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Highsnobiety",
+      "reason": "유스 컬처와 하이엔드 남성 스트릿 패션을 전문적으로 다루는 미디어입니다.",
+      "region": "international",
+      "url": "https://www.highsnobiety.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Fantastic Man",
+      "reason": "세련되고 독창적인 시각으로 남성 스타일을 조명하는 잡지입니다.",
+      "region": "international",
+      "url": "https://www.fantasticman.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "온큐레이션",
+      "reason": "남성 패션 브랜드와 클래식 및 아메카지 스타일을 큐레이션하여 소개하는 블로그 웹진입니다.",
+      "region": "domestic",
+      "url": "https://oncuration.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "풋셀",
+      "reason": "스니커즈 패션과 남성 스트릿웨어 정보를 다루는 역사 깊은 커뮤니티 블로그입니다.",
+      "region": "domestic",
+      "url": "https://footsell.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Permanent Style",
+      "reason": "남성 클래식 수트와 bespoke 스타일 분야에서 세계적인 권위를 가진 블로그입니다.",
+      "region": "international",
+      "url": "https://www.permanentstyle.com/feed",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Dappered",
+      "reason": "합리적인 가격으로 즐길 수 있는 남성 스타일과 가성비 패션을 추천하는 블로그입니다.",
+      "region": "international",
+      "url": "https://dappered.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Put This On",
+      "reason": "남성 클래식웨어와 빈티지 스타일링 팁을 정교하게 다루는 저널 형태의 블로그입니다.",
+      "region": "international",
+      "url": "https://putthison.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Die, Workwear!",
+      "reason": "남성복 비평과 정통 맞춤복 역사, 스타일 분석을 깊이 있게 소개하는 블로그입니다.",
+      "region": "international",
+      "url": "https://dieworkwear.com",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T08:57:00.272331+00:00",
+  "keywords": [
+    "남성패션",
+    "men's fashion",
+    "남자코디",
+    "menswear",
+    "스트릿패션",
+    "streetwear",
+    "남친룩",
+    "OOTD",
+    "데일리룩",
+    "dailylook",
+    "아메카지",
+    "스마트캐주얼",
+    "smart casual",
+    "신발",
+    "sneakers",
+    "트렌드",
+    "trend",
+    "클래식패션",
+    "classic menswear",
+    "미니멀룩"
+  ],
+  "scope": [
+    "남성패션",
+    "남자패션",
+    "남성의류",
+    "남자코디",
+    "menswear",
+    "men's fashion",
+    "남자옷",
+    "남친룩",
+    "남자 데일리룩"
+  ],
+  "theme": "남성패션"
+}
