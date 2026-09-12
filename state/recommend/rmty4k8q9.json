@@ -1,0 +1,308 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCBM86JVoHLqg9irpR2XKvGw",
+      "kind": "youtube",
+      "name": "달란트투자",
+      "rank": 1,
+      "reason": "기술적 분석과 기업 분석을 통한 돌파 매매 및 투자 전략을 제시합니다.",
+      "region": "domestic",
+      "subscribers": 1590000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCF8AeLlUbEpKju6v1H6p8Eg",
+      "kind": "youtube",
+      "name": "주식창",
+      "rank": 2,
+      "reason": "한국경제TV에서 운영하는 채널로 다양한 차트 돌파 기법과 시황을 제공합니다.",
+      "region": "domestic",
+      "subscribers": 1400000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCWiMB4iRTqDGu5BmtT3Ytcg",
+      "kind": "youtube",
+      "name": "수급단타왕",
+      "rank": 3,
+      "reason": "주식 수급 및 차트 돌파 매매 기법을 전문적으로 다루는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 215000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCauZxKRDiGcrWplWUOIN9JQ",
+      "kind": "youtube",
+      "name": "이리온스튜디오",
+      "rank": 4,
+      "reason": "증권사 분석가들이 주식 시장 변동성 및 차트 돌파 포인트를 짚어줍니다.",
+      "region": "domestic",
+      "subscribers": 168000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCWeYU4snOLj4Jj52Q9VCcOg",
+      "kind": "youtube",
+      "name": "주식하는마음",
+      "rank": 5,
+      "reason": "단타 및 돌파 매매 타점을 분석하고 실전 투자 팁을 공유합니다.",
+      "region": "domestic",
+      "subscribers": 144000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCfWQuGYMfhZk9qq5x00sb9w",
+      "kind": "youtube",
+      "name": "Trading 212",
+      "rank": 1,
+      "reason": "초보자를 위한 차트 패턴 및 저항선 돌파매매 가이드를 제공합니다.",
+      "region": "international",
+      "subscribers": 1290000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCnKPQUoCRb1Vu-qWwWituGQ",
+      "kind": "youtube",
+      "name": "UKspreadbetting",
+      "rank": 2,
+      "reason": "돌파 매매 및 리스크 관리에 대한 인터뷰와 매매 전략을 제공합니다.",
+      "region": "international",
+      "subscribers": 425000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCy1_GzyOzjhB-vk1J6PLMdw",
+      "kind": "youtube",
+      "name": "Live Traders",
+      "rank": 3,
+      "reason": "주식 및 선물 시장에서의 돌파 매매 전략과 데이트레이딩 기법을 다룹니다.",
+      "region": "international",
+      "subscribers": 381000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCgY_eHY4NCTcRnU6CCZXWng",
+      "kind": "youtube",
+      "name": "TradingRush",
+      "rank": 4,
+      "reason": "돌파 매매를 포함한 다양한 기술적 지표 백테스팅 결과를 공유합니다.",
+      "region": "international",
+      "subscribers": 352000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCnqZ2hx679DqRi6khRUNw2g",
+      "kind": "youtube",
+      "name": "The Chart Guys",
+      "rank": 5,
+      "reason": "주요 기술적 저항선 돌파 및 트레이딩 패턴을 전문적으로 분석합니다.",
+      "region": "international",
+      "subscribers": 202000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "서울경제",
+      "reason": "증시 시황 및 신고가/저항선 돌파 종목 관련 기사를 제공합니다.",
+      "region": "domestic",
+      "url": "https://www.sedaily.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "머니투데이",
+      "reason": "국내외 주식 시장의 기술적 분석과 돌파 종목 뉴스를 다룹니다.",
+      "region": "domestic",
+      "url": "https://news.mt.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "조선비즈",
+      "reason": "증시 상장사의 전고점 돌파 및 투자 동향 소식을 전달합니다.",
+      "region": "domestic",
+      "url": "https://biz.chosun.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "아시아경제",
+      "reason": "주식 시장의 차트 흐름과 박스권 돌파 관련 투자 정보를 제공합니다.",
+      "region": "domestic",
+      "url": "https://www.asiae.co.kr/news/rss/asia_rss.htm",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "헤럴드경제",
+      "reason": "주요 증권사 리포트와 주가 돌파 흐름에 대한 뉴스를 보도합니다.",
+      "region": "domestic",
+      "url": "https://biz.heraldcorp.com/rss/google/newsAll",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Reuters",
+      "reason": "전 세계 금융 시장의 글로벌 신고가 및 기술적 돌파 뉴스 리포트를 제공합니다.",
+      "region": "international",
+      "url": "https://www.reuters.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Financial Times",
+      "reason": "글로벌 증시 및 자산의 주요 저항선 돌파 동향을 다룹니다.",
+      "region": "international",
+      "url": "https://www.ft.com/rss/home/international",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Investing.com",
+      "reason": "다양한 자산군의 기술적 분석 지표와 돌파 알림을 제공합니다.",
+      "region": "international",
+      "url": "https://www.investing.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "FXStreet",
+      "reason": "외환 및 자산 시장의 기술적 차트 패턴과 돌파 매매 분석을 다룹니다.",
+      "region": "international",
+      "url": "https://www.fxstreet.com/rss/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Seeking Alpha",
+      "reason": "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다.",
+      "region": "international",
+      "url": "https://www.seekingalpha.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "디시인사이드 주식 갤러리",
+      "reason": "개인 투자자들이 실시간 돌파 매매 타점과 차트를 토론합니다.",
+      "region": "domestic",
+      "url": "https://gall.dcinside.com/board/lists/?id=neostock",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "클리앙 주식게시판",
+      "reason": "차트 분석 및 돌파 매매 경험담을 공유하는 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "https://www.clien.net/service/board/cm_stock",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "뽐뿌 증권포럼",
+      "reason": "주가지수 및 개별 종목의 저항선 돌파 관련 정보가 교환됩니다.",
+      "region": "domestic",
+      "url": "https://www.ppomppu.co.kr/zboard/zboard.php?id=stock",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "루리웹 주식 게시판",
+      "reason": "개인 트레이더들의 실전 돌파 매매 후기와 기술적 분석글이 작성됩니다.",
+      "region": "domestic",
+      "url": "https://bbs.ruliweb.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "에펨코리아 주식/코인 게시판",
+      "reason": "급등주 및 박스권 돌파 종목에 대한 실시간 커뮤니티 반응을 확인할 수 있습니다.",
+      "region": "domestic",
+      "url": "https://www.fmkorea.com/stock",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Reddit r/Daytrading",
+      "reason": "해외 트레이더들이 돌파 매매 전략과 지표 백테스트를 토론하는 대표적 서브레딧입니다.",
+      "region": "international",
+      "url": "https://www.reddit.com/r/Daytrading/",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Reddit r/stocks",
+      "reason": "주요 종목의 신고가 돌파 및 시장 트렌드를 논의하는 게시판입니다.",
+      "region": "international",
+      "url": "https://www.reddit.com/r/stocks/",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Forex Factory",
+      "reason": "외환 및 금융 시장의 차트 돌파 패턴과 트레이딩 전략 포럼을 운영합니다.",
+      "region": "international",
+      "url": "https://www.forexfactory.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Elite Trader",
+      "reason": "전업 트레이더들이 기술적 돌파 매매 시스템과 기법을 토론하는 커뮤니티입니다.",
+      "region": "international",
+      "url": "https://www.elitetrader.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Quantified Strategies",
+      "reason": "돌파 매매를 비롯한 다양한 트레이딩 기법의 정량적 백테스트 결과를 제시합니다.",
+      "region": "international",
+      "url": "https://www.quantifiedstrategies.com",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T08:34:08.457502+00:00",
+  "keywords": [
+    "돌파매매",
+    "전고점",
+    "박스권",
+    "저항선",
+    "신고가",
+    "거래량",
+    "차트분석",
+    "지지선",
+    "눌림목",
+    "변동성",
+    "breakout",
+    "resistance",
+    "support",
+    "volume",
+    "chart pattern",
+    "momentum",
+    "consolidation",
+    "price action",
+    "trend line",
+    "breakout strategy"
+  ],
+  "scope": [
+    "돌파매매",
+    "돌파 매매",
+    "전고점 돌파",
+    "박스권 돌파",
+    "Breakout",
+    "Breakout Trading",
+    "저항선 돌파",
+    "신고가 돌파"
+  ],
+  "theme": "돌파매매"
+}
