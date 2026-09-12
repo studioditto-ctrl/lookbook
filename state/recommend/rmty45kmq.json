@@ -1,0 +1,267 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCx_2bXULZciQY76UoDhIntA",
+      "kind": "youtube",
+      "name": "마라닉 TV",
+      "rank": 1,
+      "reason": "러닝 초보자를 위한 폼 교정, 마라톤 훈련법 및 다양한 러닝 관련 정보와 팁을 제공합니다.",
+      "region": "domestic",
+      "subscribers": 226000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCGDGw1dMotpPPWXC6ee_cZA",
+      "kind": "youtube",
+      "name": "런업 RunUp",
+      "rank": 2,
+      "reason": "러닝 라이프스타일, 러닝화 리뷰 및 일상 달리기의 즐거움을 전하는 라이프스타일 러닝 채널입니다.",
+      "region": "domestic",
+      "subscribers": 167000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCLMgTOIsSuQhkRg_W52zMjQ",
+      "kind": "youtube",
+      "name": "정석근 헬스마라톤",
+      "rank": 3,
+      "reason": "마라톤 선수 출신의 주법 지도 및 주행 팁, 부상 방지 관련 전문 지식을 다룹니다.",
+      "region": "domestic",
+      "subscribers": 42400,
+      "verified": true
+    },
+    {
+      "channel_id": "UCMlX3EmToQMkz5fz0VO-tkw",
+      "kind": "youtube",
+      "name": "올댓러닝",
+      "rank": 4,
+      "reason": "다양한 러닝 기어 리뷰와 트랙/로드 러닝 훈련법을 알기 쉽게 전해줍니다.",
+      "region": "domestic",
+      "subscribers": 7360,
+      "verified": true
+    },
+    {
+      "channel_id": "UCX7dV4OPDSutwMUauSD5AAA",
+      "kind": "youtube",
+      "name": "The Running Channel",
+      "rank": 1,
+      "reason": "러닝 훈련법, 챌린지, 용품 리뷰 등 전 세계 러너들을 위한 다채로운 비디오를 제공합니다.",
+      "region": "international",
+      "subscribers": 840000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCe43pe3w4L6w3tNMRkWiJBA",
+      "kind": "youtube",
+      "name": "Kofuzi",
+      "rank": 2,
+      "reason": "마라톤 준비 과정과 시중의 최신 러닝화 리뷰를 솔직하게 전하는 해외 유튜버입니다.",
+      "region": "international",
+      "subscribers": 242000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCeSHo5kTvzoik4STh7MuMCA",
+      "kind": "youtube",
+      "name": "Seth James DeMoor",
+      "rank": 3,
+      "reason": "매일 일상적인 러닝 브이로그와 러닝화 신제품 상세 리뷰를 올리는 인기 해외 러너입니다.",
+      "region": "international",
+      "subscribers": 168000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCFYpwqeNXx7M9xosFjdm5kQ",
+      "kind": "youtube",
+      "name": "Sweat Elite",
+      "rank": 4,
+      "reason": "엘리트 마라톤 선수들의 훈련 방식과 밀착 취재 영상을 다루는 전문 러닝 채널입니다.",
+      "region": "international",
+      "subscribers": 146000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCx2Xqm8S3Ghqn5puhSKWH4Q",
+      "kind": "youtube",
+      "name": "Runner's World",
+      "rank": 5,
+      "reason": "세계적인 러닝 전문 매거진의 공식 유튜브 채널로 선수 인터뷰와 트레이닝 팁을 전달합니다.",
+      "region": "international",
+      "subscribers": 98200,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "러너스월드 코리아",
+      "reason": "글로벌 러닝 매체 러너스월드의 한국판으로 체계적인 러닝 정보와 기사를 제공합니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "마라톤타임즈",
+      "reason": "국내외 마라톤 대회 일정 및 대중 러닝 관련 뉴스를 전문적으로 전하는 매체입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "스포츠조선",
+      "reason": "마라톤 대회 소식 및 러닝/육상 분야의 주요 스포츠 기사를 다룹니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "스포츠경향",
+      "reason": "국내 생활체육 마라톤 소식과 건강 러닝 팁에 대한 기사를 다룹니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Runner's World",
+      "reason": "세계 최대 규모의 러닝 전문 언론사로 최신 트렌드, 건강 정보, 제품 평가를 다룹니다.",
+      "region": "international",
+      "url": "https://www.runnersworld.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Canadian Running Magazine",
+      "reason": "북미 중심의 최신 러닝 뉴스, 대중적 훈련법, 용품 가이드를 다루는 언론 매체입니다.",
+      "region": "international",
+      "url": "https://runningmagazine.ca",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Athletics Weekly",
+      "reason": "육상 및 장거리 러닝, 트랙 경기 소식을 전문적으로 취재하는 영국의 전문 매체입니다.",
+      "region": "international",
+      "url": "https://athleticsweekly.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Women's Running",
+      "reason": "여성 러너들을 위한 영양, 트레이닝, 러닝 기어 정보에 특화된 러닝 전문 매체입니다.",
+      "region": "international",
+      "url": "https://www.womensrunning.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Trail Runner Magazine",
+      "reason": "산악 및 트레일 러닝 분야에 집중하여 코스 및 전문 장비 소식을 전합니다.",
+      "region": "international",
+      "url": "https://www.trailrunnermag.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "디시인사이드 러닝 갤러리",
+      "reason": "국내 러너들의 솔직한 후기, 대회 정보, 러닝화 할인 정보 등이 활발히 공유되는 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "클리앙 땀흘리는사람들",
+      "reason": "다양한 운동 러너들이 작성하는 러닝 훈련 기록 및 장비 정보 공유 게시판입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "네이버 러닝 블로그 커뮤니티",
+      "reason": "개인 러너들의 마라톤 완주 기록 및 일상 러닝 일지 블로그 글들이 모이는 공간입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Believe in the Run",
+      "reason": "신제품 러닝화 및 트레일 러닝용품에 대한 깊이 있고 독립적인 리뷰를 작성하는 독립 블로그입니다.",
+      "region": "international",
+      "url": "https://believeintherun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "DC Rainmaker",
+      "reason": "가민, 애플워치 등 러닝용 스마트워치 및 GPS 테크 기기에 관한 최고 수준의 리뷰 블로그입니다.",
+      "region": "international",
+      "url": "https://www.dcrainmaker.com/feed",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Road Trail Run",
+      "reason": "여러 러너들의 다각도 테스트를 거쳐 러닝화 및 의류의 주행감을 평가하는 대표적 기술 블로그입니다.",
+      "region": "international",
+      "url": "https://www.roadtrailrun.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "RunRepeat",
+      "reason": "러닝화를 직접 분해하고 정밀 측정하여 과학적 데이터 기반 리뷰를 제공하는 분석 블로그입니다.",
+      "region": "international",
+      "url": "https://runrepeat.com",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T08:21:12.389291+00:00",
+  "keywords": [
+    "러닝",
+    "달리기",
+    "마라톤",
+    "조깅",
+    "러닝화",
+    "하프마라톤",
+    "풀코스",
+    "페이스",
+    "케이던스",
+    "런린이",
+    "트레일러닝",
+    "running",
+    "marathon",
+    "jogging",
+    "running shoes",
+    "pace",
+    "cadence",
+    "trail running",
+    "sub3",
+    "서브3"
+  ],
+  "scope": [
+    "러닝",
+    "달리기",
+    "마라톤",
+    "조깅",
+    "런린이",
+    "육상",
+    "running",
+    "marathon",
+    "jogging",
+    "runner"
+  ],
+  "theme": "러닝"
+}
