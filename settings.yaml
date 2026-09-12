@@ -222,10 +222,10 @@ digests:
     slots:
       - slot: daily
         title: "남성패션 브리핑"
-        send_at: "18:00"
+        send_at: "12:00"
         enabled: true
         articles: 5
-        videos: 3
+        videos: 5
     keywords:
       남성패션: 3
       "men's fashion": 3
