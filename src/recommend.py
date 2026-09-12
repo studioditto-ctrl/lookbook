@@ -163,11 +163,13 @@ def _request(client, theme, exclude_names=None, model=None):
 
 
 def _generate_content_models(client):
-    """실제로 generateContent 를 지원하는 모델 이름 목록을 물어본다.
+    """실제로 generateContent 를 지원한다고 API 가 알려주는 모델 이름 목록.
 
-    모델 이름은 계정 등급·시기에 따라 계속 바뀐다(이번에 세 번 겪었다).
-    추측 대신 API 에 직접 물어서 지금 이 키로 실제 쓸 수 있는 것만 고른다.
-    실패하면 빈 목록 — 호출자가 알아서 최종 오류로 안내한다.
+    모델 이름은 계정 등급·시기에 따라 계속 바뀐다. 목록에 있다고 해서
+    실제로 부를 수 있다는 보장은 아니다 — 이미 새 사용자에게 막힌 예전
+    모델도 목록에는 그대로 남아 있는 걸 겪었다(_suggested_replacement_model
+    쪽이 더 믿을 만해 그쪽을 먼저 쓴다). 실패하면 빈 목록 — 호출자가
+    알아서 최종 오류로 안내한다.
     """
     try:
         names = []
@@ -183,6 +185,24 @@ def _generate_content_models(client):
         return []
 
 
+# "...no longer available to new users. Please update your code to use
+# models/gemini-3.6-flash..." 처럼, 오류 메시지가 대체 모델을 직접 짚어줄
+# 때가 있다. 이 안내가 목록에서 고르는 것보다 훨씬 믿을 만하다 — 목록에는
+# 이미 막힌 예전 모델도 그대로 남아 있어서(gemini-2.5-flash 로 겪었다),
+# 목록만 보고 고르면 또 막힌 것을 집을 수 있다.
+_SUGGESTED_MODEL_RE = re.compile(r"\buse\s+models/([\w.\-]+)", re.I)
+
+
+def _suggested_replacement_model(message):
+    match = _SUGGESTED_MODEL_RE.search(message or "")
+    return match.group(1) if match else None
+
+
+# 대체 모델을 한 번 골라도 그게 또 막혀 있을 수 있다(겪었다) — 오류가
+# 다음 대체 모델을 또 알려주면 몇 번 더 따라가 본다.
+MAX_MODEL_FALLBACKS = 3
+
+
 def _ask_gemini(theme, exclude_names=None):
     if not os.environ.get("GEMINI_API_KEY"):
         raise RuntimeError("GEMINI_API_KEY 가 없습니다")
@@ -193,27 +213,35 @@ def _ask_gemini(theme, exclude_names=None):
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     model = MODEL
-    fallback_tried = False
+    model_fallbacks = 0
     attempt = 0
     while True:
         try:
             return _request(client, theme, exclude_names=exclude_names, model=model)
         except errors.APIError as e:
             # 모델 이름이 더 이상 없거나(404) 이 계정으로는 못 쓰는 경우 —
-            # 추측 대신 실제 목록을 물어 쓸 수 있는 것으로 한 번 바꿔본다.
-            if e.code == 404 and not fallback_tried:
-                fallback_tried = True
-                available = _generate_content_models(client)
-                fallback = next((n for n in available if "flash" in n.lower()), None) \
+            # 오류가 알려주는 대체 모델을 우선 쓰고, 안 알려주면 실제 목록
+            # 에서 골라 한 번 더 시도한다.
+            if e.code == 404 and model_fallbacks < MAX_MODEL_FALLBACKS:
+                model_fallbacks += 1
+                suggested = _suggested_replacement_model(e.message)
+                available = [] if suggested else _generate_content_models(client)
+                fallback = suggested \
+                    or next((n for n in available if "flash" in n.lower()), None) \
                     or (available[0] if available else None)
                 if fallback and fallback != model:
-                    print(f"[recommend] '{model}' 모델을 쓸 수 없어(404) 실제 사용 가능한"
-                          f" '{fallback}' 로 다시 시도합니다. (전체 목록: "
-                          f"{', '.join(available)})")
+                    source = "오류가 알려준 대체 모델" if suggested else "실제 사용 가능한 목록"
+                    print(f"[recommend] '{model}' 모델을 쓸 수 없어(404) {source}인"
+                          f" '{fallback}' 로 다시 시도합니다"
+                          f"{' (전체 목록: ' + ', '.join(available) + ')' if available else ''}.")
                     model = fallback
                     continue
+                available = available or _generate_content_models(client)
                 hint = f" 사용 가능한 모델: {', '.join(available)}" if available else ""
                 raise RuntimeError(f"API 오류 404: {e.message}.{hint}") from e
+            if e.code == 404:
+                raise RuntimeError(f"API 오류 404: {e.message} "
+                                    f"(대체 모델을 {MAX_MODEL_FALLBACKS}번 시도했지만 계속 막힘)") from e
             if e.code == 429 and attempt < RATE_LIMIT_RETRIES:
                 attempt += 1
                 print(f"[recommend] 요청 한도 초과, {RATE_LIMIT_BACKOFF_SECONDS}초 후 재시도"

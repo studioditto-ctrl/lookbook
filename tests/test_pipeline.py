@@ -633,6 +633,64 @@ class TestRecommend(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.mod._ask_gemini("러닝")
 
+    def test_suggested_replacement_model_parses_real_error_text(self):
+        # 실제로 받은 오류 문구 그대로 — 대체 모델을 직접 짚어준다.
+        msg = ("This model models/gemini-2.5-flash is no longer available to new "
+               "users. Please update your code to use models/gemini-3.6-flash for "
+               "the latest features and improvements. We recommend you to use the "
+               "Interactions API.")
+        self.assertEqual(self.mod._suggested_replacement_model(msg), "gemini-3.6-flash")
+
+    def test_suggested_replacement_model_returns_none_when_absent(self):
+        self.assertIsNone(self.mod._suggested_replacement_model("not found"))
+
+    def test_explicit_suggested_model_is_preferred_over_model_list(self):
+        # 오류가 대체 모델을 직접 알려주면, 목록을 뒤지지 않고 그걸 바로 쓴다
+        # — 목록에는 이미 막힌 예전 모델도 섞여 있을 수 있어서다.
+        from google.genai import errors
+
+        calls = []
+
+        def flaky_request(client, theme, exclude_names=None, model=None):
+            calls.append(model)
+            if model == self.mod.MODEL:
+                raise errors.APIError(404, {"error": {
+                    "message": "no longer available. Please update your code to"
+                               " use models/gemini-9-flash for the latest.",
+                }})
+            return {"candidates": [], "keywords": [], "scope": []}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=flaky_request), \
+             unittest.mock.patch.object(self.mod, "_generate_content_models") as list_mock, \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod._ask_gemini("러닝")
+        self.assertEqual(calls, [self.mod.MODEL, "gemini-9-flash"])
+        list_mock.assert_not_called()
+        self.assertEqual(result, {"candidates": [], "keywords": [], "scope": []})
+
+    def test_chases_multiple_suggested_replacements_then_gives_up(self):
+        # 대체 모델도 또 막혀 있을 수 있다(실제로 두 번 연달아 겪었다) —
+        # 몇 번은 더 따라가 보되, 끝없이는 아니다.
+        from google.genai import errors
+
+        chain = {self.mod.MODEL: "gemini-a", "gemini-a": "gemini-b", "gemini-b": "gemini-c"}
+        calls = []
+
+        def always_redirecting(client, theme, exclude_names=None, model=None):
+            calls.append(model)
+            nxt = chain.get(model, "gemini-dead-end")
+            raise errors.APIError(404, {"error": {
+                "message": f"no longer available. Please update your code to use models/{nxt} now.",
+            }})
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=always_redirecting), \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(RuntimeError):
+                self.mod._ask_gemini("러닝")
+        self.assertEqual(len(calls), self.mod.MAX_MODEL_FALLBACKS + 1)
+
     def test_youtube_candidate_dropped_when_not_found(self):
         import youtube as youtube_module
 
