@@ -1,0 +1,338 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UCBXWqgmDszukzW-Tbd-Ur_w",
+      "kind": "youtube",
+      "name": "런친구",
+      "rank": 1,
+      "reason": "러닝 크루 및 러닝 팁 콘텐츠를 다룬다.",
+      "region": "domestic",
+      "subscribers": 912000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCxp9XKFw-lMTlIa_2yrfdqQ",
+      "kind": "youtube",
+      "name": "제이제이 JJ",
+      "rank": 2,
+      "reason": "러닝화 리뷰와 러닝 훈련 콘텐츠를 제작한다.",
+      "region": "domestic",
+      "subscribers": 867000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCJVMrR290HU9pDxaP35u_cg",
+      "kind": "youtube",
+      "name": "Global Triathlon Network",
+      "rank": 1,
+      "reason": "러닝을 포함한 지구력 종목 훈련 콘텐츠를 제공한다.",
+      "region": "international",
+      "subscribers": 1100000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCjGZ6D8hJFvLur5K_p9vKAA",
+      "kind": "youtube",
+      "name": "The Run Experience",
+      "rank": 2,
+      "reason": "러닝 폼과 훈련 프로그램을 전문적으로 다룬다.",
+      "region": "international",
+      "subscribers": 676000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCZPqG0yh_xPm2AyLjffbDvw",
+      "kind": "youtube",
+      "name": "Ben Parkes",
+      "rank": 3,
+      "reason": "마라톤 훈련과 러닝화 리뷰로 유명한 러너 채널이다.",
+      "region": "international",
+      "subscribers": 363000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCh_w_vLvlZNBeTAP8qaWhoA",
+      "kind": "youtube",
+      "name": "Sage Canaday",
+      "rank": 4,
+      "reason": "트레일러닝·마라톤 엘리트 러너의 훈련 채널이다.",
+      "region": "international",
+      "subscribers": 253000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCUwGYfvGvmqMnvQTOY8E_qg",
+      "kind": "youtube",
+      "name": "Göran Winblad",
+      "rank": 5,
+      "reason": "러닝 과학과 훈련 이론을 분석하는 채널이다.",
+      "region": "international",
+      "subscribers": 206000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCeSHo5kTvzoik4STh7MuMCA",
+      "kind": "youtube",
+      "name": "Seth James DeMoor",
+      "rank": 6,
+      "reason": "매일 러닝 훈련과 신발 리뷰를 올리는 채널이다.",
+      "region": "international",
+      "subscribers": 168000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCnnOksyxFnRBGHK1ZyLRJGA",
+      "kind": "youtube",
+      "name": "This Messy Happy",
+      "rank": 7,
+      "reason": "러닝화 리뷰와 러닝 일상을 다룬다.",
+      "region": "international",
+      "subscribers": 116000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "런너스클럽",
+      "reason": "국내 러닝·마라톤 소식을 전하는 전문 매체다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "마니아타임즈",
+      "reason": "마라톤 등 생활체육 뉴스를 다루는 매체다.",
+      "region": "domestic",
+      "url": "https://www.maniareport.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "스포츠조선",
+      "reason": "마라톤 대회와 러닝 트렌드 기사를 다룬다.",
+      "region": "domestic",
+      "url": "https://sports.chosun.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "동아일보 스포츠",
+      "reason": "서울국제마라톤 주최사로 러닝 관련 보도가 많다.",
+      "region": "domestic",
+      "url": "https://rss.donga.com/total.xml",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "조선일보",
+      "reason": "춘천마라톤 주최사로 러닝 기사와 기획을 낸다.",
+      "region": "domestic",
+      "url": "https://www.chosun.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "매일경제 스포츠",
+      "reason": "러닝 열풍과 러닝화 산업 기사를 다룬다.",
+      "region": "domestic",
+      "url": "https://www.mk.co.kr/rss/30000001/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Runner's World",
+      "reason": "세계적인 러닝 전문 매거진이다.",
+      "region": "international",
+      "url": "https://www.runnersworld.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Running Magazine (Canadian Running)",
+      "reason": "러닝 뉴스와 훈련 정보를 제공하는 전문지다.",
+      "region": "international",
+      "url": "https://runningmagazine.ca/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "LetsRun.com",
+      "reason": "육상·러닝 뉴스와 커뮤니티로 유명하다.",
+      "region": "international",
+      "url": "https://www.letsrun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Athletics Weekly",
+      "reason": "육상과 장거리 러닝 뉴스를 다루는 영국 매체다.",
+      "region": "international",
+      "url": "https://athleticsweekly.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Trail Runner Magazine",
+      "reason": "트레일러닝 전문 매체다.",
+      "region": "international",
+      "url": "https://www.trailrunnermag.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Outside Online",
+      "reason": "러닝을 포함한 아웃도어 스포츠 기사를 다룬다.",
+      "region": "international",
+      "url": "https://www.outsideonline.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Believe in the Run",
+      "reason": "러닝화 리뷰 전문 사이트다.",
+      "region": "international",
+      "url": "https://www.believeintherun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "러너스클럽 네이버 카페",
+      "reason": "국내 러너들이 대회·훈련 정보를 공유하는 카페다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "브런치스토리 러닝 태그",
+      "reason": "러닝 에세이와 경험담이 다수 올라온다.",
+      "region": "domestic",
+      "url": "https://brunch.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "마라톤온라인",
+      "reason": "국내 마라톤 대회 일정과 기록 정보를 모으는 커뮤니티다.",
+      "region": "domestic",
+      "url": "http://www.marathon.pe.kr",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "DC인사이드 마라톤 갤러리",
+      "reason": "국내 러너들의 실시간 잡담·정보 커뮤니티다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "네이버 블로그 러닝 기록",
+      "reason": "개인 러너들의 훈련 일지와 러닝화 후기가 풍부하다.",
+      "region": "domestic",
+      "url": "https://blog.naver.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Marathon Handbook",
+      "reason": "마라톤 훈련 가이드와 러닝 팁을 제공하는 블로그다.",
+      "region": "international",
+      "url": "https://marathonhandbook.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Science of Running",
+      "reason": "러닝 훈련 과학을 다루는 스티브 매그니스의 블로그다.",
+      "region": "international",
+      "url": "https://www.scienceofrunning.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Fellrnr",
+      "reason": "러닝 장비와 훈련을 깊게 분석하는 위키형 블로그다.",
+      "region": "international",
+      "url": "https://fellrnr.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Road Trail Run",
+      "reason": "러닝화 심층 리뷰 블로그다.",
+      "region": "international",
+      "url": "https://www.roadtrailrun.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "r/running",
+      "reason": "세계 최대 러닝 커뮤니티 중 하나다.",
+      "region": "international",
+      "url": "https://www.reddit.com/r/running",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "r/AdvancedRunning",
+      "reason": "진지한 러너들의 훈련 토론 커뮤니티다.",
+      "region": "international",
+      "url": "https://www.reddit.com/r/AdvancedRunning",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T01:09:35.365176+00:00",
+  "keywords": [
+    "러닝",
+    "달리기",
+    "마라톤",
+    "하프마라톤",
+    "훈련",
+    "페이스",
+    "러닝화",
+    "러닝크루",
+    "인터벌",
+    "LSD",
+    "기록단축",
+    "VO2max",
+    "running",
+    "run",
+    "marathon",
+    "half marathon",
+    "training",
+    "pace",
+    "running shoes",
+    "tempo run",
+    "trail running",
+    "race"
+  ],
+  "scope": [
+    "러닝",
+    "달리기",
+    "마라톤",
+    "런닝",
+    "조깅",
+    "트레일러닝",
+    "러닝화",
+    "running",
+    "run",
+    "marathon",
+    "jogging"
+  ],
+  "theme": "러닝"
+}
