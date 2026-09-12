@@ -99,7 +99,7 @@ digests:
       바디웨이트: 1
     queries:
       - name: 맨몸운동
-        query: "맨몸운동 OR 칼리스데닉스 OR 캘리스테닉스 OR 홈트레이닝 OR 홈트 OR 바디웨이트"
+        query: "맨몸운동 OR 칼리스데닉스 OR 홈트레이닝 OR 푸시업 OR 턱걸이 OR 코어운동"
     channels:
       - name: "김계란 [피지컬갤러리]"
         channel_id: UCdtRAcd3L_UpV4tMXCw63NQ
