@@ -71,15 +71,19 @@ function discardDraft(){
 /* ---------- 렌더링 ---------- */
 const arg = s => `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
-function stepper(di, si, key, val){
+// scope 는 같은 di/si 로 두 군데(주제 목록 카드와 마법사의 '실행 조건'
+// 단계)에 동시에 그려질 때 span id 가 겹치지 않게 갈라 준다 — #digests 는
+// 마법사를 보는 중에도 화면 뒤에서 계속 다시 그려지므로, 안 갈라 두면
+// bump() 가 숨어 있는 쪽 span 을 고쳐 화면에 반영이 안 된 것처럼 보인다.
+function stepper(di, si, key, val, scope = ""){
   return `<div class="step">
-    <button onclick="bump(${di},${si},'${key}',-1)" aria-label="줄이기">−</button>
-    <span id="v${di}-${si}-${key}">${val}</span>
-    <button onclick="bump(${di},${si},'${key}',1)" aria-label="늘리기">+</button>
+    <button onclick="bump(${di},${si},'${key}',-1,'${scope}')" aria-label="줄이기">−</button>
+    <span id="v${scope}${di}-${si}-${key}">${val}</span>
+    <button onclick="bump(${di},${si},'${key}',1,'${scope}')" aria-label="늘리기">+</button>
   </div>`;
 }
 
-function slotCardHTML(di, si, s){
+function slotCardHTML(di, si, s, scope = ""){
   return `
     <div class="slot">
       <div class="head">
@@ -95,8 +99,8 @@ function slotCardHTML(di, si, s){
         <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)">
       </div>
       <div class="duo">
-        <div><label>기사</label>${stepper(di, si, "articles", s.articles)}</div>
-        <div><label>영상</label>${stepper(di, si, "videos", s.videos)}</div>
+        <div><label>기사</label>${stepper(di, si, "articles", s.articles, scope)}</div>
+        <div><label>영상</label>${stepper(di, si, "videos", s.videos, scope)}</div>
       </div>
       <div class="duo">
         <button class="tiny ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
@@ -416,10 +420,10 @@ function delTopic(di, confirmed){
     + (dg.config ? ` (${esc(dg.config)} 파일은 그대로 둡니다)` : ""), "busy");
 }
 function set(di, si, key, val){ data.digests[di].slots[si][key] = val; touch(); }
-function bump(di, si, key, delta){
+function bump(di, si, key, delta, scope = ""){
   const slot = data.digests[di].slots[si];
   slot[key] = Math.max(0, Math.min(10, (slot[key] || 0) + delta));
-  $(`v${di}-${si}-${key}`).textContent = slot[key];
+  $(`v${scope}${di}-${si}-${key}`).textContent = slot[key];
   touch();
 }
 
@@ -1165,7 +1169,7 @@ function renderWizard(){
       <div class="card">
         <h2>실행 조건 — 언제, 몇 건씩 보낼지</h2>
         ${wizardStepsHTML()}
-        ${slotCardHTML(w.di, 0, dg.slots[0])}
+        ${slotCardHTML(w.di, 0, dg.slots[0], "wz")}
         <button class="primary wide" style="margin-top:14px"
                 onclick="wizardGoto('test')">다음: 테스트 발송</button>
       </div>`;
