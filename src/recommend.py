@@ -24,7 +24,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-MODEL = "gemini-2.5-pro"
+MODEL = "gemini-3.1-pro-preview"
 MAX_TOKENS = 12000
 # 후보를 늘릴수록 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
 

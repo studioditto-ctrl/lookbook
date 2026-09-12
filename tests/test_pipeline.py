@@ -520,7 +520,7 @@ class TestRecommend(unittest.TestCase):
             text='{"candidates": [], "keywords": [], "scope": []}'
         )
         self.mod._request(client, "러닝")
-        self.assertEqual(captured["model"], "gemini-2.5-pro")
+        self.assertEqual(captured["model"], self.mod.MODEL)
         self.assertEqual(
             captured["config"].response_json_schema["required"],
             ["candidates", "keywords", "scope"],
