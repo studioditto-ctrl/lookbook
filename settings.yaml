@@ -91,6 +91,130 @@ digests:
         channel_id: UCx2Xqm8S3Ghqn5puhSKWH4Q
         region: international
         reason: "세계적인 러닝 전문 매거진의 공식 유튜브 채널로 선수 인터뷰와 트레이닝 팁을 전달합니다."
+  - key: tmty4s0qk
+    label: 돌파매매
+    scope: [돌파매매, breakout trading, 신고가 매매, 돌파 매매, breakout strategy, 전고점 돌파, 저항선 돌파, breakout, 신고가돌파, 박스권 돌파, Breakout, Breakout Trading, 신고가 돌파]
+    strict: true
+    slots:
+      - slot: daily
+        title: "돌파매매 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      돌파매매: 3
+      breakout trading: 3
+      전고점: 3
+      저항선: 2
+      신고가: 2
+      거래량: 2
+      차트 분석: 1
+      기술적 분석: 1
+      breakout: 1
+      resistance level: 1
+      volume breakout: 1
+      price action: 1
+      눌림목: 1
+      손절매: 1
+      stop loss: 1
+      상승돌파: 1
+      모멘텀: 1
+      momentum: 1
+      day trading: 1
+      단타: 1
+      박스권: 1
+      차트분석: 1
+      지지선: 1
+      변동성: 1
+      resistance: 1
+      support: 1
+      volume: 1
+      chart pattern: 1
+      consolidation: 1
+      trend line: 1
+      breakout strategy: 1
+    queries:
+      - name: 돌파매매
+        query: "돌파매매 OR \"breakout trading\" OR 전고점 OR 저항선 OR 신고가 OR 거래량"
+    feeds:
+      - name: 삼프로TV
+        url: "https://www.3protv.com"
+        region: domestic
+        reason: "금융 및 증권 트렌드를 보도하며 다양한 기술적 매매 기법을 다루는 경제 전문 미디어입니다."
+      - name: Investopedia
+        url: "https://feeds-api.dotdashmeredith.com/v1/rss/google/f8466ec3-5044-46bc-94b7-2df65f770eff"
+        region: international
+        reason: "브레이크아웃 트레이딩(돌파매매)의 개념과 전략을 상세히 소개하는 금융 전문 매체입니다."
+      - name: TradingView
+        url: "https://www.tradingview.com/feed/"
+        region: international
+        reason: "전 세계 트레이더들이 돌파매매 아이디어와 차트 분석을 공유하는 금융 플랫폼 매체입니다."
+      - name: BabyPips
+        url: "https://www.babypips.com/feed.rss"
+        region: international
+        reason: "초보 및 중급 트레이더를 위한 돌파매매 수칙과 프라이스 액션 블로그 콘텐츠를 제공합니다."
+      - name: Tradeciety
+        url: "https://www.tradeciety.com/rss.xml"
+        region: international
+        reason: "차트 패턴과 브레이크아웃 매매 시의 리스크 관리를 깊이 있게 다루는 전문 교육 블로그입니다."
+      - name: Seeking Alpha
+        url: "https://www.seekingalpha.com/feed/"
+        region: international
+        reason: "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다."
+    channels:
+      - name: 815모니터톡
+        channel_id: UCCG6BEYjfQMGzypJw2EJCDQ
+        region: domestic
+        reason: "다양한 실전 투자 전문가들이 나와 돌파매매 등 주식 매매 전략을 공유하는 채널입니다."
+      - name: 단테TV
+        channel_id: UC6ij59Gy_HnqO4pFu9A_zgQ
+        region: domestic
+        reason: "주식 기술적 분석과 저항선 돌파매매 기법을 상세히 설명하는 주식 유튜브 채널입니다."
+      - name: 창원개미TV
+        channel_id: UCqsuesS39x5nUWcBH-1Q6YA
+        region: domestic
+        reason: "주식 시장에서 전고점 돌파매매 및 실전 단타 전략을 집중적으로 다루는 채널입니다."
+      - name: 주식시그널
+        channel_id: UC9HkKfb8u9r3GbYKoTsBUJQ
+        region: domestic
+        reason: "실시간 차트 분석을 통해 주식 및 코인 돌파매매 타이밍을 분석하는 유튜브 채널입니다."
+      - name: 하승훈의 주식투자
+        channel_id: UCVqjwXde3zUk2GYHWbpqE3A
+        region: domestic
+        reason: "차트 패턴 분석과 신고가 및 전고점 돌파매매 타점을 체계적으로 강의하는 채널입니다."
+      - name: The Trading Channel
+        channel_id: UCGL9ubdGcvZh_dvSV2z1hoQ
+        region: international
+        reason: "외환 및 주식 차트의 주요 저항선 돌파 매매 전략을 교육하는 해외 채널입니다."
+      - name: Rayner Teo
+        channel_id: UCFSn-h8wTnhpKJMteN76Abg
+        region: international
+        reason: "프라이스 액션 기반의 돌파매매 및 추세 추종 전략을 가르치는 유명 해외 주식 채널입니다."
+      - name: Warrior Trading
+        channel_id: UCBayuhgYpKNbhJxfExYkPfA
+        region: international
+        reason: "데이 트레이딩 시 거래량과 모멘텀을 활용한 돌파매매 기법을 전문적으로 방송하는 채널입니다."
+      - name: 달란트투자
+        channel_id: UCBM86JVoHLqg9irpR2XKvGw
+        region: domestic
+        reason: "기술적 분석과 기업 분석을 통한 돌파 매매 및 투자 전략을 제시합니다."
+      - name: 주식창
+        channel_id: UCF8AeLlUbEpKju6v1H6p8Eg
+        region: domestic
+        reason: "한국경제TV에서 운영하는 채널로 다양한 차트 돌파 기법과 시황을 제공합니다."
+      - name: 수급단타왕
+        channel_id: UCWiMB4iRTqDGu5BmtT3Ytcg
+        region: domestic
+        reason: "주식 수급 및 차트 돌파 매매 기법을 전문적으로 다루는 채널입니다."
+      - name: 이리온스튜디오
+        channel_id: UCauZxKRDiGcrWplWUOIN9JQ
+        region: domestic
+        reason: "증권사 분석가들이 주식 시장 변동성 및 차트 돌파 포인트를 짚어줍니다."
+      - name: 주식하는마음
+        channel_id: UCWeYU4snOLj4Jj52Q9VCcOg
+        region: domestic
+        reason: "단타 및 돌파 매매 타점을 분석하고 실전 투자 팁을 공유합니다."
 
 filters:
   min_views: 1000
