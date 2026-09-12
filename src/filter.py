@@ -174,7 +174,8 @@ def select(items, seen, config, slot):
     fresh = list(by_url.values())
 
     if off_topic:
-        print(f"[filter] 주제와 안 맞아 제외 {off_topic}건 (검색으로 찾아온 것 중)")
+        source = "검색으로 찾아온 것 · 채널 포함(strict)" if strict else "검색으로 찾아온 것 중"
+        print(f"[filter] 주제와 안 맞아 제외 {off_topic}건 ({source})")
 
     fresh, folded = _fold_similar(fresh)
     if repeats or folded:

@@ -78,7 +78,7 @@ digests:
         channel_id: UC5fZv7bPcF5j2RsfO-9OiLA
   - key: tmtxmt963
     label: 맨몸운동
-    scope: [맨몸운동, 칼리스데닉스, 홈트레이닝]
+    scope: [맨몸운동, 칼리스데닉스, 캘리스테닉스, 홈트레이닝, 홈트, 바디웨이트, 근력운동, calisthenics, bodyweight]
     strict: true
     slots:
       - slot: daily
@@ -99,16 +99,7 @@ digests:
       바디웨이트: 1
     queries:
       - name: 맨몸운동
-        query: "맨몸운동 OR 칼리스데닉스 OR 홈트레이닝 OR 푸시업 OR 턱걸이 OR 코어운동"
-    feeds:
-      - name: GMB Fitness
-        url: "https://gmb.io/blog/"
-        region: international
-        reason: "맨몸운동·움직임 훈련 관련 상세 가이드 글을 제공합니다."
-      - name: Nerd Fitness
-        url: "https://www.nerdfitness.com/blog/"
-        region: international
-        reason: "초보자용 맨몸운동 루틴과 홈트 가이드를 꾸준히 발행합니다."
+        query: "맨몸운동 OR 칼리스데닉스 OR 캘리스테닉스 OR 홈트레이닝 OR 홈트 OR 바디웨이트"
     channels:
       - name: "김계란 [피지컬갤러리]"
         channel_id: UCdtRAcd3L_UpV4tMXCw63NQ

@@ -53,13 +53,22 @@ function toYaml(d){
       }
     }
   }
+  // 공통 설정에서 바꾼 필터 기본값 — 없으면(한 번도 안 바꿨으면) 아예 안 쓴다.
+  // 그래야 예전 파일과 똑같이 하드코딩된 기본값 그대로 동작한다.
+  const f = d.filters || {};
+  if (f.lookback_hours || f.min_subscribers != null || f.min_views != null){
+    out += "\nfilters:\n";
+    if (f.lookback_hours) out += `  lookback_hours: ${f.lookback_hours}\n`;
+    if (f.min_subscribers != null) out += `  min_subscribers: ${f.min_subscribers}\n`;
+    if (f.min_views != null) out += `  min_views: ${f.min_views}\n`;
+  }
   out += "\nexclude:\n";
   for (const w of d.exclude) out += `  - ${quote(w)}\n`;
   return out;
 }
 /* 우리가 쓰는 모양만 읽는 파서 — 들여쓰기와 키가 위 형식과 같다고 가정한다 */
 function fromYaml(text){
-  const out = {digests: [], exclude: []};
+  const out = {digests: [], exclude: [], filters: {}};
   let dg = null, slot = null, mode = null;
   for (const raw of text.split("\n")){
     const line = raw.replace(/\t/g, "  ");
@@ -68,7 +77,14 @@ function fromYaml(text){
     const t = line.trim();
     if (t === "digests:"){ mode = "digests"; continue; }
     if (t === "exclude:"){ mode = "exclude"; continue; }
+    if (t === "filters:"){ mode = "filters"; continue; }
     if (mode === "exclude" && t.startsWith("- ")){ out.exclude.push(unq(t.slice(2))); continue; }
+    if (mode === "filters" && indent === 2){
+      const i = t.indexOf(":");
+      const k = t.slice(0, i).trim(), v = t.slice(i + 1).trim();
+      if (k === "lookback_hours" || k === "min_subscribers" || k === "min_views") out.filters[k] = +v;
+      continue;
+    }
     if (mode !== "digests") continue;
 
     if (indent === 2 && (t.startsWith("- config:") || t.startsWith("- key:"))){

@@ -24,9 +24,9 @@
 <div id="shell">
 <aside id="sidebar">
   <nav id="topicNav" class="navlist"></nav>
-  <button class="tiny wide dashed" id="navWizard" onclick="setMode('wizard')">＋ 새 주제</button>
+  <button class="tiny wide dashed nav-wizard-btn" onclick="setMode('wizard')">＋ 새 주제</button>
   <div class="divider"></div>
-  <button class="tiny wide ghost" id="navSettings" onclick="setMode('settings')">⚙ 공통 설정</button>
+  <button class="tiny wide ghost nav-settings-btn" onclick="setMode('settings')">⚙ 공통 설정</button>
 </aside>
 
 <!-- 가운데 단. 데스크탑에서만, 주제 목록 화면일 때만 쓴다 — 고른 주제 안에서
@@ -35,6 +35,12 @@
 <aside id="sectionNav"></aside>
 
 <main>
+  <!-- 모바일 전용 — 사이드바가 안 보일 때 새 주제/공통 설정으로 가는 유일한 길 -->
+  <div class="row" id="modeBarMobile" style="gap:8px; margin-bottom:12px">
+    <button class="tiny dashed nav-wizard-btn" style="flex:1" onclick="setMode('wizard')">＋ 새 주제</button>
+    <button class="tiny ghost nav-settings-btn" style="flex:1" onclick="setMode('settings')">⚙ 공통 설정</button>
+  </div>
+
   <!-- 주제 목록: 기존 3단 드릴다운 화면 -->
   <div id="topicsView">
     <div id="digests"></div>
@@ -50,6 +56,29 @@
     <h2 style="margin:4px 0 14px">공통 설정</h2>
     <div id="tokenCard"></div>
     <div id="driveSetup"></div>
+    <div class="card">
+      <h2>필터 기본값</h2>
+      <div class="sub">모든 주제에 똑같이 적용됩니다. 주제별로 따로 정한 값(예: 검색 범위 화면의
+        보관 기간)이 있으면 그쪽이 우선합니다.</div>
+      <div class="filterGrid">
+        <div>
+          <label>최근 몇 시간 이내 글만</label>
+          <input id="fltLookback" type="number" min="1" step="1" inputmode="numeric"
+                 onchange="setFilter('lookback_hours', this.value)">
+        </div>
+        <div>
+          <label>유튜브 최소 구독자 <span class="sub">(직접 등록한 채널은 면제)</span></label>
+          <input id="fltMinSubs" type="number" min="0" step="100" inputmode="numeric"
+                 onchange="setFilter('min_subscribers', this.value)">
+        </div>
+        <div>
+          <label>유튜브 최소 조회수</label>
+          <input id="fltMinViews" type="number" min="0" step="100" inputmode="numeric"
+                 onchange="setFilter('min_views', this.value)">
+        </div>
+      </div>
+      <div class="note" id="filterNote"></div>
+    </div>
     <div class="card">
       <h2>내 구독 채널 (Google Drive)</h2>
       <div class="sub" id="subsInfo">아직 불러오지 않았습니다.</div>

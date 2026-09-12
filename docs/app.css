@@ -95,6 +95,9 @@
   details > summary::after{content:"▾"; transition:.15s}
   details[open] > summary::after{transform:rotate(180deg)}
 
+  .filterGrid{display:grid; grid-template-columns:1fr; gap:14px; margin-top:12px}
+  .filterGrid label{margin-bottom:6px}
+
   /* ---------- 새 주제 만들기 마법사 ---------- */
   .wzsteps{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
   .wzsteps span{
@@ -103,14 +106,6 @@
   }
   .wzsteps span.now{color:var(--accent-ink); background:var(--accent); border-color:transparent; font-weight:600}
   .wzsteps span.done{color:var(--ok); border-color:var(--ok)}
-  .cand{
-    display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line);
-    border-radius:12px; padding:12px; margin-top:10px;
-  }
-  .cand input[type=checkbox]{width:20px; height:20px; margin-top:2px}
-  .cand .body{flex:1; min-width:0}
-  .cand .name{font-weight:600}
-  .cand .tags{display:flex; flex-wrap:wrap; gap:6px; margin:4px 0}
   .tag{
     font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
     color:var(--muted); white-space:nowrap;
@@ -118,7 +113,20 @@
   .tag.youtube{border-color:var(--danger); color:var(--danger)}
   .tag.blog{border-color:var(--accent); color:var(--accent)}
   .tag.unverified{border-color:var(--danger); color:var(--danger)}
-  .cand .reason{font-size:13px; color:var(--muted)}
+
+  /* 후보를 표로 — 스무 개까지 늘어놓아도 한눈에 훑을 수 있다.
+     표는 폭이 넓어야 읽기 좋아 좁은 화면에서는 가로로만 스크롤한다. */
+  .table-wrap{overflow-x:auto; margin-top:10px}
+  table.cand-table{width:100%; border-collapse:collapse; font-size:14px}
+  .cand-table th{
+    text-align:left; font-size:12px; color:var(--muted); font-weight:600;
+    padding:6px 10px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  .cand-table td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  .cand-table td.name{font-weight:600; white-space:nowrap}
+  .cand-table td.reason{color:var(--muted); min-width:220px}
+  .cand-table tr.sel{background:rgba(31,111,235,.06)}
+  .cand-table input[type=checkbox]{width:18px; height:18px}
   .wzcount{
     position:sticky; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:5;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
@@ -166,6 +174,9 @@
   .navlist button .sub{font-size:12px}
   .navlist button[aria-current="true"]{background:var(--card); border:1px solid var(--line); font-weight:600}
   .navlist button:hover{background:var(--card)}
+  .nav-wizard-btn[aria-current="true"], .nav-settings-btn[aria-current="true"]{
+    border-color:var(--accent); color:var(--accent);
+  }
 
   /* ---------- 데스크탑 ----------
      주제 카드를 격자로 늘어놓으면 어느 것을 고치는 중인지 알기 어렵고,
@@ -181,11 +192,12 @@
     h1{font-size:20px}
 
     #shell{
-      display:grid; grid-template-columns:220px 250px minmax(0, 1fr); gap:24px;
-      max-width:1400px; margin:0 auto; padding:20px 28px; align-items:start;
+      display:grid; grid-template-columns:230px 260px minmax(0, 1fr); gap:24px;
+      max-width:1680px; margin:0 auto; padding:20px 28px; align-items:start;
     }
     #sidebar{display:block; position:sticky; top:78px}
-    #sidebar > button[aria-current="true"]{border-color:var(--accent); color:var(--accent)}
+    /* 사이드바가 보이는 폭에서는 모바일 전용 바가 겹친다 */
+    #modeBarMobile{display:none}
     #sectionNav{
       display:block; position:sticky; top:78px; background:var(--card);
       border:1px solid var(--line); border-radius:var(--radius); padding:14px;
@@ -202,9 +214,11 @@
     #digests > .card .tsec.sel{display:block}
     #digests > .card .tsec h2{font-size:20px; margin:0 0 14px}
 
-    #tokenCard > .card, #driveSetup > .card{max-width:720px}
-    #wizardView .card, #settingsView .card{max-width:720px}
-    #settingsView h2:first-child{max-width:720px}
+    #tokenCard > .card, #driveSetup > .card{max-width:1100px}
+    #wizardView .card, #settingsView .card{max-width:1100px}
+    #settingsView h2:first-child{max-width:1100px}
+    /* 필터 기본값 세 칸은 PC 폭에서 나란히 — 세로로 쌓으면 공간이 아깝다 */
+    .filterGrid{grid-template-columns:repeat(3, 1fr)}
 
     /* 시간 여러 개를 세로로만 쌓으면 아래 설정이 멀어진다.
        auto-fill 은 빈 칸을 남겨서, 시간이 하나뿐일 때 오른쪽 절반이
@@ -217,6 +231,10 @@
     /* 순위 상자를 나란히 — 끌어 옮길 거리가 짧아진다 */
     .tiers{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; align-items:start}
     .tiers > .tier{margin-top:0; min-height:76px}
+
+    /* 블로그 목록과 유튜브 채널 목록을 나란히 — PC 폭에서 세로로 쌓아 둘
+       이유가 없다 */
+    .split2{display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start}
 
     footer{
       left:auto; right:28px; bottom:28px; width:auto;
@@ -232,7 +250,7 @@
      끊는다 — 글줄이 너무 길어도 눈이 따라가기 어렵다. 가운데 단이 하나
      늘어난 만큼 예전보다 조금 좁힌다. */
   @media (min-width:900px){
-    #digests > .card.sel{max-width:760px}
+    #digests > .card.sel{max-width:1100px}
   }
   @media (hover:hover){
     button:hover{border-color:var(--accent)}

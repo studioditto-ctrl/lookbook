@@ -16,20 +16,24 @@ Claude 에게는 채널·매체 '이름'만 제안하게 하고, 실존 여부�
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 MODEL = "claude-opus-5"
-MAX_TOKENS = 4000
+MAX_TOKENS = 8000
+# 후보를 늘릴수록(top 20) 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
 
 REPO = Path(__file__).resolve().parent.parent
 RECOMMEND_DIR = REPO / "state" / "recommend"
 
-SYSTEM = """당신은 텔레그램 다이제스트 구독 설정을 돕는 추천 어시스턴트입니다.
+CANDIDATE_LIMIT = 20
 
-사용자가 새 주제(테마)를 입력하면, 그 주제를 다루는 소스 후보를 최대 10개
-제안합니다.
+SYSTEM = f"""당신은 텔레그램 다이제스트 구독 설정을 돕는 추천 어시스턴트입니다.
+
+사용자가 새 주제(테마)를 입력하면, 그 주제를 다루는 소스 후보를 최대
+{CANDIDATE_LIMIT}개 제안합니다.
 
 규칙:
 - 후보의 kind 는 "youtube"(유튜브 채널) 또는 "blog"(뉴스매체·블로그·RSS)
@@ -43,9 +47,13 @@ SYSTEM = """당신은 텔레그램 다이제스트 구독 설정을 돕는 추�
   틀린 URL을 지어내지 마십시오. kind 가 "youtube" 면 url 은 항상 빈
   문자열로 둡니다 (채널 검색은 이름으로 합니다).
 - reason 은 이 후보가 왜 이 주제와 맞는지 한국어 1문장으로 씁니다.
-- keywords 는 이 주제의 다이제스트를 걸러낼 때 쓸 낱말 6~10개,
-  scope 는 검색어 앞에 항상 붙일, 주제를 가리키는 낱말 2~5개입니다
-  (예: 주제가 "러닝"이면 scope 는 ["러닝", "달리기"] 같은 것)."""
+- keywords 는 이 주제의 다이제스트를 걸러낼 때 쓸 낱말 6~10개.
+- scope 는 검색·필터링에서 항상 주제로 인정할 낱말 5~10개로, 넉넉하게
+  잡습니다. 표준 명칭뿐 아니라 줄임말·구어체·영문 표기·자주 쓰이는 오기까지
+  포함해 동의어를 폭넓게 채웁니다 (예: 주제가 "맨몸운동"이면 scope 는
+  ["맨몸운동", "홈트", "홈트레이닝", "캘리스테닉스", "바디웨이트", "근력운동",
+  "calisthenics", "bodyweight"] 처럼). scope 가 너무 좁으면 실제로는 주제와
+  맞는 글도 걸러져 버려지니, 좁히기보다 넓히는 쪽을 택하십시오."""
 
 SCHEMA = {
     "type": "object",
@@ -124,19 +132,94 @@ def _verify_youtube(name, key, cache):
     return channel_id, subs.get(channel_id)
 
 
-def _verify_feed(url):
-    """RSS/Atom 으로 보이는지 최소한으로 확인한다. 실패해도 존재 안 함이 아니다."""
+FEED_UA = "Mozilla/5.0 (compatible; DigestBot/1.0)"
+FEED_TIMEOUT = 8
+# Claude 가 주는 url 은 사람이 보는 블로그 홈 주소인 경우가 많다. 실제 피드는
+# 보통 이 중 하나에 있다 — 직접 파싱이 안 되면 자동 발견을 시도하고, 그것도
+# 안 되면 이 후보 경로들을 하나씩 열어본다. 오래 걸려도(요청이 여럿 나가도)
+# 죽은 채널을 살아있다고 잘못 등록하는 것보다 낫다.
+FEED_SUFFIXES = ["feed/", "feed", "rss/", "rss.xml", "atom.xml", "feed.xml", "?feed=rss2"]
+
+_LINK_ALT_RE = re.compile(r'<link\b[^>]*rel=["\']alternate["\'][^>]*>', re.I)
+_TYPE_FEED_RE = re.compile(r'type=["\']application/(?:rss|atom)\+xml["\']', re.I)
+_HREF_RE = re.compile(r'href=["\']([^"\']+)["\']')
+
+
+def _fetch(url):
     import requests
 
     try:
-        resp = requests.get(
-            url, timeout=8, headers={"User-Agent": "Mozilla/5.0 (compatible; DigestBot/1.0)"}
-        )
+        resp = requests.get(url, timeout=FEED_TIMEOUT, headers={"User-Agent": FEED_UA})
         resp.raise_for_status()
+        return resp
     except requests.RequestException:
+        return None
+
+
+def _looks_like_feed(text):
+    """문자열 앞부분만 보고 판단하지 않는다 — feedparser 로 실제 구조를 본다."""
+    import feedparser
+
+    try:
+        parsed = feedparser.parse(text)
+    except Exception:
         return False
-    head = resp.text[:2000].lower()
-    return "<rss" in head or "<feed" in head or head.lstrip().startswith("<?xml")
+    return bool(parsed.entries) or bool((parsed.feed or {}).get("title"))
+
+
+def _discover_feed_link(html, base_url):
+    """<link rel="alternate" type="application/rss+xml" href="..."> 자동 발견."""
+    from urllib.parse import urljoin
+
+    for tag in _LINK_ALT_RE.findall(html):
+        if not _TYPE_FEED_RE.search(tag):
+            continue
+        href = _HREF_RE.search(tag)
+        if href:
+            return urljoin(base_url, href.group(1))
+    return None
+
+
+def _verify_feed(url):
+    """실제로 살아 있는 RSS/Atom 인지 확인한다.
+
+    준 주소 자체가 피드가 아니어도(사람이 보는 블로그 홈일 수 있다) 페이지에
+    자동 발견되는 진짜 피드 주소가 있으면, 또는 흔한 피드 경로 중 하나가
+    맞으면 그 주소로 바꿔 돌려준다. 시간이 걸리더라도(요청을 여러 번 시도)
+    실제로 살아 있는지 정확히 확인하는 쪽을 택한다. 다 실패하면 None —
+    후보에서 빼지는 않고 '확인 필요'로만 남긴다."""
+    resp = _fetch(url)
+    if resp and _looks_like_feed(resp.text):
+        return url
+
+    if resp:
+        discovered = _discover_feed_link(resp.text[:20000], url)
+        if discovered:
+            found = _fetch(discovered)
+            if found and _looks_like_feed(found.text):
+                return discovered
+
+    from urllib.parse import urljoin
+
+    # 표준 상대주소 규칙대로면 '/'로 끝나지 않는 주소(예: .../blog)는 마지막
+    # 조각이 파일처럼 취급돼 대체돼 버린다. 그게 사실 디렉터리 주소일 수도
+    # 있어 두 가지 다 시도한다 — 느리더라도 놓치는 것보다 낫다.
+    bases = {url}
+    if not url.endswith("/"):
+        bases.add(url + "/")
+
+    tried = set()
+    for base in bases:
+        for suffix in FEED_SUFFIXES:
+            candidate = urljoin(base, suffix)
+            if candidate in tried:
+                continue
+            tried.add(candidate)
+            found = _fetch(candidate)
+            if found and _looks_like_feed(found.text):
+                return candidate
+
+    return None
 
 
 def recommend(theme, youtube_key=None, cache=None):
@@ -145,7 +228,7 @@ def recommend(theme, youtube_key=None, cache=None):
     parsed = _ask_claude(theme)
 
     candidates = []
-    for raw in (parsed.get("candidates") or [])[:20]:
+    for raw in (parsed.get("candidates") or [])[:CANDIDATE_LIMIT]:
         name = (raw.get("name") or "").strip()
         kind = raw.get("kind")
         region = raw.get("region")
@@ -170,13 +253,17 @@ def recommend(theme, youtube_key=None, cache=None):
                 "channel_id": channel_id, "subscribers": subs, "verified": True,
             })
         else:
-            verified = bool(url) and _verify_feed(url)
+            # 확인되면 실제로 살아 있는 피드 주소로 바꿔서 저장한다 — Claude 가
+            # 준 주소가 사람이 보는 페이지였어도, 자동 발견/추정으로 찾은
+            # 진짜 피드 주소를 쓴다. 못 찾으면 원래 주소를 그대로 두고
+            # '확인 필요'로만 남긴다 (봇 차단으로 확인만 실패했을 수 있다).
+            resolved = _verify_feed(url) if url else None
             candidates.append({
                 "name": name, "kind": kind, "region": region, "reason": reason,
-                "url": url, "verified": verified,
+                "url": resolved or url, "verified": bool(resolved),
             })
 
-    candidates = candidates[:10]
+    candidates = candidates[:CANDIDATE_LIMIT]
     return {
         "theme": theme,
         "candidates": candidates,

@@ -205,10 +205,33 @@ def apply(config, settings, config_name, slot_name):
         sources.setdefault("youtube", []).append(dict(channel))
     merged["sources"] = sources
 
+    base = dict(DEFAULTS)
+    base.update(global_defaults(settings))
     for key in ("timezone", "lookback_hours", "summary", "link_preview",
                 "youtube_filter"):
-        if key not in merged and key in DEFAULTS:
-            merged[key] = DEFAULTS[key]
+        if key not in merged and key in base:
+            merged[key] = base[key]
+    return merged
+
+
+def global_defaults(settings):
+    """어드민 페이지 '공통 설정'에서 바꾼 필터 기본값. 모든 주제에 똑같이 적용된다.
+
+    없으면(아직 한 번도 안 바꿨으면) 원래 하드코딩돼 있던 값 그대로다 —
+    페이지가 필터 조절 기능을 갖추기 전 만든 주제도 동작이 안 바뀐다.
+    주제별 lookback_hours 는 여기보다 먼저 적용되니(apply 참고) 그대로 우선한다.
+    """
+    raw = settings.get("filters") or {}
+    merged = {
+        "lookback_hours": DEFAULTS["lookback_hours"],
+        "youtube_filter": dict(DEFAULTS["youtube_filter"]),
+    }
+    if raw.get("lookback_hours"):
+        merged["lookback_hours"] = raw["lookback_hours"]
+    if raw.get("min_subscribers") is not None:
+        merged["youtube_filter"]["min_subscribers"] = raw["min_subscribers"]
+    if raw.get("min_views") is not None:
+        merged["youtube_filter"]["min_views"] = raw["min_views"]
     return merged
 
 

@@ -576,19 +576,53 @@ class TestRecommend(unittest.TestCase):
             youtube_module.YT_CHANNELS_API = saved_channels
             server.close()
 
-    def test_verify_feed_detects_rss_marker(self):
+    def test_verify_feed_detects_direct_feed(self):
         server = FeedServer({
-            "feed.xml": '<?xml version="1.0"?><rss><channel></channel></rss>'
+            "feed.xml": '<?xml version="1.0"?><rss><channel><title>t</title></channel></rss>'
         })
         try:
-            self.assertTrue(self.mod._verify_feed(server.url("feed.xml")))
+            url = server.url("feed.xml")
+            self.assertEqual(self.mod._verify_feed(url), url)
         finally:
             server.close()
 
-    def test_verify_feed_rejects_plain_html(self):
+    def test_verify_feed_rejects_plain_html_with_no_feed_anywhere(self):
+        # 자동 발견용 <link> 도 없고, feed/rss.xml 등 흔한 경로도 없다 —
+        # 전부 시도해보고도 못 찾으면 None.
         server = FeedServer({"page.html": "<html><body>hello</body></html>"})
         try:
-            self.assertFalse(self.mod._verify_feed(server.url("page.html")))
+            self.assertIsNone(self.mod._verify_feed(server.url("page.html")))
+        finally:
+            server.close()
+
+    def test_verify_feed_discovers_via_link_tag(self):
+        # Claude 가 준 주소는 사람이 보는 블로그 홈이고, 진짜 피드는
+        # <link rel="alternate" type="application/rss+xml"> 로 안내되어 있다.
+        server = FeedServer({
+            "index.html": '<html><head>'
+                '<link rel="alternate" type="application/rss+xml" href="/real-feed.xml">'
+                '</head><body>blog home</body></html>',
+            "real-feed.xml": '<?xml version="1.0"?><rss><channel><title>t</title></channel></rss>',
+        })
+        try:
+            self.assertEqual(
+                self.mod._verify_feed(server.url("index.html")),
+                server.url("real-feed.xml"),
+            )
+        finally:
+            server.close()
+
+    def test_verify_feed_falls_back_to_common_suffix(self):
+        # <link> 안내도 없지만 흔한 경로(feed) 에 진짜 피드가 있다.
+        server = FeedServer({
+            "index.html": "<html><body>blog home, no autodiscovery link</body></html>",
+            "feed": '<?xml version="1.0"?><rss><channel><title>t</title></channel></rss>',
+        })
+        try:
+            self.assertEqual(
+                self.mod._verify_feed(server.url("index.html")),
+                server.url("feed"),
+            )
         finally:
             server.close()
 
@@ -610,15 +644,33 @@ class TestRecommend(unittest.TestCase):
         try:
             youtube_module.YT_SEARCH_API = server.url("empty.json")
             with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
-                 unittest.mock.patch.object(self.mod, "_verify_feed", return_value=False):
+                 unittest.mock.patch.object(self.mod, "_verify_feed", return_value=None):
                 result = self.mod.recommend("주제", youtube_key="key")
             self.assertEqual(len(result["candidates"]), 1)
             self.assertEqual(result["candidates"][0]["kind"], "blog")
             self.assertFalse(result["candidates"][0]["verified"])
+            self.assertEqual(result["candidates"][0]["url"], "http://example/feed")
             self.assertEqual(result["keywords"], ["키워드1", "키워드2"])
         finally:
             youtube_module.YT_SEARCH_API = saved
             server.close()
+
+    def test_recommend_uses_resolved_feed_url_when_original_was_wrong(self):
+        # Claude 가 사람이 보는 블로그 홈 주소를 줬어도, 검증에서 찾은 진짜
+        # 피드 주소로 바꿔 저장해야 다음 발송부터 실제로 글이 들어온다.
+        parsed = {
+            "candidates": [
+                {"name": "블로그", "kind": "blog", "region": "domestic",
+                 "reason": "이유", "url": "https://example.com/blog/"},
+            ],
+            "keywords": [], "scope": [],
+        }
+        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+             unittest.mock.patch.object(self.mod, "_verify_feed",
+                                        return_value="https://example.com/blog/feed/"):
+            result = self.mod.recommend("주제")
+        self.assertEqual(result["candidates"][0]["url"], "https://example.com/blog/feed/")
+        self.assertTrue(result["candidates"][0]["verified"])
 
     def test_youtube_candidates_without_key_are_skipped(self):
         parsed = {
@@ -2163,6 +2215,45 @@ class TestSettingsOverlay(unittest.TestCase):
     def test_original_config_is_not_mutated(self):
         self.apply(self.config, self.settings, "config.yaml", "morning")
         self.assertEqual(self.config["slots"]["morning"]["title"], "옛 제목")
+
+
+class TestGlobalFilterDefaults(unittest.TestCase):
+    """공통 설정에서 바꾼 필터 기본값이 모든 주제에 똑같이 적용되는지."""
+
+    def setUp(self):
+        import settings as settings_module
+
+        self.mod = settings_module
+        self.settings = {
+            "digests": [{
+                "config": "config.yaml",
+                "slots": [{"slot": "morning"}],
+            }],
+        }
+        self.config = {"slots": {"morning": {"title": "t", "articles": 1, "videos": 1}}}
+
+    def test_no_filters_block_keeps_hardcoded_defaults(self):
+        merged = self.mod.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["lookback_hours"], 48)
+        self.assertEqual(merged["youtube_filter"], {"min_subscribers": 10000, "min_views": 5000})
+
+    def test_filters_block_overrides_all_topics(self):
+        self.settings["filters"] = {"lookback_hours": 96, "min_subscribers": 3000, "min_views": 1000}
+        merged = self.mod.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["lookback_hours"], 96)
+        self.assertEqual(merged["youtube_filter"], {"min_subscribers": 3000, "min_views": 1000})
+
+    def test_per_topic_lookback_still_wins_over_global_default(self):
+        self.settings["filters"] = {"lookback_hours": 96}
+        self.settings["digests"][0]["lookback_hours"] = 168
+        merged = self.mod.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["lookback_hours"], 168)
+
+    def test_partial_filters_block_only_overrides_given_keys(self):
+        self.settings["filters"] = {"min_views": 500}
+        merged = self.mod.apply(self.config, self.settings, "config.yaml", "morning")
+        self.assertEqual(merged["lookback_hours"], 48)
+        self.assertEqual(merged["youtube_filter"], {"min_subscribers": 10000, "min_views": 500})
 
 
 class TestPageCreatedTopic(unittest.TestCase):

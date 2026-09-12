@@ -161,40 +161,46 @@ function scopeSectionHTML(di, dg){
 
 function sourcesSectionHTML(di, dg){
   return `
-    <label style="margin-top:6px">블로그 · RSS</label>
-    <div class="chips">
-      ${(dg.feeds || []).map((f, fi) => `
-        <span class="chip" title="${esc(f.url)}">${esc(f.name)}
-          <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
-        || '<span class="sub">없음</span>'}
-    </div>
-    <div class="add">
-      <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
-             autocapitalize="off" autocomplete="off"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
-      <button class="tiny" onclick="addFeed(${di})">추가</button>
-    </div>
-    <div class="note">
-      네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
-      (브런치·티스토리·서브스택 등).<br>
-      <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
-      공식 API 가 남의 공개 계정을 안 열어 줍니다.
-      <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
-         style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
-    </div>
+    <div class="split2">
+      <div>
+        <label style="margin-top:6px">블로그 · RSS</label>
+        <div class="chips">
+          ${(dg.feeds || []).map((f, fi) => `
+            <span class="chip" title="${esc(f.url)}">${esc(f.name)}
+              <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음</span>'}
+        </div>
+        <div class="add">
+          <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
+          <button class="tiny" onclick="addFeed(${di})">추가</button>
+        </div>
+        <div class="note">
+          네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
+          (브런치·티스토리·서브스택 등).<br>
+          <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
+          공식 API 가 남의 공개 계정을 안 열어 줍니다.
+          <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
+             style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
+        </div>
+      </div>
 
-    <label style="margin-top:16px">유튜브 채널</label>
-    <div class="chips">
-      ${(dg.channels || []).map((c, ci) => `
-        <span class="chip">${esc(c.name)}
-          <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
-        || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+      <div>
+        <label style="margin-top:6px">유튜브 채널</label>
+        <div class="chips">
+          ${(dg.channels || []).map((c, ci) => `
+            <span class="chip">${esc(c.name)}
+              <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
+        </div>
+        <div class="add">
+          <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
+                 oninput="searchSubs(${di})" enterkeyhint="search">
+        </div>
+        <div class="chips" id="cr${di}"></div>
+      </div>
     </div>
-    <div class="add">
-      <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
-             oninput="searchSubs(${di})" enterkeyhint="search">
-    </div>
-    <div class="chips" id="cr${di}"></div>
 
     ${((dg.feeds || []).length + (dg.channels || []).length) ? `
     <button class="tiny ghost" style="margin-top:16px" onclick="exportSourcesCSV(${di})">
@@ -312,8 +318,10 @@ function render(){
       ${esc(dg.label)}
       <span class="sub">${dg.slots.filter(s => s.enabled).map(s => s.send_at).join(" · ") || "발송 없음"}</span>
     </button>`).join("");
-  $("navWizard").setAttribute("aria-current", mode === "wizard");
-  $("navSettings").setAttribute("aria-current", mode === "settings");
+  document.querySelectorAll(".nav-wizard-btn")
+    .forEach(el => el.setAttribute("aria-current", mode === "wizard"));
+  document.querySelectorAll(".nav-settings-btn")
+    .forEach(el => el.setAttribute("aria-current", mode === "settings"));
 
   $("topicsView").hidden = mode !== "topics";
   $("wizardView").hidden = mode !== "wizard";
@@ -323,6 +331,7 @@ function render(){
 
   if (desktop && mode === "topics") renderSectionNav();
   if (mode === "wizard") renderWizard();
+  if (mode === "settings") renderFilters();
 
   $("excludeChips").innerHTML = data.exclude.map(w => `
     <span class="chip">${esc(w)}
@@ -621,6 +630,24 @@ function addAllSuggestions(di){
   render(); touch();
   toast(`${added}개를 ${esc(dg.label)} 에 넣었습니다.`, "busy");
 }
+/* 필터 기본값 — settings.py 의 DEFAULTS 와 같은 숫자다. 여기 안 적혀 있으면
+   (한 번도 안 바꿨으면) 저 하드코딩된 값 그대로 돈다. */
+const FILTER_DEFAULTS = {lookback_hours: 48, min_subscribers: 10000, min_views: 5000};
+
+function renderFilters(){
+  const f = data.filters || {};
+  $("fltLookback").value = f.lookback_hours ?? FILTER_DEFAULTS.lookback_hours;
+  $("fltMinSubs").value = f.min_subscribers ?? FILTER_DEFAULTS.min_subscribers;
+  $("fltMinViews").value = f.min_views ?? FILTER_DEFAULTS.min_views;
+}
+function setFilter(key, value){
+  const n = Math.max(0, parseInt(value, 10) || 0);
+  data.filters = data.filters || {};
+  data.filters[key] = n;
+  touch();
+  toast("필터 기본값을 바꿨습니다. 저장하는 중…", "busy");
+}
+
 function addExclude(){
   const w = $("excludeInput").value.trim();
   if (!w || data.exclude.includes(w)) return;
@@ -701,8 +728,10 @@ async function dispatchRecommend(theme, slug){
 }
 
 /* 결과 파일이 커밋될 때까지 기다린다. 워크플로 기동 + 실행 + 커밋까지
-   보통 30초~2분 걸린다. 못 받으면 시간 초과로 알리고, 다시 시도할 수 있다. */
-async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 240000} = {}){
+   최대 20개 후보를 만들고 RSS 는 자동 발견·흔한 경로까지 하나씩 열어
+   확인하느라 보통 1~5분 걸린다. 못 받으면 시간 초과로 알리고, 다시 시도할
+   수 있다. */
+async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 420000} = {}){
   const path = RECOMMEND_PATH(slug);
   const start = Date.now();
   while (Date.now() - start < timeoutMs){
@@ -732,7 +761,11 @@ async function wizardStartRecommend(){
     if (result.error){
       wizard.error = result.error;
     }else{
-      wizard.picked = new Set((result.candidates || []).map((_, i) => i));
+      // 확인된 것만 기본으로 체크한다 — RSS 확인 안 된 후보까지 그냥
+      // 다 켜놓으면 죽은 피드가 그대로 딸려 들어간다.
+      wizard.picked = new Set(
+        (result.candidates || []).map((c, i) => c.verified ? i : null).filter(i => i !== null)
+      );
       wizard.step = "pick";
     }
   }catch(e){
@@ -811,27 +844,31 @@ function wizardStepsHTML(){
   }).join("")}</div>`;
 }
 
-function candidateHTML(c, i){
+function candidateRowHTML(c, i){
   const picked = wizard.picked.has(i);
   const kindLabel = c.kind === "youtube" ? "유튜브" : "블로그·매체";
   const regionLabel = c.region === "domestic" ? "국내" : "해외";
-  const meta = c.kind === "youtube"
+  const status = c.kind === "youtube"
     ? (c.subscribers != null ? `구독자 ${c.subscribers.toLocaleString("ko-KR")}명` : "구독자 비공개")
-    : (c.verified ? "RSS 확인됨" : "RSS 확인 필요 — 직접 확인해 주세요");
+    : (c.verified ? "✓ 실제 피드 확인됨" : "확인 필요");
   return `
-    <label class="cand">
-      <input type="checkbox" ${picked ? "checked" : ""} onchange="wizardTogglePick(${i})">
-      <div class="body">
-        <div class="name">${esc(c.name)}</div>
-        <div class="tags">
-          <span class="tag ${c.kind}">${kindLabel}</span>
-          <span class="tag">${regionLabel}</span>
-          ${!c.verified ? '<span class="tag unverified">확인 필요</span>' : ""}
-        </div>
-        <div class="reason">${esc(c.reason || "")}</div>
-        <div class="sub" style="margin-top:4px">${esc(meta)}</div>
-      </div>
-    </label>`;
+    <tr class="${picked ? "sel" : ""}">
+      <td><input type="checkbox" ${picked ? "checked" : ""} onchange="wizardTogglePick(${i})"></td>
+      <td class="name">${esc(c.name)}</td>
+      <td><span class="tag ${c.kind}">${kindLabel}</span></td>
+      <td>${regionLabel}</td>
+      <td>${!c.verified ? '<span class="tag unverified">' + esc(status) + '</span>' : esc(status)}</td>
+      <td class="reason">${esc(c.reason || "")}</td>
+    </tr>`;
+}
+
+function wizardSelectAll(){ wizard.picked = new Set((wizard.result.candidates || []).map((_, i) => i)); render(); }
+function wizardSelectNone(){ wizard.picked = new Set(); render(); }
+function wizardSelectVerifiedOnly(){
+  wizard.picked = new Set(
+    (wizard.result.candidates || []).map((c, i) => c.verified ? i : null).filter(i => i !== null)
+  );
+  render();
 }
 
 function renderWizard(){
@@ -869,7 +906,8 @@ function renderWizard(){
         ${wizardStepsHTML()}
         ${w.busy ? `
           <div class="sub"><span class="spin"></span>AI 가 후보를 만들고, 실제로 존재하는 채널인지
-            하나씩 확인하고 있습니다. 보통 30초~2분 걸립니다.</div>` : ""}
+            하나씩 확인하고 있습니다(최대 20개, RSS 는 살아있는지 직접 열어
+            확인). 보통 1~5분 걸립니다.</div>` : ""}
         ${w.error ? `
           <div class="note" style="color:var(--danger)">찾지 못했습니다: ${esc(w.error)}</div>
           <div class="duo" style="margin-top:10px">
@@ -884,13 +922,27 @@ function renderWizard(){
     const cands = w.result.candidates || [];
     const domestic = cands.filter(c => c.region === "domestic").length;
     const intl = cands.length - domestic;
+    const verifiedCount = cands.filter(c => c.verified).length;
     el.innerHTML = `
       <div class="card">
-        <h2>'${esc(w.theme)}' 추천 채널 ${cands.length}개</h2>
+        <h2>'${esc(w.theme)}' 추천 채널·매체 ${cands.length}개</h2>
         ${wizardStepsHTML()}
-        <div class="sub">국내 ${domestic}개 · 해외 ${intl}개. 이유를 보고 넣을 것만 고르세요.
-          체크한 것만 채널·키워드로 자동 등록됩니다.</div>
-        ${cands.length ? cands.map((c, i) => candidateHTML(c, i)).join("")
+        <div class="sub">국내 ${domestic}개 · 해외 ${intl}개, 그중 실제로 확인된 것 ${verifiedCount}개.
+          이유를 보고 넣을 것만 고르세요. 체크한 것만 채널·키워드로 자동 등록됩니다.</div>
+        ${cands.length ? `
+        <div class="row" style="gap:8px; margin-top:10px">
+          <button class="tiny ghost" onclick="wizardSelectAll()">전체 선택</button>
+          <button class="tiny ghost" onclick="wizardSelectNone()">전체 해제</button>
+          <button class="tiny ghost" onclick="wizardSelectVerifiedOnly()">확인된 것만 선택</button>
+        </div>
+        <div class="table-wrap">
+          <table class="cand-table">
+            <thead><tr>
+              <th></th><th>이름</th><th>종류</th><th>지역</th><th>확인</th><th>사유</th>
+            </tr></thead>
+            <tbody>${cands.map((c, i) => candidateRowHTML(c, i)).join("")}</tbody>
+          </table>
+        </div>`
           : '<div class="note">실제로 확인되는 채널을 찾지 못했습니다. 이름만으로 만들거나 다시 시도해 주세요.</div>'}
         ${(w.result.keywords || []).length ? `
           <label style="margin-top:16px">같이 등록될 키워드</label>
@@ -1937,6 +1989,7 @@ Object.assign(window, {
   searchSubs,
   lockToken,
   removeLock,
+  setFilter,
   setMode,
   showTokenInput,
   startWizard,
@@ -1950,6 +2003,9 @@ Object.assign(window, {
   wizardGoto,
   wizardRestart,
   wizardRetry,
+  wizardSelectAll,
+  wizardSelectNone,
+  wizardSelectVerifiedOnly,
   wizardStartRecommend,
   wizardTestSend,
   wizardTogglePick,
