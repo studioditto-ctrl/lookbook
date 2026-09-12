@@ -76,6 +76,72 @@ digests:
         channel_id: UCMgOSW62URSxzPCcNXyohLw
       - name: "Investor's Business Daily"
         channel_id: UC5fZv7bPcF5j2RsfO-9OiLA
+  - key: tmtxmt963
+    label: 맨몸운동
+    scope: [맨몸운동, 칼리스데닉스, 홈트레이닝]
+    strict: true
+    slots:
+      - slot: daily
+        title: "맨몸운동 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      맨몸운동: 3
+      칼리스데닉스: 3
+      홈트레이닝: 3
+      푸시업: 2
+      턱걸이: 2
+      코어운동: 2
+      스트렝스: 1
+      기구없이: 1
+      바디웨이트: 1
+    queries:
+      - name: 맨몸운동
+        query: "맨몸운동 OR 칼리스데닉스 OR 홈트레이닝 OR 푸시업 OR 턱걸이 OR 코어운동"
+    feeds:
+      - name: GMB Fitness
+        url: "https://gmb.io/blog/"
+        region: international
+        reason: "맨몸운동·움직임 훈련 관련 상세 가이드 글을 제공합니다."
+      - name: Nerd Fitness
+        url: "https://www.nerdfitness.com/blog/"
+        region: international
+        reason: "초보자용 맨몸운동 루틴과 홈트 가이드를 꾸준히 발행합니다."
+    channels:
+      - name: "김계란 [피지컬갤러리]"
+        channel_id: UCdtRAcd3L_UpV4tMXCw63NQ
+        region: domestic
+        reason: "맨몸운동 루틴과 홈트레이닝 콘텐츠를 대중적으로 다루는 국내 대표 채널입니다."
+      - name: 에이더 ADER
+        channel_id: UCu8Oj6fqmD5tG4Nch2ijG4Q
+        region: domestic
+        reason: "맨몸운동과 근력운동 자세 교정 콘텐츠를 꾸준히 올립니다."
+      - name: 핏블리 FITVELY
+        channel_id: UC3hRpIQ4x5niJDwjajQSVPg
+        region: domestic
+        reason: "운동 과학 기반으로 맨몸운동·홈트 루틴을 설명합니다."
+      - name: 땅끄부부
+        channel_id: UCpg89Ys3E4BaLGgEEWVmI9g
+        region: domestic
+        reason: "기구 없이 따라 할 수 있는 맨몸 홈트레이닝 영상을 다수 제공합니다."
+      - name: 칼리스데닉스 코리아
+        channel_id: UCGy944aplGzhn9AGQ-K9DnA
+        region: domestic
+        reason: "국내 칼리스데닉스(맨몸운동) 동작과 대회 소식을 다룹니다."
+      - name: THENX
+        channel_id: UCqjwF8rxRsotnojGl4gM0Zw
+        region: international
+        reason: "크리스 히리아의 대표적인 칼리스데닉스 전문 채널입니다."
+      - name: FitnessFAQs
+        channel_id: UC1CVzH-XVr3E-kTT6D8hhfg
+        region: international
+        reason: "맨몸운동 프로그래밍과 스트렝스 향상법을 과학적으로 설명합니다."
+      - name: Calisthenicmovement
+        channel_id: UCZIIRX8rkNjVpP-oLMHpeDw
+        region: international
+        reason: "맨몸운동 동작 분석과 루틴 설계로 유명한 해외 채널입니다."
 
 exclude:
   - 부고
