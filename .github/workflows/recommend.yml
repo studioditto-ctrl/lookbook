@@ -4,7 +4,10 @@ on:
   # 어드민 페이지의 '새 주제 만들기' 마법사가 테마를 입력하면 이 이벤트를 쏜다.
   #   POST https://api.github.com/repos/<소유자>/<저장소>/dispatches
   #   Authorization: Bearer <PAT>   (Contents: Read and write)
-  #   {"event_type": "recommend_sources", "client_payload": {"theme": "...", "slug": "..."}}
+  #   {"event_type": "recommend_sources",
+  #    "client_payload": {"theme": "...", "slug": "...", "exclude": "이름1, 이름2"}}
+  #   exclude 는 '추가 검색'에서 이미 나온 이름을 다시 추천받지 않으려고
+  #   보낸다. 없으면 빈 문자열.
   #
   # 결과는 state/recommend/<slug>.json 에 커밋되고, 페이지는 그 파일이
   # 생길 때까지 폴링한다. API 키를 브라우저에 둘 수 없어 이 경로로 돈다.
@@ -34,7 +37,8 @@ jobs:
         run: |
           python src/recommend.py \
             --theme "${{ github.event.client_payload.theme }}" \
-            --slug "${{ github.event.client_payload.slug }}"
+            --slug "${{ github.event.client_payload.slug }}" \
+            --exclude "${{ github.event.client_payload.exclude }}"
 
       - name: 결과 커밋
         run: |

@@ -710,14 +710,17 @@ let wizard = null;
 function startWizard(){
   wizard = {
     step: "theme", theme: "", slug: "", result: null,
-    picked: new Set(), di: null, busy: false, error: null,
+    picked: new Set(), di: null, busy: false, searching: false, error: null,
   };
 }
 
-async function dispatchRecommend(theme, slug){
+async function dispatchRecommend(theme, slug, excludeNames){
+  const client_payload = {theme, slug};
+  // '추가 검색' 은 이미 나온 이름을 다시 추천받지 않으려고 같이 보낸다.
+  if (excludeNames && excludeNames.length) client_payload.exclude = excludeNames.join(", ");
   const r = await fetch(DISPATCH_URL, {
     method: "POST", headers: headers(),
-    body: JSON.stringify({event_type: "recommend_sources", client_payload: {theme, slug}}),
+    body: JSON.stringify({event_type: "recommend_sources", client_payload}),
   });
   if (!r.ok){
     const j = await r.json().catch(() => ({}));
@@ -728,10 +731,10 @@ async function dispatchRecommend(theme, slug){
 }
 
 /* 결과 파일이 커밋될 때까지 기다린다. 워크플로 기동 + 실행 + 커밋까지
-   최대 20개 후보를 만들고 RSS 는 자동 발견·흔한 경로까지 하나씩 열어
-   확인하느라 보통 1~5분 걸린다. 못 받으면 시간 초과로 알리고, 다시 시도할
-   수 있다. */
-async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 420000} = {}){
+   최대 50개 후보를 만들고, 유튜브 구독자·매체 방문자 수 확인·RSS 자동
+   발견까지 하나씩 열어 확인하느라 보통 2~8분 걸린다. 못 받으면 시간
+   초과로 알리고, 다시 시도할 수 있다. */
+async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 600000} = {}){
   const path = RECOMMEND_PATH(slug);
   const start = Date.now();
   while (Date.now() - start < timeoutMs){
@@ -781,6 +784,43 @@ function wizardRetry(){
   render();
 }
 
+/* '추가 검색' — 지금까지 나온 이름은 빼고 새로 찾아 목록에 더한다.
+   유튜브 순위는 병합 후 다시 계산해서 보여주므로(candTable 참고) 여기서는
+   그냥 이어 붙이기만 하면 된다. */
+async function wizardSearchMore(){
+  if (!wizard || !wizard.result || wizard.searching) return;
+  const existingNames = wizard.result.candidates.map(c => c.name);
+  wizard.searching = true;
+  render();
+  try{
+    const slug = "r" + Date.now().toString(36);
+    await dispatchRecommend(wizard.theme, slug, existingNames);
+    const more = await pollRecommend(slug);
+    if (more.error){
+      toast("추가 검색에 실패했습니다: " + esc(more.error), "err", true);
+    }else{
+      const have = new Set(existingNames);
+      const added = (more.candidates || []).filter(c => !have.has(c.name));
+      const startIdx = wizard.result.candidates.length;
+      wizard.result.candidates = wizard.result.candidates.concat(added);
+      added.forEach((c, k) => { if (c.verified) wizard.picked.add(startIdx + k); });
+
+      const kwSet = new Set(wizard.result.keywords || []);
+      (more.keywords || []).forEach(k => kwSet.add(k));
+      wizard.result.keywords = [...kwSet];
+      const scSet = new Set(wizard.result.scope || []);
+      (more.scope || []).forEach(s => scSet.add(s));
+      wizard.result.scope = [...scSet];
+
+      toast(added.length ? `${added.length}개를 더 찾았습니다.` : "새로 나온 것이 없습니다.", "ok");
+    }
+  }catch(e){
+    toast("추가 검색을 요청하지 못했습니다: " + esc(e.message), "err", true);
+  }
+  wizard.searching = false;
+  render();
+}
+
 function wizardTogglePick(i){
   if (wizard.picked.has(i)) wizard.picked.delete(i); else wizard.picked.add(i);
   render();
@@ -795,7 +835,7 @@ function wizardApply(){
     .filter(c => c.kind === "youtube" && c.channel_id)
     .map(c => ({name: c.name, channel_id: c.channel_id, region: c.region, reason: c.reason}));
   const feeds = chosen
-    .filter(c => c.kind === "blog" && c.url)
+    .filter(c => (c.kind === "blog" || c.kind === "media") && c.url)
     .map(c => ({name: c.name, url: c.url, region: c.region, reason: c.reason}));
 
   const keywords = {};
@@ -844,22 +884,79 @@ function wizardStepsHTML(){
   }).join("")}</div>`;
 }
 
-function candidateRowHTML(c, i){
+/* 채널 선택 표. 유튜브/매체/블로그 세 종류를 따로 보여준다 — 매체마다
+   확인 방식이 달라서(유튜브는 구독자 수, 매체는 방문자 수, 블로그는 RSS
+   살아있는지) 한 표에 욱여넣으면 뭘 보고 판단해야 할지 헷갈린다.
+
+   유튜브 순위는 저장된 rank 를 그대로 믿지 않고 매번 다시 계산한다 —
+   '추가 검색'으로 다른 요청의 결과를 이어 붙이면 rank 번호가 배치마다
+   따로 매겨져 있어 그대로 쓰면 중복되거나 뒤섞인다. */
+function regionLabel(r){ return r === "domestic" ? "국내" : "해외"; }
+
+function candRowHTML(c, cols){
+  const i = wizard.result.candidates.indexOf(c);
   const picked = wizard.picked.has(i);
-  const kindLabel = c.kind === "youtube" ? "유튜브" : "블로그·매체";
-  const regionLabel = c.region === "domestic" ? "국내" : "해외";
-  const status = c.kind === "youtube"
-    ? (c.subscribers != null ? `구독자 ${c.subscribers.toLocaleString("ko-KR")}명` : "구독자 비공개")
-    : (c.verified ? "✓ 실제 피드 확인됨" : "확인 필요");
   return `
     <tr class="${picked ? "sel" : ""}">
       <td><input type="checkbox" ${picked ? "checked" : ""} onchange="wizardTogglePick(${i})"></td>
-      <td class="name">${esc(c.name)}</td>
-      <td><span class="tag ${c.kind}">${kindLabel}</span></td>
-      <td>${regionLabel}</td>
-      <td>${!c.verified ? '<span class="tag unverified">' + esc(status) + '</span>' : esc(status)}</td>
-      <td class="reason">${esc(c.reason || "")}</td>
+      ${cols.map(col => `<td class="${col.cls || ""}">${col.render(c)}</td>`).join("")}
     </tr>`;
+}
+
+function candTableHTML(list, cols){
+  if (!list.length) return '<div class="sub" style="margin:8px 0">해당하는 후보가 없습니다.</div>';
+  return `<div class="table-wrap">
+    <table class="cand-table">
+      <thead><tr><th></th>${cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>
+      <tbody>${list.map(c => candRowHTML(c, cols)).join("")}</tbody>
+    </table>
+  </div>`;
+}
+
+function youtubeTableHTML(cands){
+  const bySubs = (a, b) => (b.subscribers || 0) - (a.subscribers || 0);
+  const ordered = [
+    ...cands.filter(c => c.region === "domestic").sort(bySubs),
+    ...cands.filter(c => c.region === "international").sort(bySubs),
+  ];
+  // 순위는 지역 안에서 다시 매긴다 (병합돼도 항상 맞게).
+  const ranks = new Map();
+  for (const region of ["domestic", "international"]){
+    cands.filter(c => c.region === region).sort(bySubs)
+      .forEach((c, i) => ranks.set(c, i + 1));
+  }
+  const cols = [
+    {label: "순위", render: c => `${regionLabel(c.region)} ${ranks.get(c)}위`},
+    {label: "이름", cls: "name", render: c => esc(c.name)},
+    {label: "구독자", render: c => c.subscribers != null
+      ? `${c.subscribers.toLocaleString("ko-KR")}명` : "확인 안 됨"},
+    {label: "사유", cls: "reason", render: c => esc(c.reason || "")},
+  ];
+  return candTableHTML(ordered, cols);
+}
+
+function mediaTableHTML(cands){
+  const cols = [
+    {label: "지역", render: c => regionLabel(c.region)},
+    {label: "이름", cls: "name", render: c => esc(c.name)},
+    {label: "월간 방문(추정)", render: c => c.monthly_visits != null
+      ? `${c.monthly_visits.toLocaleString("ko-KR")}회` : "확인 안 됨"},
+    {label: "RSS", render: c => c.verified
+      ? "✓ 확인됨" : '<span class="tag unverified">확인 필요</span>'},
+    {label: "사유", cls: "reason", render: c => esc(c.reason || "")},
+  ];
+  return candTableHTML(cands, cols);
+}
+
+function blogTableHTML(cands){
+  const cols = [
+    {label: "지역", render: c => regionLabel(c.region)},
+    {label: "이름", cls: "name", render: c => esc(c.name)},
+    {label: "RSS", render: c => c.verified
+      ? "✓ 확인됨" : '<span class="tag unverified">확인 필요</span>'},
+    {label: "사유", cls: "reason", render: c => esc(c.reason || "")},
+  ];
+  return candTableHTML(cands, cols);
 }
 
 function wizardSelectAll(){ wizard.picked = new Set((wizard.result.candidates || []).map((_, i) => i)); render(); }
@@ -905,9 +1002,9 @@ function renderWizard(){
         <h2>'${esc(w.theme)}' 추천 소스를 찾는 중</h2>
         ${wizardStepsHTML()}
         ${w.busy ? `
-          <div class="sub"><span class="spin"></span>AI 가 후보를 만들고, 실제로 존재하는 채널인지
-            하나씩 확인하고 있습니다(최대 20개, RSS 는 살아있는지 직접 열어
-            확인). 보통 1~5분 걸립니다.</div>` : ""}
+          <div class="sub"><span class="spin"></span>AI 가 최대 50개 후보를 만들고, 유튜브는 실제
+            채널·구독자 수를, 매체·블로그는 RSS 가 살아있는지와 방문자 수를
+            하나씩 확인하고 있습니다. 보통 2~8분 걸립니다.</div>` : ""}
         ${w.error ? `
           <div class="note" style="color:var(--danger)">찾지 못했습니다: ${esc(w.error)}</div>
           <div class="duo" style="margin-top:10px">
@@ -920,32 +1017,36 @@ function renderWizard(){
 
   if (w.step === "pick"){
     const cands = w.result.candidates || [];
-    const domestic = cands.filter(c => c.region === "domestic").length;
-    const intl = cands.length - domestic;
-    const verifiedCount = cands.filter(c => c.verified).length;
+    const youtube = cands.filter(c => c.kind === "youtube");
+    const media = cands.filter(c => c.kind === "media");
+    const blog = cands.filter(c => c.kind === "blog");
     el.innerHTML = `
       <div class="card">
-        <h2>'${esc(w.theme)}' 추천 채널·매체 ${cands.length}개</h2>
+        <h2>'${esc(w.theme)}' 추천 결과 ${cands.length}개</h2>
         ${wizardStepsHTML()}
-        <div class="sub">국내 ${domestic}개 · 해외 ${intl}개, 그중 실제로 확인된 것 ${verifiedCount}개.
-          이유를 보고 넣을 것만 고르세요. 체크한 것만 채널·키워드로 자동 등록됩니다.</div>
+        <div class="sub">유튜브는 구독자 많은 순으로 국내/해외 각각 순위를 매겼습니다. 이유를 보고
+          넣을 것만 고르세요. 체크한 것만 채널·키워드로 자동 등록됩니다.</div>
         ${cands.length ? `
-        <div class="row" style="gap:8px; margin-top:10px">
+        <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap">
           <button class="tiny ghost" onclick="wizardSelectAll()">전체 선택</button>
           <button class="tiny ghost" onclick="wizardSelectNone()">전체 해제</button>
           <button class="tiny ghost" onclick="wizardSelectVerifiedOnly()">확인된 것만 선택</button>
+          <button class="tiny" ${w.searching ? "disabled" : ""} onclick="wizardSearchMore()">
+            ${w.searching ? '<span class="spin"></span>추가 검색하는 중…' : "🔍 추가 검색"}</button>
         </div>
-        <div class="table-wrap">
-          <table class="cand-table">
-            <thead><tr>
-              <th></th><th>이름</th><th>종류</th><th>지역</th><th>확인</th><th>사유</th>
-            </tr></thead>
-            <tbody>${cands.map((c, i) => candidateRowHTML(c, i)).join("")}</tbody>
-          </table>
-        </div>`
+
+        <h3>유튜브 채널 (${youtube.length})</h3>
+        ${youtubeTableHTML(youtube)}
+
+        <h3>매체 (${media.length})</h3>
+        ${mediaTableHTML(media)}
+
+        <h3>블로그 (${blog.length})</h3>
+        ${blogTableHTML(blog)}
+        `
           : '<div class="note">실제로 확인되는 채널을 찾지 못했습니다. 이름만으로 만들거나 다시 시도해 주세요.</div>'}
         ${(w.result.keywords || []).length ? `
-          <label style="margin-top:16px">같이 등록될 키워드</label>
+          <label style="margin-top:16px">같이 등록될 키워드 (${w.result.keywords.length}개)</label>
           <div class="chips">${w.result.keywords.map(k => `<span class="chip plain">${esc(k)}</span>`).join("")}</div>
         ` : ""}
         <div class="wzcount">
@@ -968,7 +1069,7 @@ function renderWizard(){
         ${wizardStepsHTML()}
         <div class="note" style="color:var(--ok)">
           ✓ '${esc(dg.label)}' 주제를 만들고 채널 ${(dg.channels || []).length}개 ·
-          블로그 ${(dg.feeds || []).length}개 · 키워드 ${Object.keys(dg.keywords).length}개를
+          블로그/매체 ${(dg.feeds || []).length}개 · 키워드 ${Object.keys(dg.keywords).length}개를
           등록했습니다. AI 로 붙인 채널이라, 발송 전 주제와 맞는 내용인지 한 번 더
           확인하도록 켜 두었습니다.
         </div>
@@ -2006,6 +2107,7 @@ Object.assign(window, {
   wizardSelectAll,
   wizardSelectNone,
   wizardSelectVerifiedOnly,
+  wizardSearchMore,
   wizardStartRecommend,
   wizardTestSend,
   wizardTogglePick,

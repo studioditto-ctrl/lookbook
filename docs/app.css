@@ -33,6 +33,7 @@
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
         padding:14px; margin-bottom:12px}
   .card h2{font-size:16px; margin:0 0 4px}
+  .card h3{font-size:14px; margin:18px 0 6px; color:var(--ink)}
   .row{display:flex; gap:10px; align-items:center}
   label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
   input{
@@ -110,8 +111,6 @@
     font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
     color:var(--muted); white-space:nowrap;
   }
-  .tag.youtube{border-color:var(--danger); color:var(--danger)}
-  .tag.blog{border-color:var(--accent); color:var(--accent)}
   .tag.unverified{border-color:var(--danger); color:var(--danger)}
 
   /* 후보를 표로 — 스무 개까지 늘어놓아도 한눈에 훑을 수 있다.

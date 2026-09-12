@@ -1,10 +1,13 @@
-"""테마 하나로 소스 후보(유튜브·미디어/블로그)와 키워드를 추천한다.
+"""테마 하나로 소스 후보(유튜브·매체·블로그)와 키워드를 추천한다.
 
 Claude 에게는 채널·매체 '이름'만 제안하게 하고, 실존 여부는 여기서 따로
 확인한다. 모델이 라이브 웹 검색을 쓰지 않으므로 이름을 지어낼 수 있다 —
-유튜브는 YouTube Data API 로 채널을 찾지 못하면 후보에서 뺀다. 블로그/RSS
-는 봇 차단으로 확인이 실패할 수 있어, 실패해도 버리지 않고 '확인 필요'로
-표시만 한다.
+유튜브는 YouTube Data API 로 채널을 찾지 못하거나, 찾았어도 구독자가 너무
+적으면(이름만으로 검색하다 보니 동명의 엉뚱한 소규모 채널이 잡히는 일이
+있다) 후보에서 뺀다. 살아남은 채널은 구독자 많은 순으로 국내/해외 각각
+순위를 매긴다. 매체/블로그는 RSS 가 실제로 살아 있는지 확인하고, 매체는
+방문자 수까지 최선을 다해 확인한다 — 실패해도 버리지 않고 '확인 필요'로만
+표시한다.
 
 어드민 페이지는 정적 GitHub Pages라 이 스크립트를 직접 부를 수 없다(키가
 브라우저에 노출된다). repository_dispatch 로 이 스크립트를 돌리는 워크플로가
@@ -22,37 +25,58 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MODEL = "claude-opus-5"
-MAX_TOKENS = 8000
-# 후보를 늘릴수록(top 20) 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
+MAX_TOKENS = 12000
+# 후보를 늘릴수록 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
 
 REPO = Path(__file__).resolve().parent.parent
 RECOMMEND_DIR = REPO / "state" / "recommend"
 
-CANDIDATE_LIMIT = 20
+KINDS = ("youtube", "media", "blog")
+REGIONS = ("domestic", "international")
+
+# Claude 에게 한 번에 요청하는 원본 후보 상한. 검증·순위 매기기 전 단계라
+# 실제로 화면에 보일 개수(유튜브 지역별 10위까지, 매체·블로그 지역별 10개까지)
+# 보다 넉넉히 받아야, 검증에서 떨어져 나가도 각 칸이 비지 않는다.
+RAW_LIMIT = 50
+# 유튜브는 지역별로 구독자 많은 순 이만큼만 남긴다.
+YOUTUBE_RANK_SIZE = 10
+# 매체·블로그는 kind·지역 조합별로 이만큼만 남긴다.
+OTHER_CAP = 10
+# 채널 이름으로 검색하면 동명의 엉뚱한 소규모 채널이 잡히기도 한다.
+# 이 미만이거나 비공개면(확인 불가) 순위에서 뺀다.
+MIN_YOUTUBE_SUBSCRIBERS = 1000
 
 SYSTEM = f"""당신은 텔레그램 다이제스트 구독 설정을 돕는 추천 어시스턴트입니다.
 
 사용자가 새 주제(테마)를 입력하면, 그 주제를 다루는 소스 후보를 최대
-{CANDIDATE_LIMIT}개 제안합니다.
+{RAW_LIMIT}개 제안합니다. 이후 실존 여부·구독자 수·방문자 수를 별도로
+확인해 추리므로, 여기서는 실제로 존재한다고 확신하는 것 위주로 넉넉히
+제안하십시오.
 
 규칙:
-- 후보의 kind 는 "youtube"(유튜브 채널) 또는 "blog"(뉴스매체·블로그·RSS)
-  중 하나입니다.
-- region 은 "domestic"(국내) 또는 "international"(해외)이며, 전체 후보를
-  대략 절반씩 나눕니다.
+- 후보의 kind 는 다음 셋 중 하나입니다.
+  - "youtube": 유튜브 채널
+  - "media": 언론사·매체 — 자체 도메인을 가진 뉴스매체·전문지 등 방문자
+    통계를 확인할 수 있을 법한 곳
+  - "blog": 개인 블로그·커뮤니티 등 매체가 아닌 글 출처
+- region 은 "domestic"(국내) 또는 "international"(해외)입니다. kind ×
+  region 조합(유튜브×국내, 유튜브×해외, 매체×국내, 매체×해외, 블로그×국내,
+  블로그×해외) 여섯 칸에 골고루 후보를 채우십시오 — 한쪽에 쏠리면 검증
+  후 그 칸이 빌 수 있습니다. 각 칸 최소 5개 이상을 목표로 하되, 실제로
+  존재한다고 확신할 수 있는 만큼만 채우십시오.
 - name 에는 실제로 존재한다고 확신하는 채널명/매체명만 씁니다. 실존 여부는
   이후 별도로 확인하니, 떠오르지 않으면 억지로 채우지 말고 후보 수를
   줄이십시오. 지어낸 이름을 자신 있게 제시하지 마십시오.
-- kind 가 "blog" 인데 정확한 URL을 모르면 url 을 빈 문자열로 둡니다.
-  틀린 URL을 지어내지 마십시오. kind 가 "youtube" 면 url 은 항상 빈
-  문자열로 둡니다 (채널 검색은 이름으로 합니다).
+- kind 가 "media" 나 "blog" 인데 정확한 URL을 모르면 url 을 빈 문자열로
+  둡니다. 틀린 URL을 지어내지 마십시오. kind 가 "youtube" 면 url 은 항상
+  빈 문자열로 둡니다 (채널 검색은 이름으로 합니다).
 - reason 은 이 후보가 왜 이 주제와 맞는지 한국어 1문장으로 씁니다.
-- keywords 는 이 주제의 다이제스트를 걸러낼 때 쓸 낱말 6~10개.
+- keywords 는 이 주제의 다이제스트를 걸러낼 때 쓸 낱말 약 20개. 한국어와
+  영어를 섞어서(예: 주제가 "러닝"이면 "러닝", "훈련", "running", "training"
+  처럼 같은 개념의 한국어·영어 표기를 같이) 채웁니다.
 - scope 는 검색·필터링에서 항상 주제로 인정할 낱말 5~10개로, 넉넉하게
   잡습니다. 표준 명칭뿐 아니라 줄임말·구어체·영문 표기·자주 쓰이는 오기까지
-  포함해 동의어를 폭넓게 채웁니다 (예: 주제가 "맨몸운동"이면 scope 는
-  ["맨몸운동", "홈트", "홈트레이닝", "캘리스테닉스", "바디웨이트", "근력운동",
-  "calisthenics", "bodyweight"] 처럼). scope 가 너무 좁으면 실제로는 주제와
+  포함해 동의어를 폭넓게 채웁니다. scope 가 너무 좁으면 실제로는 주제와
   맞는 글도 걸러져 버려지니, 좁히기보다 넓히는 쪽을 택하십시오."""
 
 SCHEMA = {
@@ -64,8 +88,8 @@ SCHEMA = {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
-                    "kind": {"type": "string", "enum": ["youtube", "blog"]},
-                    "region": {"type": "string", "enum": ["domestic", "international"]},
+                    "kind": {"type": "string", "enum": list(KINDS)},
+                    "region": {"type": "string", "enum": list(REGIONS)},
                     "reason": {"type": "string"},
                     "url": {"type": "string"},
                 },
@@ -81,7 +105,12 @@ SCHEMA = {
 }
 
 
-def _request(client, theme, effort="low"):
+def _request(client, theme, exclude_names=None, effort="low"):
+    content = f"주제: {theme}"
+    if exclude_names:
+        content += "\n\n이미 추천했던 이름입니다. 다시 제안하지 말고 새로운 것만 주세요: " \
+            + ", ".join(exclude_names)
+
     response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
@@ -90,7 +119,7 @@ def _request(client, theme, effort="low"):
             "effort": effort,
             "format": {"type": "json_schema", "schema": SCHEMA},
         },
-        messages=[{"role": "user", "content": f"주제: {theme}"}],
+        messages=[{"role": "user", "content": content}],
     )
 
     if response.stop_reason == "refusal":
@@ -104,7 +133,7 @@ def _request(client, theme, effort="low"):
     return json.loads(text)
 
 
-def _ask_claude(theme):
+def _ask_claude(theme, exclude_names=None):
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY 가 없습니다")
 
@@ -112,7 +141,7 @@ def _ask_claude(theme):
 
     client = anthropic.Anthropic()
     try:
-        return _request(client, theme)
+        return _request(client, theme, exclude_names=exclude_names)
     except anthropic.RateLimitError as e:
         raise RuntimeError(f"요청 한도 초과: {e}") from e
     except anthropic.APIConnectionError as e:
@@ -222,19 +251,46 @@ def _verify_feed(url):
     return None
 
 
-def recommend(theme, youtube_key=None, cache=None):
-    """테마 -> 검증된 후보 목록. {"theme","candidates","keywords","scope","generated_at"}."""
-    cache = cache if cache is not None else {}
-    parsed = _ask_claude(theme)
+def _check_media_traffic(url):
+    """월간 방문(추정치)을 최선을 다해 확인한다.
 
-    candidates = []
-    for raw in (parsed.get("candidates") or [])[:CANDIDATE_LIMIT]:
+    공식 API 키가 필요 없는 비공식 공개 엔드포인트(SimilarWeb)를 쓴다 —
+    문서화된 계약이 아니라서 언제든 막히거나 모양이 바뀔 수 있다. 실패하면
+    조용히 None 을 돌려준다. 확인 안 된 숫자를 지어내는 것보다 '모름'이 낫다.
+    """
+    import requests
+    from urllib.parse import urlparse
+
+    domain = urlparse(url).netloc.removeprefix("www.")
+    if not domain:
+        return None
+    try:
+        resp = requests.get(
+            "https://data.similarweb.com/api/v1/data",
+            params={"domain": domain}, timeout=FEED_TIMEOUT,
+            headers={"User-Agent": FEED_UA},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError):
+        return None
+    visits = (data.get("Engagments") or data.get("EstimatedMonthlyVisits") or {})
+    value = visits.get("Visits") if isinstance(visits, dict) else visits
+    try:
+        return int(float(value)) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _collect_raw(theme, youtube_key, cache, exclude_names):
+    """Claude 제안 → 검증까지 마친 원본 후보 목록 (아직 순위·상한 적용 전)."""
+    parsed = _ask_claude(theme, exclude_names=exclude_names)
+    out = []
+    for raw in (parsed.get("candidates") or [])[:RAW_LIMIT]:
         name = (raw.get("name") or "").strip()
         kind = raw.get("kind")
         region = raw.get("region")
-        if not name or kind not in ("youtube", "blog") or region not in (
-            "domestic", "international",
-        ):
+        if not name or kind not in KINDS or region not in REGIONS:
             continue
         reason = (raw.get("reason") or "").strip()
         url = (raw.get("url") or "").strip()
@@ -248,7 +304,12 @@ def recommend(theme, youtube_key=None, cache=None):
                 print(f"[recommend] '{name}' 유튜브 채널을 찾지 못해 제외합니다.")
                 continue
             channel_id, subs = found
-            candidates.append({
+            if subs is None or subs < MIN_YOUTUBE_SUBSCRIBERS:
+                print(f"[recommend] '{name}' 구독자 {subs} 명이라 제외합니다"
+                      f" (최소 {MIN_YOUTUBE_SUBSCRIBERS:,}명, 이름으로 검색해"
+                      f" 동명의 다른 채널이 잡혔을 수 있습니다).")
+                continue
+            out.append({
                 "name": name, "kind": kind, "region": region, "reason": reason,
                 "channel_id": channel_id, "subscribers": subs, "verified": True,
             })
@@ -258,12 +319,62 @@ def recommend(theme, youtube_key=None, cache=None):
             # 진짜 피드 주소를 쓴다. 못 찾으면 원래 주소를 그대로 두고
             # '확인 필요'로만 남긴다 (봇 차단으로 확인만 실패했을 수 있다).
             resolved = _verify_feed(url) if url else None
-            candidates.append({
+            entry = {
                 "name": name, "kind": kind, "region": region, "reason": reason,
                 "url": resolved or url, "verified": bool(resolved),
-            })
+            }
+            if kind == "media":
+                entry["monthly_visits"] = (
+                    _check_media_traffic(resolved or url) if (resolved or url) else None
+                )
+            out.append(entry)
+    return parsed, out
 
-    candidates = candidates[:CANDIDATE_LIMIT]
+
+def _rank_youtube(candidates):
+    """지역별 구독자 많은 순 top N. 살아남은 것만 순위(rank)를 매긴다."""
+    ranked = []
+    youtube = [c for c in candidates if c["kind"] == "youtube"]
+    for region in REGIONS:
+        group = sorted(
+            (c for c in youtube if c["region"] == region),
+            key=lambda c: c["subscribers"], reverse=True,
+        )[:YOUTUBE_RANK_SIZE]
+        for i, c in enumerate(group, start=1):
+            c["rank"] = i
+        ranked += group
+    return ranked
+
+
+def _cap_others(candidates):
+    """매체·블로그는 kind·지역 조합별로 상한을 둔다.
+
+    매체는 방문자 수(확인된 것 우선)로, 블로그는 RSS 확인 여부로 정렬한다.
+    """
+    out = []
+    for kind in ("media", "blog"):
+        for region in REGIONS:
+            group = [c for c in candidates if c["kind"] == kind and c["region"] == region]
+            if kind == "media":
+                group.sort(key=lambda c: (c.get("monthly_visits") is None,
+                                           -(c.get("monthly_visits") or 0)))
+            else:
+                group.sort(key=lambda c: not c["verified"])
+            out += group[:OTHER_CAP]
+    return out
+
+
+def recommend(theme, youtube_key=None, cache=None, exclude_names=None):
+    """테마 -> 검증·순위까지 마친 후보 목록.
+
+    {"theme","candidates","keywords","scope","generated_at"}. candidates 는
+    유튜브(지역별 구독자 순위 rank 포함) + 매체(방문자 수 우선) + 블로그
+    (RSS 확인 우선) 순으로 담겨 있다.
+    """
+    cache = cache if cache is not None else {}
+    parsed, raw = _collect_raw(theme, youtube_key, cache, exclude_names)
+
+    candidates = _rank_youtube(raw) + _cap_others(raw)
     return {
         "theme": theme,
         "candidates": candidates,
@@ -286,13 +397,21 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="테마로 소스 추천 후보를 만든다")
     parser.add_argument("--theme", required=True)
     parser.add_argument("--slug", required=True)
+    parser.add_argument(
+        "--exclude", default="",
+        help="쉼표로 구분한, 이미 추천받은 이름 목록 — '추가 검색'에서 중복을 피하려고 쓴다.",
+    )
     args = parser.parse_args(argv)
+    exclude_names = [s.strip() for s in args.exclude.split(",") if s.strip()]
 
     # 페이지는 이 파일이 생기기를 기다린다. 어떤 예외가 나도 반드시 뭔가는
     # 써야 폴링이 영원히 끝나지 않는 사태를 막는다 — summarize.py 처럼 좁게
     # 잡지 않고 여기서만 의도적으로 넓게 잡는다.
     try:
-        result = recommend(args.theme, youtube_key=os.environ.get("YOUTUBE_API_KEY"))
+        result = recommend(
+            args.theme, youtube_key=os.environ.get("YOUTUBE_API_KEY"),
+            exclude_names=exclude_names,
+        )
     except Exception as e:
         print(f"[recommend] 실패: {e}", file=sys.stderr)
         result = {
