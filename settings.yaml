@@ -12,7 +12,7 @@ digests:
         send_at: "08:00"
         enabled: true
         articles: 4
-        videos: 3
+        videos: 4
     keywords:
       러닝: 3
       달리기: 3
