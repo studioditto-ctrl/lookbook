@@ -359,7 +359,9 @@ function pickSection(name){
 /* 주제 목록 / 새 주제 마법사 / 공통 설정 — 화면 전체를 바꾼다. */
 function setMode(m){
   mode = m;
-  if (m === "wizard" && (!wizard || wizard.step === "done")) startWizard();
+  // 세션이 하나라도 남아 있으면(완료된 것 포함) 그대로 보여준다 — 새로
+  // 시작하려면 탭의 '+' 나 '새 주제 하나 더 만들기'를 눌러야 한다.
+  if (m === "wizard" && !wizard) startWizard();
   render();
   window.scrollTo({top: 0});
 }
@@ -706,12 +708,44 @@ const WIZARD_STEPS = [
 ];
 
 let wizard = null;
+let wizardSessions = [];
+
+function stepIndex(step){ return WIZARD_STEPS.findIndex(([id]) => id === step); }
+
+// 세션 하나가 지금까지 도달한 가장 앞선 단계(maxStep)를 기록해 둔다 —
+// 진행 표시줄에서 이미 지나온 단계만 눌러 되돌아갈 수 있게 하려면 필요하다.
+function advanceStep(session, step){
+  session.step = step;
+  const idx = stepIndex(step);
+  if (idx > session.maxStep) session.maxStep = idx;
+}
 
 function startWizard(){
-  wizard = {
-    step: "theme", theme: "", slug: "", result: null,
+  const session = {
+    id: "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    step: "theme", maxStep: 0, theme: "", slug: "", result: null,
     picked: new Set(), di: null, busy: false, searching: false, error: null,
   };
+  wizardSessions.push(session);
+  wizard = session;
+}
+
+// 지금 보고 있는 세션을 바꾼다 — 다른 테마를 추천받는 동안에도(폴링은
+// 그 세션 객체에서 계속 돌고 있다) 다른 세션을 만들거나 보러 갈 수 있다.
+function switchWizard(id){
+  const s = wizardSessions.find(s => s.id === id);
+  if (s) wizard = s;
+  render();
+}
+
+function closeWizard(id){
+  const i = wizardSessions.findIndex(s => s.id === id);
+  if (i === -1) return;
+  wizardSessions.splice(i, 1);
+  if (wizard && wizard.id === id){
+    wizard = wizardSessions[wizardSessions.length - 1] || null;
+  }
+  render();
 }
 
 async function dispatchRecommend(theme, slug, excludeNames){
@@ -751,30 +785,34 @@ async function wizardStartRecommend(){
   if (!theme){ toast("테마를 입력해 주세요.", "err"); return; }
   if (!token()){ toast("먼저 공통 설정에서 GitHub 토큰을 넣어주세요.", "err"); setMode("settings"); return; }
 
-  wizard.theme = theme;
-  wizard.slug = "r" + Date.now().toString(36);
-  wizard.step = "recommend";
-  wizard.busy = true; wizard.error = null; wizard.result = null;
+  // 이 세션 객체를 잡아 두고 계속 그것만 건드린다 — 기다리는 동안
+  // 사용자가 다른 세션으로 옮겨가도(wizard 가 바뀌어도) 결과는 원래
+  // 요청한 세션에 그대로 쌓여야 한다.
+  const session = wizard;
+  session.theme = theme;
+  session.slug = "r" + Date.now().toString(36);
+  advanceStep(session, "recommend");
+  session.busy = true; session.error = null; session.result = null;
   render();
 
   try{
-    await dispatchRecommend(theme, wizard.slug);
-    const result = await pollRecommend(wizard.slug);
-    wizard.result = result;
+    await dispatchRecommend(theme, session.slug);
+    const result = await pollRecommend(session.slug);
+    session.result = result;
     if (result.error){
-      wizard.error = result.error;
+      session.error = result.error;
     }else{
       // 확인된 것만 기본으로 체크한다 — RSS 확인 안 된 후보까지 그냥
       // 다 켜놓으면 죽은 피드가 그대로 딸려 들어간다.
-      wizard.picked = new Set(
+      session.picked = new Set(
         (result.candidates || []).map((c, i) => c.verified ? i : null).filter(i => i !== null)
       );
-      wizard.step = "pick";
+      advanceStep(session, "pick");
     }
   }catch(e){
-    wizard.error = e.message;
+    session.error = e.message;
   }
-  wizard.busy = false;
+  session.busy = false;
   render();
 }
 
@@ -789,35 +827,36 @@ function wizardRetry(){
    그냥 이어 붙이기만 하면 된다. */
 async function wizardSearchMore(){
   if (!wizard || !wizard.result || wizard.searching) return;
-  const existingNames = wizard.result.candidates.map(c => c.name);
-  wizard.searching = true;
+  const session = wizard;
+  const existingNames = session.result.candidates.map(c => c.name);
+  session.searching = true;
   render();
   try{
     const slug = "r" + Date.now().toString(36);
-    await dispatchRecommend(wizard.theme, slug, existingNames);
+    await dispatchRecommend(session.theme, slug, existingNames);
     const more = await pollRecommend(slug);
     if (more.error){
       toast("추가 검색에 실패했습니다: " + esc(more.error), "err", true);
     }else{
       const have = new Set(existingNames);
       const added = (more.candidates || []).filter(c => !have.has(c.name));
-      const startIdx = wizard.result.candidates.length;
-      wizard.result.candidates = wizard.result.candidates.concat(added);
-      added.forEach((c, k) => { if (c.verified) wizard.picked.add(startIdx + k); });
+      const startIdx = session.result.candidates.length;
+      session.result.candidates = session.result.candidates.concat(added);
+      added.forEach((c, k) => { if (c.verified) session.picked.add(startIdx + k); });
 
-      const kwSet = new Set(wizard.result.keywords || []);
+      const kwSet = new Set(session.result.keywords || []);
       (more.keywords || []).forEach(k => kwSet.add(k));
-      wizard.result.keywords = [...kwSet];
-      const scSet = new Set(wizard.result.scope || []);
+      session.result.keywords = [...kwSet];
+      const scSet = new Set(session.result.scope || []);
       (more.scope || []).forEach(s => scSet.add(s));
-      wizard.result.scope = [...scSet];
+      session.result.scope = [...scSet];
 
       toast(added.length ? `${added.length}개를 더 찾았습니다.` : "새로 나온 것이 없습니다.", "ok");
     }
   }catch(e){
     toast("추가 검색을 요청하지 못했습니다: " + esc(e.message), "err", true);
   }
-  wizard.searching = false;
+  session.searching = false;
   render();
 }
 
@@ -830,7 +869,6 @@ function wizardApply(){
   const chosen = (wizard.result.candidates || []).filter((_, i) => wizard.picked.has(i));
   if (!chosen.length){ toast("최소 한 개는 선택해 주세요.", "err"); return; }
 
-  const key = "t" + Date.now().toString(36);
   const channels = chosen
     .filter(c => c.kind === "youtube" && c.channel_id)
     .map(c => ({name: c.name, channel_id: c.channel_id, region: c.region, reason: c.reason}));
@@ -842,24 +880,39 @@ function wizardApply(){
   (wizard.result.keywords || []).forEach((w, i) => { keywords[w] = i < 3 ? 3 : (i < 6 ? 2 : 1); });
   if (!Object.keys(keywords).length) keywords[wizard.theme] = 3;
 
-  data.digests.push({
-    config: "", key, label: wizard.theme, scope: wizard.result.scope || [],
-    slots: [{slot: "daily", title: `${wizard.theme} 브리핑`, send_at: "18:00",
-             enabled: true, articles: 2, videos: 3}],
-    keywords, queries: [], channels, feeds,
-    // AI 로 한꺼번에 붙인 채널이라 사람이 하나씩 고른 게 아니다 — 발송 전에
-    // 다시 한 번 주제와 맞는지 확인한다 (filter.select 의 strict).
-    strict: true,
-  });
-  const di = data.digests.length - 1;
+  let di = wizard.di;
+  if (di == null){
+    const key = "t" + Date.now().toString(36);
+    data.digests.push({
+      config: "", key, label: wizard.theme, scope: wizard.result.scope || [],
+      slots: [{slot: "daily", title: `${wizard.theme} 브리핑`, send_at: "18:00",
+               enabled: true, articles: 2, videos: 3}],
+      keywords, queries: [], channels, feeds,
+      // AI 로 한꺼번에 붙인 채널이라 사람이 하나씩 고른 게 아니다 — 발송 전에
+      // 다시 한 번 주제와 맞는지 확인한다 (filter.select 의 strict).
+      strict: true,
+    });
+    di = data.digests.length - 1;
+  }else{
+    // 이미 만든 주제로 '채널/키워드 선택' 단계로 되돌아와 다시 적용한
+    // 경우 — 새로 만들지 않고 덮어쓴다. slots(실행 조건)는 이 단계가
+    // 건드리는 값이 아니니 그대로 둔다.
+    const dg = data.digests[di];
+    dg.label = wizard.theme;
+    dg.scope = wizard.result.scope || [];
+    dg.keywords = keywords;
+    dg.channels = channels;
+    dg.feeds = feeds;
+    dg.strict = true;
+  }
   syncQueries(data.digests[di]);
   wizard.di = di;
-  wizard.step = "setup";
+  advanceStep(wizard, "setup");
   render(); touch();
 }
 
 function wizardGoto(step){
-  wizard.step = step;
+  advanceStep(wizard, step);
   render();
 }
 
@@ -870,18 +923,44 @@ async function wizardTestSend(){
 
 function wizardFinish(){
   const di = wizard.di;
-  wizard = null;
+  closeWizard(wizard.id);
   mode = "topics";
   if (di != null) pickTopic(di); else render();
 }
 
 function wizardStepsHTML(){
-  const order = WIZARD_STEPS.map(([id]) => id);
-  const at = order.indexOf(wizard.step);
+  const at = stepIndex(wizard.step);
   return `<div class="wzsteps">${WIZARD_STEPS.map(([id, label], i) => {
     const cls = i === at ? "now" : (i < at ? "done" : "");
-    return `<span class="${cls}">${i + 1}. ${label}</span>`;
+    // '추천' 단계는 로딩/에러만 보여주는 임시 화면이라 되돌아가 다시
+    // 설정할 게 없다 — 눌러도 아무 의미가 없으니 버튼으로 만들지 않는다.
+    const clickable = id !== "recommend" && i !== at && i <= wizard.maxStep;
+    return clickable
+      ? `<button type="button" class="${cls}" onclick="wizardGoto('${id}')">${i + 1}. ${label}</button>`
+      : `<span class="${cls}">${i + 1}. ${label}</span>`;
   }).join("")}</div>`;
+}
+
+function wizardStatusIcon(s){
+  if (s.busy || s.searching) return '<span class="spin"></span>';
+  if (s.error) return '⚠ ';
+  if (s.step === "done") return '✓ ';
+  return '';
+}
+
+// 여러 세션을 동시에 진행 중일 때 위에 탭으로 보여준다 — 하나가 AI 추천을
+// 기다리는 동안(2~8분) 다른 테마를 새로 시작하거나 옮겨 다닐 수 있다.
+function wizardTabsHTML(){
+  const tabs = wizardSessions.map(s => `
+    <button type="button" class="wztab ${s === wizard ? "on" : ""}" onclick="switchWizard('${s.id}')">
+      ${wizardStatusIcon(s)}${esc(s.theme || "새 주제")}
+      ${wizardSessions.length > 1
+        ? `<span class="x" onclick="event.stopPropagation();closeWizard('${s.id}')" aria-label="닫기">×</span>`
+        : ""}
+    </button>`).join("");
+  return `<div class="wztabs">${tabs}
+    <button type="button" class="wztab plus" onclick="wizardRestart()" aria-label="새 주제 하나 더 만들기">＋</button>
+  </div>`;
 }
 
 /* 채널 선택 표. 유튜브/매체/블로그 세 종류를 따로 보여준다 — 매체마다
@@ -972,9 +1051,10 @@ function renderWizard(){
   const el = $("wizardView");
   if (!wizard) startWizard();
   const w = wizard;
+  const tabs = wizardTabsHTML();
 
   if (w.step === "theme"){
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>새 주제 만들기</h2>
         ${wizardStepsHTML()}
@@ -997,7 +1077,7 @@ function renderWizard(){
   }
 
   if (w.step === "recommend"){
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>'${esc(w.theme)}' 추천 소스를 찾는 중</h2>
         ${wizardStepsHTML()}
@@ -1020,7 +1100,7 @@ function renderWizard(){
     const youtube = cands.filter(c => c.kind === "youtube");
     const media = cands.filter(c => c.kind === "media");
     const blog = cands.filter(c => c.kind === "blog");
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>'${esc(w.theme)}' 추천 결과 ${cands.length}개</h2>
         ${wizardStepsHTML()}
@@ -1063,7 +1143,7 @@ function renderWizard(){
 
   if (w.step === "setup"){
     const dg = data.digests[w.di];
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>자동세팅 완료</h2>
         ${wizardStepsHTML()}
@@ -1081,7 +1161,7 @@ function renderWizard(){
 
   if (w.step === "condition"){
     const dg = data.digests[w.di];
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>실행 조건 — 언제, 몇 건씩 보낼지</h2>
         ${wizardStepsHTML()}
@@ -1093,7 +1173,7 @@ function renderWizard(){
   }
 
   if (w.step === "test"){
-    el.innerHTML = `
+    el.innerHTML = tabs + `
       <div class="card">
         <h2>테스트 발송</h2>
         ${wizardStepsHTML()}
@@ -1107,7 +1187,7 @@ function renderWizard(){
 
   // done
   const dg = data.digests[w.di];
-  el.innerHTML = `
+  el.innerHTML = tabs + `
     <div class="card">
       <h2>설정 완료</h2>
       ${wizardStepsHTML()}
@@ -2064,6 +2144,7 @@ Object.assign(window, {
   clearClientId,
   clearSubs,
   clearToken,
+  closeWizard,
   delChannel,
   delExclude,
   delFeed,
@@ -2098,6 +2179,7 @@ Object.assign(window, {
   set,
   setScope,
   suggestFor,
+  switchWizard,
   testSend,
   wizardApply,
   wizardFinish,

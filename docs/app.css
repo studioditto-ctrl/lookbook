@@ -100,13 +100,26 @@
   .filterGrid label{margin-bottom:6px}
 
   /* ---------- 새 주제 만들기 마법사 ---------- */
-  .wzsteps{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
-  .wzsteps span{
-    font-size:12px; color:var(--muted); padding:4px 10px; border-radius:999px;
-    border:1px solid var(--line); background:var(--bg);
+  .wztabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+  .wztabs button{
+    display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink);
+    padding:6px 10px; min-height:0; border-radius:999px; border:1px solid var(--line);
+    background:var(--bg); max-width:220px;
   }
-  .wzsteps span.now{color:var(--accent-ink); background:var(--accent); border-color:transparent; font-weight:600}
-  .wzsteps span.done{color:var(--ok); border-color:var(--ok)}
+  .wztabs button.on{border-color:var(--accent); color:var(--accent-ink); background:var(--accent); font-weight:600}
+  .wztabs button.plus{color:var(--muted); font-weight:600}
+  .wztabs .x{color:inherit; opacity:.6; padding:0 2px}
+  .wztabs .x:hover{opacity:1}
+
+  .wzsteps{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
+  .wzsteps span, .wzsteps button{
+    font-size:12px; color:var(--muted); padding:4px 10px; border-radius:999px;
+    border:1px solid var(--line); background:var(--bg); min-height:0; font:inherit;
+  }
+  .wzsteps button{cursor:pointer; color:var(--ink)}
+  .wzsteps button:hover{border-color:var(--accent)}
+  .wzsteps span.now, .wzsteps button.now{color:var(--accent-ink); background:var(--accent); border-color:transparent; font-weight:600}
+  .wzsteps span.done, .wzsteps button.done{color:var(--ok); border-color:var(--ok)}
   .tag{
     font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
     color:var(--muted); white-space:nowrap;
