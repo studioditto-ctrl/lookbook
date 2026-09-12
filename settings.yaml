@@ -101,7 +101,7 @@ digests:
         send_at: "18:00"
         enabled: true
         articles: 5
-        videos: 3
+        videos: 5
     keywords:
       돌파매매: 3
       breakout trading: 3
