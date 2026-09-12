@@ -495,47 +495,53 @@ class TestSummarize(unittest.TestCase):
 
 
 class TestRecommend(unittest.TestCase):
-    """테마 추천 — Claude 후보는 실존 확인 전까지 믿지 않는다."""
+    """테마 추천 — Gemini 후보는 실존 확인 전까지 믿지 않는다."""
 
     def setUp(self):
         import recommend as recommend_module
 
         self.mod = recommend_module
 
-    def fake_client(self, text=None, stop_reason="end_turn"):
+    def fake_client(self, text=None, finish_reason="STOP", no_candidates=False):
         from types import SimpleNamespace
 
-        blocks = [SimpleNamespace(type="text", text=text)]
-        response = SimpleNamespace(stop_reason=stop_reason, content=blocks)
+        candidate = SimpleNamespace(finish_reason=finish_reason)
+        response = SimpleNamespace(text=text, candidates=[] if no_candidates else [candidate])
         captured = {}
 
-        def create(**kwargs):
+        def generate_content(**kwargs):
             captured.update(kwargs)
             return response
 
-        return SimpleNamespace(messages=SimpleNamespace(create=create)), captured
+        return SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)), captured
 
     def test_request_sends_schema(self):
         client, captured = self.fake_client(
             text='{"candidates": [], "keywords": [], "scope": []}'
         )
         self.mod._request(client, "러닝")
-        self.assertEqual(captured["model"], "claude-opus-5")
+        self.assertEqual(captured["model"], "gemini-2.5-pro")
         self.assertEqual(
-            captured["output_config"]["format"]["schema"]["required"],
+            captured["config"].response_json_schema["required"],
             ["candidates", "keywords", "scope"],
         )
 
     def test_request_raises_on_refusal(self):
-        client, _ = self.fake_client(text="{}", stop_reason="refusal")
+        client, _ = self.fake_client(text="{}", finish_reason="SAFETY")
         with self.assertRaises(RuntimeError):
             self.mod._request(client, "러닝")
 
     def test_request_raises_on_truncation(self):
         client, _ = self.fake_client(
             text='{"candidates": [], "keywords": [], "scope": []}',
-            stop_reason="max_tokens",
+            finish_reason="MAX_TOKENS",
         )
+        with self.assertRaises(RuntimeError):
+            self.mod._request(client, "러닝")
+
+    def test_request_raises_when_prompt_is_blocked_entirely(self):
+        # 프롬프트 자체가 막히면 candidates 가 아예 비어 있다.
+        client, _ = self.fake_client(text=None, no_candidates=True)
         with self.assertRaises(RuntimeError):
             self.mod._request(client, "러닝")
 
@@ -596,7 +602,7 @@ class TestRecommend(unittest.TestCase):
             server.close()
 
     def test_verify_feed_discovers_via_link_tag(self):
-        # Claude 가 준 주소는 사람이 보는 블로그 홈이고, 진짜 피드는
+        # Gemini 가 준 주소는 사람이 보는 블로그 홈이고, 진짜 피드는
         # <link rel="alternate" type="application/rss+xml"> 로 안내되어 있다.
         server = FeedServer({
             "index.html": '<html><head>'
@@ -643,7 +649,7 @@ class TestRecommend(unittest.TestCase):
         saved = youtube_module.YT_SEARCH_API
         try:
             youtube_module.YT_SEARCH_API = server.url("empty.json")
-            with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+            with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
                  unittest.mock.patch.object(self.mod, "_verify_feed", return_value=None):
                 result = self.mod.recommend("주제", youtube_key="key")
             self.assertEqual(len(result["candidates"]), 1)
@@ -656,7 +662,7 @@ class TestRecommend(unittest.TestCase):
             server.close()
 
     def test_recommend_uses_resolved_feed_url_when_original_was_wrong(self):
-        # Claude 가 사람이 보는 블로그 홈 주소를 줬어도, 검증에서 찾은 진짜
+        # Gemini 가 사람이 보는 블로그 홈 주소를 줬어도, 검증에서 찾은 진짜
         # 피드 주소로 바꿔 저장해야 다음 발송부터 실제로 글이 들어온다.
         parsed = {
             "candidates": [
@@ -665,7 +671,7 @@ class TestRecommend(unittest.TestCase):
             ],
             "keywords": [], "scope": [],
         }
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_feed",
                                         return_value="https://example.com/blog/feed/"):
             result = self.mod.recommend("주제")
@@ -678,7 +684,7 @@ class TestRecommend(unittest.TestCase):
                              "reason": "x", "url": ""}],
             "keywords": [], "scope": [],
         }
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed):
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed):
             result = self.mod.recommend("주제", youtube_key=None)
         self.assertEqual(result["candidates"], [])
 
@@ -689,7 +695,7 @@ class TestRecommend(unittest.TestCase):
                              "reason": "x", "url": ""}],
             "keywords": [], "scope": [],
         }
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_youtube", return_value=("UCsmall", 3)):
             result = self.mod.recommend("주제", youtube_key="key")
         self.assertEqual(result["candidates"], [])
@@ -704,7 +710,7 @@ class TestRecommend(unittest.TestCase):
             "keywords": [], "scope": [],
         }
         subs_by_name = {"국내A": ("UC1", 5000), "국내B": ("UC2", 50000), "해외A": ("UC3", 20000)}
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_youtube",
                                         side_effect=lambda name, key, cache: subs_by_name[name]):
             result = self.mod.recommend("주제", youtube_key="key")
@@ -724,7 +730,7 @@ class TestRecommend(unittest.TestCase):
             "keywords": [], "scope": [],
         }
         subs_by_name = {f"채널{i}": (f"UC{i}", 100000 - i * 100) for i in range(15)}
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_youtube",
                                         side_effect=lambda name, key, cache: subs_by_name[name]):
             result = self.mod.recommend("주제", youtube_key="key")
@@ -739,7 +745,7 @@ class TestRecommend(unittest.TestCase):
                              "reason": "x", "url": "https://media.example/"}],
             "keywords": [], "scope": [],
         }
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_feed",
                                         return_value="https://media.example/feed"), \
              unittest.mock.patch.object(self.mod, "_check_media_traffic", return_value=1200000):
@@ -753,7 +759,7 @@ class TestRecommend(unittest.TestCase):
                              "reason": "x", "url": "https://media2.example/"}],
             "keywords": [], "scope": [],
         }
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_feed", return_value=None), \
              unittest.mock.patch.object(self.mod, "_check_media_traffic", return_value=None):
             result = self.mod.recommend("주제")
@@ -767,17 +773,17 @@ class TestRecommend(unittest.TestCase):
             for i in range(15)
         ]
         parsed = {"candidates": cands, "keywords": [], "scope": []}
-        with unittest.mock.patch.object(self.mod, "_ask_claude", return_value=parsed), \
+        with unittest.mock.patch.object(self.mod, "_ask_gemini", return_value=parsed), \
              unittest.mock.patch.object(self.mod, "_verify_feed", return_value=None):
             result = self.mod.recommend("주제")
         self.assertEqual(len(result["candidates"]), self.mod.OTHER_CAP)
 
-    def test_exclude_names_are_sent_to_claude(self):
+    def test_exclude_names_are_sent_to_gemini(self):
         client, captured = self.fake_client(
             text='{"candidates": [], "keywords": [], "scope": []}'
         )
         self.mod._request(client, "러닝", exclude_names=["기존채널1", "기존채널2"])
-        content = captured["messages"][0]["content"]
+        content = captured["contents"]
         self.assertIn("기존채널1", content)
         self.assertIn("기존채널2", content)
 

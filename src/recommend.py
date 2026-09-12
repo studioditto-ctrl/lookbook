@@ -1,6 +1,6 @@
 """테마 하나로 소스 후보(유튜브·매체·블로그)와 키워드를 추천한다.
 
-Claude 에게는 채널·매체 '이름'만 제안하게 하고, 실존 여부는 여기서 따로
+Gemini 에게는 채널·매체 '이름'만 제안하게 하고, 실존 여부는 여기서 따로
 확인한다. 모델이 라이브 웹 검색을 쓰지 않으므로 이름을 지어낼 수 있다 —
 유튜브는 YouTube Data API 로 채널을 찾지 못하거나, 찾았어도 구독자가 너무
 적으면(이름만으로 검색하다 보니 동명의 엉뚱한 소규모 채널이 잡히는 일이
@@ -24,7 +24,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-MODEL = "claude-opus-5"
+MODEL = "gemini-2.5-pro"
 MAX_TOKENS = 12000
 # 후보를 늘릴수록 응답이 길어져 max_tokens 에서 잘릴 위험이 커진다.
 
@@ -34,7 +34,7 @@ RECOMMEND_DIR = REPO / "state" / "recommend"
 KINDS = ("youtube", "media", "blog")
 REGIONS = ("domestic", "international")
 
-# Claude 에게 한 번에 요청하는 원본 후보 상한. 검증·순위 매기기 전 단계라
+# Gemini 에게 한 번에 요청하는 원본 후보 상한. 검증·순위 매기기 전 단계라
 # 실제로 화면에 보일 개수(유튜브 지역별 10위까지, 매체·블로그 지역별 10개까지)
 # 보다 넉넉히 받아야, 검증에서 떨어져 나가도 각 칸이 비지 않는다.
 RAW_LIMIT = 50
@@ -105,49 +105,68 @@ SCHEMA = {
 }
 
 
-def _request(client, theme, exclude_names=None, effort="low"):
+# Gemini 가 요청을 막는 사유들. 안전 관련 사유는 전부 '거부'로 취급한다.
+_REFUSAL_FINISH_REASONS = {
+    "SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "RECITATION", "SPII",
+}
+
+
+def _request(client, theme, exclude_names=None):
+    from google.genai import types
+
     content = f"주제: {theme}"
     if exclude_names:
         content += "\n\n이미 추천했던 이름입니다. 다시 제안하지 말고 새로운 것만 주세요: " \
             + ", ".join(exclude_names)
 
-    response = client.messages.create(
+    response = client.models.generate_content(
         model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=SYSTEM,
-        output_config={
-            "effort": effort,
-            "format": {"type": "json_schema", "schema": SCHEMA},
-        },
-        messages=[{"role": "user", "content": content}],
+        contents=content,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM,
+            response_mime_type="application/json",
+            # response_schema(OpenAPI 방언)이 아니라 response_json_schema 를
+            # 쓴다 — 우리 SCHEMA 는 표준 JSON Schema 라 이쪽이 변환 없이
+            # 그대로 통한다(엔진이 지원하는 필드만 쓴다: type/enum/items/
+            # properties/additionalProperties/required 등, SCHEMA 는 이
+            # 안에 들어간다).
+            response_json_schema=SCHEMA,
+            max_output_tokens=MAX_TOKENS,
+        ),
     )
 
-    if response.stop_reason == "refusal":
+    # 프롬프트 자체가 막히면 candidates 가 아예 비어 있다.
+    # FinishReason 은 str 을 상속하는 열거형이라 그냥 문자열과 비교해도 된다.
+    candidates = response.candidates or []
+    finish = candidates[0].finish_reason if candidates else None
+    if finish in _REFUSAL_FINISH_REASONS:
         raise RuntimeError("모델이 요청을 거부했습니다")
-    if response.stop_reason == "max_tokens":
+    if finish == "MAX_TOKENS":
         raise RuntimeError("응답이 max_tokens 에서 잘렸습니다")
 
-    text = next((b.text for b in response.content if b.type == "text"), None)
+    text = response.text
     if not text:
         raise RuntimeError("응답에 텍스트 블록이 없습니다")
     return json.loads(text)
 
 
-def _ask_claude(theme, exclude_names=None):
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise RuntimeError("ANTHROPIC_API_KEY 가 없습니다")
+def _ask_gemini(theme, exclude_names=None):
+    if not os.environ.get("GEMINI_API_KEY"):
+        raise RuntimeError("GEMINI_API_KEY 가 없습니다")
 
-    import anthropic
+    import httpx
+    from google import genai
+    from google.genai import errors
 
-    client = anthropic.Anthropic()
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     try:
         return _request(client, theme, exclude_names=exclude_names)
-    except anthropic.RateLimitError as e:
-        raise RuntimeError(f"요청 한도 초과: {e}") from e
-    except anthropic.APIConnectionError as e:
+    except errors.APIError as e:
+        if e.code == 429:
+            raise RuntimeError(f"요청 한도 초과: {e.message}") from e
+        raise RuntimeError(f"API 오류 {e.code}: {e.message}") from e
+    except httpx.HTTPError as e:
         raise RuntimeError(f"API 연결 실패: {e}") from e
-    except anthropic.APIStatusError as e:
-        raise RuntimeError(f"API 오류 {e.status_code}: {e.message}") from e
 
 
 def _verify_youtube(name, key, cache):
@@ -163,7 +182,7 @@ def _verify_youtube(name, key, cache):
 
 FEED_UA = "Mozilla/5.0 (compatible; DigestBot/1.0)"
 FEED_TIMEOUT = 8
-# Claude 가 주는 url 은 사람이 보는 블로그 홈 주소인 경우가 많다. 실제 피드는
+# Gemini 가 주는 url 은 사람이 보는 블로그 홈 주소인 경우가 많다. 실제 피드는
 # 보통 이 중 하나에 있다 — 직접 파싱이 안 되면 자동 발견을 시도하고, 그것도
 # 안 되면 이 후보 경로들을 하나씩 열어본다. 오래 걸려도(요청이 여럿 나가도)
 # 죽은 채널을 살아있다고 잘못 등록하는 것보다 낫다.
@@ -283,8 +302,8 @@ def _check_media_traffic(url):
 
 
 def _collect_raw(theme, youtube_key, cache, exclude_names):
-    """Claude 제안 → 검증까지 마친 원본 후보 목록 (아직 순위·상한 적용 전)."""
-    parsed = _ask_claude(theme, exclude_names=exclude_names)
+    """Gemini 제안 → 검증까지 마친 원본 후보 목록 (아직 순위·상한 적용 전)."""
+    parsed = _ask_gemini(theme, exclude_names=exclude_names)
     out = []
     for raw in (parsed.get("candidates") or [])[:RAW_LIMIT]:
         name = (raw.get("name") or "").strip()
@@ -314,7 +333,7 @@ def _collect_raw(theme, youtube_key, cache, exclude_names):
                 "channel_id": channel_id, "subscribers": subs, "verified": True,
             })
         else:
-            # 확인되면 실제로 살아 있는 피드 주소로 바꿔서 저장한다 — Claude 가
+            # 확인되면 실제로 살아 있는 피드 주소로 바꿔서 저장한다 — Gemini 가
             # 준 주소가 사람이 보는 페이지였어도, 자동 발견/추정으로 찾은
             # 진짜 피드 주소를 쓴다. 못 찾으면 원래 주소를 그대로 두고
             # '확인 필요'로만 남긴다 (봇 차단으로 확인만 실패했을 수 있다).
