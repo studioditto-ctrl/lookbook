@@ -1,0 +1,176 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UC56MnoIgiuL8GSW4zpBoMFg",
+      "kind": "youtube",
+      "name": "런송",
+      "reason": "러닝 훈련법과 기록 향상 팁을 다루는 국내 러닝 채널입니다.",
+      "region": "domestic",
+      "subscribers": 28,
+      "verified": true
+    },
+    {
+      "channel_id": "UCctdAyjey6bnaGP8iEjllNA",
+      "kind": "youtube",
+      "name": "러닝하는 남자",
+      "reason": "마라톤 대회 후기와 러닝 루틴을 소개하는 국내 채널입니다.",
+      "region": "domestic",
+      "subscribers": 20,
+      "verified": true
+    },
+    {
+      "channel_id": "UC-uD6K-NEtbVGM2C7nP1Z2g",
+      "kind": "youtube",
+      "name": "제이제이 러닝",
+      "reason": "초보 러너를 위한 자세·호흡 가이드를 제공합니다.",
+      "region": "domestic",
+      "subscribers": 16,
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "러너블",
+      "reason": "국내 러닝 대회 일정과 러닝 문화 소식을 전하는 전문 매체입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "마라톤온라인",
+      "reason": "국내 마라톤 대회 정보와 기록을 정리하는 사이트입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "아디다스 러너스 코리아",
+      "reason": "러닝 크루 활동과 러닝 이벤트 소식을 다룹니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "스포츠조선 러닝",
+      "reason": "국내 마라톤·러닝 관련 뉴스를 보도합니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "channel_id": "UCjGZ6D8hJFvLur5K_p9vKAA",
+      "kind": "youtube",
+      "name": "The Run Experience",
+      "reason": "러닝 폼 교정과 부상 예방 훈련을 체계적으로 알려줍니다.",
+      "region": "international",
+      "subscribers": 676000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCZPqG0yh_xPm2AyLjffbDvw",
+      "kind": "youtube",
+      "name": "Ben Parkes",
+      "reason": "마라톤 훈련기와 러닝화 리뷰로 유명한 러너 채널입니다.",
+      "region": "international",
+      "subscribers": 363000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCUwGYfvGvmqMnvQTOY8E_qg",
+      "kind": "youtube",
+      "name": "Göran Winblad",
+      "reason": "과학 기반 러닝 훈련 분석 콘텐츠를 제공합니다.",
+      "region": "international",
+      "subscribers": 206000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCh_w_vLvlZNBeTAP8qaWhoA",
+      "kind": "youtube",
+      "name": "Sage Canaday",
+      "reason": "트레일러닝과 지구력 훈련 전문 채널입니다.",
+      "region": "international",
+      "subscribers": 253000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCnnOksyxFnRBGHK1ZyLRJGA",
+      "kind": "youtube",
+      "name": "This Messy Happy",
+      "reason": "러닝화 리뷰와 러닝 라이프스타일 콘텐츠를 다룹니다.",
+      "region": "international",
+      "subscribers": 116000,
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Runner's World",
+      "reason": "세계적인 러닝 전문 매거진으로 훈련·장비 정보를 제공합니다.",
+      "region": "international",
+      "url": "https://www.runnersworld.com/",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "LetsRun.com",
+      "reason": "엘리트 육상·마라톤 뉴스와 커뮤니티 소식을 다룹니다.",
+      "region": "international",
+      "url": "https://www.letsrun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Running Magazine (Canadian Running)",
+      "reason": "러닝 뉴스와 훈련 팁을 매일 발행합니다.",
+      "region": "international",
+      "url": "https://runningmagazine.ca/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Believe in the Run",
+      "reason": "러닝화 리뷰 중심의 전문 블로그입니다.",
+      "region": "international",
+      "url": "https://www.believeintherun.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Road Runner Sports Blog",
+      "reason": "러닝 장비와 트레이닝 가이드를 소개합니다.",
+      "region": "international",
+      "url": "",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-12T00:39:19.877935+00:00",
+  "keywords": [
+    "러닝",
+    "마라톤",
+    "러닝화",
+    "페이스",
+    "훈련",
+    "기록",
+    "러닝크루",
+    "트레일러닝",
+    "부상예방",
+    "대회"
+  ],
+  "scope": [
+    "러닝",
+    "달리기",
+    "마라톤",
+    "조깅",
+    "런닝",
+    "러너",
+    "트레일러닝",
+    "하프마라톤",
+    "러닝화",
+    "running",
+    "marathon",
+    "jogging"
+  ],
+  "theme": "러닝"
+}
