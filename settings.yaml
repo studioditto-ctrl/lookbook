@@ -12,7 +12,7 @@ digests:
         send_at: "08:00"
         enabled: true
         articles: 5
-        videos: 4
+        videos: 5
     keywords:
       러닝: 3
       달리기: 3
@@ -215,6 +215,202 @@ digests:
         channel_id: UCWeYU4snOLj4Jj52Q9VCcOg
         region: domestic
         reason: "단타 및 돌파 매매 타점을 분석하고 실전 투자 팁을 공유합니다."
+  - key: tmty5oxn3
+    label: 남성패션
+    scope: [남성패션, 남자패션, 남성의류, 남자코디, menswear, men's fashion, 남자옷, 남친룩, 남자 데일리룩, 남성 코디, 남자 코디, 남성스타일, 남자 스타일, mens fashion, 남성복]
+    strict: true
+    slots:
+      - slot: daily
+        title: "남성패션 브리핑"
+        send_at: "18:00"
+        enabled: true
+        articles: 2
+        videos: 3
+    keywords:
+      남성패션: 3
+      "men's fashion": 3
+      남자코디: 3
+      menswear: 2
+      스트릿패션: 2
+      streetwear: 2
+      남친룩: 1
+      OOTD: 1
+      데일리룩: 1
+      dailylook: 1
+      아메카지: 1
+      스마트캐주얼: 1
+      smart casual: 1
+      신발: 1
+      sneakers: 1
+      트렌드: 1
+      trend: 1
+      클래식패션: 1
+      classic menswear: 1
+      미니멀룩: 1
+      남성코디: 1
+      남자옷: 1
+      클래식룩: 1
+      시티보이룩: 1
+      남성스타일링: 1
+      스니커즈: 1
+      mensfashion: 1
+      ootd: 1
+      styleguide: 1
+      grooming: 1
+      남자패션: 1
+      패션하울: 1
+      브랜드추천: 1
+      mensstyle: 1
+      fashiontrend: 1
+    queries:
+      - name: 남성패션
+        query: "남성패션 OR \"men's fashion\" OR 남자코디 OR menswear OR 스트릿패션 OR streetwear"
+    feeds:
+      - name: 에스콰이어 코리아
+        url: "https://www.esquirekorea.co.kr/rss/"
+        region: domestic
+        reason: "남성 스타일, 시계, 라이프스타일 전반을 다루는 대표적인 남성 패션 매체입니다."
+      - name: GQ
+        url: "https://www.gq.com/feed/rss"
+        region: international
+        reason: "전 세계 남성 패션과 라이프스타일 트렌드를 이끄는 대표적인 매체입니다."
+      - name: Hypebeast
+        url: "https://hypebeast.com/feed"
+        region: international
+        reason: "스트릿웨어, 스니커즈, 남성 패션 컬처 소식을 전하는 글로벌 매체입니다."
+      - name: Highsnobiety
+        url: "https://www.highsnobiety.com/feed/"
+        region: international
+        reason: "유스 컬처와 하이엔드 남성 스트릿 패션을 전문적으로 다루는 미디어입니다."
+      - name: Fantastic Man
+        url: "https://www.fantasticman.com/feed/"
+        region: international
+        reason: "세련되고 독창적인 시각으로 남성 스타일을 조명하는 잡지입니다."
+      - name: Permanent Style
+        url: "https://www.permanentstyle.com/feed"
+        region: international
+        reason: "남성 클래식 수트와 bespoke 스타일 분야에서 세계적인 권위를 가진 블로그입니다."
+      - name: Dappered
+        url: "https://dappered.com/feed/"
+        region: international
+        reason: "합리적인 가격으로 즐길 수 있는 남성 스타일과 가성비 패션을 추천하는 블로그입니다."
+      - name: Put This On
+        url: "https://putthison.com/feed/"
+        region: international
+        reason: "남성 클래식웨어와 빈티지 스타일링 팁을 정교하게 다루는 저널 형태의 블로그입니다."
+      - name: W Korea
+        url: "https://www.wkorea.com/feed/"
+        region: domestic
+        reason: "트렌디한 남성 패션 화보와 글로벌 패션 하우스의 신상 소식을 전합니다."
+      - name: 하퍼스 바자 코리아
+        url: "https://www.harpersbazaar.co.kr/rss/"
+        region: domestic
+        reason: "감각적인 남성 스타 화보 및 럭셔리 패션 트렌드를 다루는 매거진입니다."
+      - name: Popeye Web
+        url: "https://popeyemagazine.jp/feed/podcast"
+        region: international
+        reason: "시티보이 룩의 원조 격인 일본 대표 남성 패션 라이프스타일 매거진입니다."
+      - name: Vogue Hommes
+        url: "https://www.vogue.fr/feed/rss"
+        region: international
+        reason: "세계 최고의 럭셔리 남성 패션 트렌드와 하이엔드 수트 스타일을 소개합니다."
+      - name: "Men's Health"
+        url: "https://www.menshealth.com/feed/"
+        region: international
+        reason: "남성 패션, 스포티 룩, 그루밍 및 웰니스 정보를 폭넓게 다룹니다."
+      - name: "Wallpaper*"
+        url: "https://www.wallpaper.com/feeds.xml"
+        region: international
+        reason: "패션, 미니멀 디자인, 아키텍처가 어우러진 남성 트렌드를 다룹니다."
+      - name: 어미새
+        url: "https://eomisae.co.kr/rss"
+        region: domestic
+        reason: "국내 최고 수준의 남성 패션 커뮤니티로 세일 정보와 착샷 공유가 활발합니다."
+      - name: 벨보이 매거진
+        url: "http://bellboymagazine.com/rss/"
+        region: domestic
+        reason: "패션 에디터 시각에서 본 정교하고 감각적인 남성 패션 칼럼을 연재합니다."
+      - name: The Sartorialist
+        url: "https://www.thesartorialist.com/feed/"
+        region: international
+        reason: "전 세계 도시들의 남성 스트릿 패션을 사진으로 기록하는 명성 높은 블로그입니다."
+      - name: He Spoke Style
+        url: "https://hespokestyle.com/feed/"
+        region: international
+        reason: "남성 클래식 수트와 품격 있는 드레스코드 스타일링 가이드를 전문으로 전합니다."
+      - name: Primer Magazine
+        url: "https://www.primermagazine.com/feed/"
+        region: international
+        reason: "실용적이고 가성비 높은 남성 스마트 캐주얼 코디 가이드를 제시합니다."
+      - name: Valet Magazine
+        url: "https://www.valetmag.com/feed/"
+        region: international
+        reason: "독립 스타일 매거진으로 남성 의류, 액세서리, 그루밍 팁을 독립적으로 다룹니다."
+    channels:
+      - name: 깡스타일리스트
+        channel_id: UC8a6z7i9qypp9PqJ_0HhBrw
+        region: domestic
+        reason: "다양한 스타일링 팁과 체형별 남성 패션 코디 정보를 전문적으로 전달하는 대표 채널입니다."
+      - name: 핏더사이즈
+        channel_id: UCKWv0ScT6PpZcpg7ivUVWLA
+        region: domestic
+        reason: "남성 패션 브랜드 리뷰와 스트릿 및 캐주얼 스타일링을 다루는 영향력 높은 채널입니다."
+      - name: 짱구대대
+        channel_id: UCcSepD5GRKpskptBW2TSKGg
+        region: domestic
+        reason: "실용적인 미니멀룩과 일상적인 남성 트렌드 아이템을 소개하는 채널입니다."
+      - name: 와디의 신발장
+        channel_id: UCOHYlves6oxhyIQBRIIpPTQ
+        region: domestic
+        reason: "스니커즈와 남성 스트릿웨어 중심의 패션 아이템 및 컬처를 소개합니다."
+      - name: Teachingmensfashion
+        channel_id: UChNN7VBxPTiNrqjUaQd9bxA
+        region: international
+        reason: "남성 스타일, 그루밍, 패션 가이드를 다루는 글로벌 패션 채널입니다."
+      - name: Alpha M.
+        channel_id: UC1KbedtKa3d5dleFR6OjQMg
+        region: international
+        reason: "남성 패션, 체형별 스타일링 및 그루밍 팁을 제공하는 대표적인 채널입니다."
+      - name: Frugal Aesthetic
+        channel_id: UCyL0RJe41itDFjd70KKZIZQ
+        region: international
+        reason: "위트 있는 입담으로 스트릿웨어 트렌드와 남성 패션을 분석하는 유튜버입니다."
+      - name: Tim Dessaint
+        channel_id: UCfJrdVVcWZMHLC--a4ovLLQ
+        region: international
+        reason: "미니멀 패션과 캐주얼 스타일링을 세련된 영상미로 전달하는 채널입니다."
+      - name: One Dapper Street
+        channel_id: UCoxWvJUqQWuWY6kkx1CBHZw
+        region: international
+        reason: "클래식부터 스트릿까지 다양한 남성 데일리룩과 신발 코디를 소개합니다."
+      - name: 런업
+        channel_id: UC6VzIz8tJLnetS79VbsHPGg
+        region: domestic
+        reason: "감각적인 스트릿 패션 패션 하울과 라이프스타일 트렌드를 공유하는 채널입니다."
+      - name: 패션유튜브 삭형
+        channel_id: UCJdZej-O_M69bB4M6aiiLcw
+        region: domestic
+        reason: "기본 아이템을 활용한 깔끔한 남성 데일리룩 스타일링을 이해하기 쉽게 설명합니다."
+      - name: 호수
+        channel_id: UC3FKRf9yBdtCvsrB8lcIAKg
+        region: domestic
+        reason: "깔끔하고 세련된 남성 미니멀 룩과 시즌별 아이템을 추천해 주는 패션 채널입니다."
+      - name: Parker York Smith
+        channel_id: UCDHnXzXMy11cWm95J-Lw-bQ
+        region: international
+        reason: "TPO에 맞는 남성 스타일링과 실용적인 룩북을 다채롭게 소개하는 채널입니다."
+      - name: Dre Drexler
+        channel_id: UCHdPuKshPHyRHE3rz75rXdw
+        region: international
+        reason: "남성 패션 코디뿐만 아니라 머리 스타일링과 그루밍 정보까지 다루는 채널입니다."
+      - name: Daniel Simmons
+        channel_id: UCOgz_YflAsYnGbdvzXuKNCA
+        region: international
+        reason: "미니멀하고 감각적인 남성 핏과 색감 조합을 보여주는 런던 기반의 패션 유튜버입니다."
+      - name: Gallucks
+        channel_id: UCgL9g1sShIgPcseyyKzhG5Q
+        region: international
+        reason: "하이엔드 디자이너 브랜드와 스트릿 웨어 위주의 남성 트렌드를 선보입니다."
 
 filters:
   min_views: 1000
