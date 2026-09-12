@@ -195,17 +195,22 @@
       display:grid; grid-template-columns:230px 260px minmax(0, 1fr); gap:24px;
       max-width:1680px; margin:0 auto; padding:20px 28px; align-items:start;
     }
-    #sidebar{display:block; position:sticky; top:78px}
+    /* 자리를 grid-column 으로 못박아 둔다. 안 박아 두면, 마법사·공통
+       설정처럼 #sectionNav 를 hidden 으로 비울 때 grid 가 자동 배치를
+       한 칸씩 당겨써 main 이 가운데(260px)의 좁은 칸으로 밀려 들어갔다 —
+       PC 화면인데 내용이 휴대폰 폭으로 눌려 보이던 진짜 원인이었다. */
+    #sidebar{display:block; position:sticky; top:78px; grid-column:1}
     /* 사이드바가 보이는 폭에서는 모바일 전용 바가 겹친다 */
     #modeBarMobile{display:none}
     #sectionNav{
       display:block; position:sticky; top:78px; background:var(--card);
       border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+      grid-column:2;
     }
     #sectionNav[hidden]{display:none}
     #sectionNav .divider{height:1px; background:var(--line); margin:12px 4px}
     #sectionNav button.danger{color:var(--danger)}
-    main{padding:0; max-width:none; margin:0}
+    main{grid-column:3; padding:0; max-width:none; margin:0}
 
     /* 고른 주제, 그 안에서도 고른 항목 하나만 보인다 */
     #digests > .card{display:none; margin-bottom:0}
