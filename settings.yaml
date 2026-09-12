@@ -12,7 +12,7 @@ digests:
         send_at: "08:00"
         enabled: true
         articles: 7
-        videos: 4
+        videos: 3
     keywords:
       러닝: 3
       달리기: 3
@@ -91,6 +91,9 @@ digests:
         channel_id: UCx2Xqm8S3Ghqn5puhSKWH4Q
         region: international
         reason: "세계적인 러닝 전문 매거진의 공식 유튜브 채널로 선수 인터뷰와 트레이닝 팁을 전달합니다."
+
+filters:
+  min_views: 1000
 
 exclude:
   - 부고
