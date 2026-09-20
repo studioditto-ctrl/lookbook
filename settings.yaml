@@ -146,10 +146,6 @@ digests:
         url: "https://feeds-api.dotdashmeredith.com/v1/rss/google/f8466ec3-5044-46bc-94b7-2df65f770eff"
         region: international
         reason: "브레이크아웃 트레이딩(돌파매매)의 개념과 전략을 상세히 소개하는 금융 전문 매체입니다."
-      - name: TradingView
-        url: "https://www.tradingview.com/feed/"
-        region: international
-        reason: "전 세계 트레이더들이 돌파매매 아이디어와 차트 분석을 공유하는 금융 플랫폼 매체입니다."
       - name: BabyPips
         url: "https://www.babypips.com/feed.rss"
         region: international
