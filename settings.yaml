@@ -137,23 +137,6 @@ digests:
     queries:
       - name: 돌파매매
         query: "돌파매매 OR \"breakout trading\" OR 전고점 OR 저항선 OR 신고가 OR 거래량"
-    channels:
-      - name: 주식창
-        channel_id: UCF8AeLlUbEpKju6v1H6p8Eg
-        region: domestic
-        reason: "한국경제TV에서 운영하는 채널로 다양한 차트 돌파 기법과 시황을 제공합니다."
-      - name: 수급단타왕
-        channel_id: UCWiMB4iRTqDGu5BmtT3Ytcg
-        region: domestic
-        reason: "주식 수급 및 차트 돌파 매매 기법을 전문적으로 다루는 채널입니다."
-      - name: 이리온스튜디오
-        channel_id: UCauZxKRDiGcrWplWUOIN9JQ
-        region: domestic
-        reason: "증권사 분석가들이 주식 시장 변동성 및 차트 돌파 포인트를 짚어줍니다."
-      - name: 주식하는마음
-        channel_id: UCWeYU4snOLj4Jj52Q9VCcOg
-        region: domestic
-        reason: "단타 및 돌파 매매 타점을 분석하고 실전 투자 팁을 공유합니다."
   - key: tmty5oxn3
     label: 남성패션
     scope: [남성패션, 남자패션, 남성의류, 남자코디, menswear, men's fashion, 남자옷, 남친룩, 남자 데일리룩, 남성 코디, 남자 코디, 남성스타일, 남자 스타일, mens fashion, 남성복]
