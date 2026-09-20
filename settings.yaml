@@ -159,10 +159,6 @@ digests:
         region: international
         reason: "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다."
     channels:
-      - name: 주식시그널
-        channel_id: UC9HkKfb8u9r3GbYKoTsBUJQ
-        region: domestic
-        reason: "실시간 차트 분석을 통해 주식 및 코인 돌파매매 타이밍을 분석하는 유튜브 채널입니다."
       - name: 하승훈의 주식투자
         channel_id: UCVqjwXde3zUk2GYHWbpqE3A
         region: domestic
