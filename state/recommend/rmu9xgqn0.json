@@ -1,0 +1,309 @@
+{
+  "candidates": [
+    {
+      "channel_id": "UC8a6z7i9qypp9PqJ_0HhBrw",
+      "kind": "youtube",
+      "name": "깡스타일리스트",
+      "rank": 1,
+      "reason": "다양한 남성 패션 트렌드와 함께 아메카지 스타일링 팁을 공유하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 1150000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCKWv0ScT6PpZcpg7ivUVWLA",
+      "kind": "youtube",
+      "name": "핏더사이즈",
+      "rank": 2,
+      "reason": "아메카지와 스트릿 패션을 포함한 다양한 남성 스타일을 소개하는 대형 패션 유튜버입니다.",
+      "region": "domestic",
+      "subscribers": 739000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCcSepD5GRKpskptBW2TSKGg",
+      "kind": "youtube",
+      "name": "짱구대대장",
+      "rank": 3,
+      "reason": "아메카지 및 워크웨어 스타일링과 브랜드를 전문적으로 다루는 국내 대표 패션 유튜버입니다.",
+      "region": "domestic",
+      "subscribers": 539000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCOHYlves6oxhyIQBRIIpPTQ",
+      "kind": "youtube",
+      "name": "와디의 신발장",
+      "rank": 4,
+      "reason": "아메카지 착장에 잘 어울리는 스니커즈와 빈티지 아이템을 추천하는 채널입니다.",
+      "region": "domestic",
+      "subscribers": 246000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC6VzIz8tJLnetS79VbsHPGg",
+      "kind": "youtube",
+      "name": "런업",
+      "rank": 5,
+      "reason": "아메카지 및 라이프스타일 패션 콘텐츠를 감각적으로 전달하는 유튜버입니다.",
+      "region": "domestic",
+      "subscribers": 242000,
+      "verified": true
+    },
+    {
+      "channel_id": "UC2Zs9v2hL2qZZ7vsAENsg4w",
+      "kind": "youtube",
+      "name": "Justin Sung",
+      "rank": 1,
+      "reason": "아메카지와 캐주얼 스타일링 패션 가이드를 제공하는 패션 크리에이터입니다.",
+      "region": "international",
+      "subscribers": 2250000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCyL0RJe41itDFjd70KKZIZQ",
+      "kind": "youtube",
+      "name": "Frugal Aesthetic",
+      "rank": 2,
+      "reason": "스트릿과 아메카지 트렌드를 위트 있게 분석하고 소개하는 글로벌 채널입니다.",
+      "region": "international",
+      "subscribers": 1610000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCfJrdVVcWZMHLC--a4ovLLQ",
+      "kind": "youtube",
+      "name": "Tim Dessaint",
+      "rank": 3,
+      "reason": "워크웨어와 클래식 스타일을 현대적으로 연출하는 팁을 제공하는 패션 유튜버입니다.",
+      "region": "international",
+      "subscribers": 1580000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCbUpqI8KZAUuUIMeD6idsPA",
+      "kind": "youtube",
+      "name": "The Style OGs",
+      "rank": 4,
+      "reason": "클래식 아메리칸 워크웨어와 밀리터리 패션을 깊이 있게 다루는 유튜브 채널입니다.",
+      "region": "international",
+      "subscribers": 649000,
+      "verified": true
+    },
+    {
+      "channel_id": "UCrEFCdOOfJHZi5tvnS0jLlA",
+      "kind": "youtube",
+      "name": "Sangiev",
+      "rank": 5,
+      "reason": "해외 빈티지 및 아메리칸 캐주얼 감성을 유니크하게 풀어내는 패션 유튜버입니다.",
+      "region": "international",
+      "subscribers": 120000,
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "무신사 매거진",
+      "reason": "아메카지 브랜드 소식과 화보 및 트렌드 리포트를 제공하는 국내 대표 매체입니다.",
+      "region": "domestic",
+      "url": "https://www.musinsa.com/magazine",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "패션엔",
+      "reason": "국내외 패션 트렌드와 워크웨어 및 캐주얼 시장 뉴스를 빠르게 전달합니다.",
+      "region": "domestic",
+      "url": "https://www.fashionn.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "어패럴뉴스",
+      "reason": "패션 산업 동향과 복각 브랜드 및 캐주얼 시장을 다루는 전문 매체입니다.",
+      "region": "domestic",
+      "url": "http://www.apparelnews.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "패션비즈",
+      "reason": "국내 패션 브랜드 및 빈티지 아메카지 트렌드 분석 기사를 다룹니다.",
+      "region": "domestic",
+      "url": "https://www.fashionbiz.co.kr",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "디지틀조선일보 패션",
+      "reason": "다양한 패션 스타일과 아메카지 관련 아이템 소식을 다루는 매체 섹션입니다.",
+      "region": "domestic",
+      "url": "http://digitalchosun.dizzo.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Popeye Magazine",
+      "reason": "아메카지와 시티보이 스타일의 본고장인 일본의 대표적인 라이프스타일 패션 매거진입니다.",
+      "region": "international",
+      "url": "https://magazineworld.jp/feed/",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Clutch Magazine",
+      "reason": "클래식 아메카지, 빈티지 가죽, 데님 문화를 깊이 있게 다루는 전문 매거진입니다.",
+      "region": "international",
+      "url": "https://clutchmagweb.com",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Lightning Magazine",
+      "reason": "아메리칸 빈티지 스타일과 워크웨어 문화를 다루는 일본의 저명한 아메카지 매거진입니다.",
+      "region": "international",
+      "url": "https://lightningweb.jp",
+      "verified": false
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Hypebeast",
+      "reason": "글로벌 패션 트렌드 및 아메카지/스트릿 브랜드 협업 소식을 심도 있게 전합니다.",
+      "region": "international",
+      "url": "https://hypebeast.com/feed",
+      "verified": true
+    },
+    {
+      "kind": "media",
+      "monthly_visits": null,
+      "name": "Highsnobiety",
+      "reason": "아메리칸 캐주얼과 하이엔드 패션의 접점을 다루는 글로벌 패션 매체입니다.",
+      "region": "international",
+      "url": "https://www.highsnobiety.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "벨에포크 블로그",
+      "reason": "아메카지 및 빈티지 의류 브랜드의 역사와 제품 리뷰를 깊이 있게 작성하는 블로그입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "디젤매니아",
+      "reason": "아메카지 및 워크웨어 착장 정보와 착샷 소통이 활발한 국내 대표 패션 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "https://cafe.naver.com/dieselmania",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "고아웃 코리아",
+      "reason": "아웃도어와 아메카지 감성을 아우르는 스타일과 장비를 소개하는 블로그입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "브런치 패션 에세이",
+      "reason": "아메카지 패션의 역사와 브랜드 철학을 다루는 칼럼니스트들의 블로그입니다.",
+      "region": "domestic",
+      "url": "",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "풋셀",
+      "reason": "아메카지에 어울리는 부츠와 빈티지 스니커즈 정보를 공유하는 패션 커뮤니티입니다.",
+      "region": "domestic",
+      "url": "https://footsell.com",
+      "verified": false
+    },
+    {
+      "kind": "blog",
+      "name": "Heddels",
+      "reason": "데님, 워크웨어, 아메카지 복각 브랜드와 제품의 에이징을 다루는 세계적인 블로그입니다.",
+      "region": "international",
+      "url": "https://www.heddels.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Permanent Style",
+      "reason": "클래식웨어와 워크웨어의 조합을 세련되게 설명하는 유명 패션 블로그입니다.",
+      "region": "international",
+      "url": "https://www.permanentstyle.com/feed",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Denimhunter",
+      "reason": "셀비지 데님과 아메카지 워크웨어 패션의 케어 및 스타일을 전문적으로 다룹니다.",
+      "region": "international",
+      "url": "https://denimhunters.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "A Continuous Lean",
+      "reason": "미국 전통 제조업과 아메리칸 클래식 패션 유산을 조명하는 전문 블로그입니다.",
+      "region": "international",
+      "url": "https://www.acontinuouslean.com/feed/",
+      "verified": true
+    },
+    {
+      "kind": "blog",
+      "name": "Well-Spent",
+      "reason": "내구성 높은 워크웨어와 아메리칸 캐주얼 아이템을 엄선해 소개하는 웹진형 블로그입니다.",
+      "region": "international",
+      "url": "https://well-spent.com",
+      "verified": false
+    }
+  ],
+  "generated_at": "2026-09-20T14:47:51.491893+00:00",
+  "keywords": [
+    "아메카지",
+    "워크웨어",
+    "빈티지",
+    "데님",
+    "밀리터리",
+    "아메리칸캐주얼",
+    "복각",
+    "가죽자켓",
+    "부츠",
+    "엔지니어드가먼츠",
+    "리바이스",
+    "RRL",
+    "amekaji",
+    "workwear",
+    "vintage",
+    "denim",
+    "military",
+    "americancasual",
+    "reproduction",
+    "boots"
+  ],
+  "scope": [
+    "아메카지",
+    "아메리칸캐주얼",
+    "amekaji",
+    "american casual",
+    "워크웨어",
+    "workwear",
+    "복각패션",
+    "시티보이",
+    "빈티지패션"
+  ],
+  "theme": "아메카지"
+}
