@@ -159,14 +159,6 @@ digests:
         region: international
         reason: "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다."
     channels:
-      - name: 단테TV
-        channel_id: UC6ij59Gy_HnqO4pFu9A_zgQ
-        region: domestic
-        reason: "주식 기술적 분석과 저항선 돌파매매 기법을 상세히 설명하는 주식 유튜브 채널입니다."
-      - name: 창원개미TV
-        channel_id: UCqsuesS39x5nUWcBH-1Q6YA
-        region: domestic
-        reason: "주식 시장에서 전고점 돌파매매 및 실전 단타 전략을 집중적으로 다루는 채널입니다."
       - name: 주식시그널
         channel_id: UC9HkKfb8u9r3GbYKoTsBUJQ
         region: domestic
