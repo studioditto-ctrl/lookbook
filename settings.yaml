@@ -159,10 +159,6 @@ digests:
         region: international
         reason: "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다."
     channels:
-      - name: 815모니터톡
-        channel_id: UCCG6BEYjfQMGzypJw2EJCDQ
-        region: domestic
-        reason: "다양한 실전 투자 전문가들이 나와 돌파매매 등 주식 매매 전략을 공유하는 채널입니다."
       - name: 단테TV
         channel_id: UC6ij59Gy_HnqO4pFu9A_zgQ
         region: domestic
