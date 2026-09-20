@@ -138,26 +138,10 @@ digests:
       - name: 돌파매매
         query: "돌파매매 OR \"breakout trading\" OR 전고점 OR 저항선 OR 신고가 OR 거래량"
     feeds:
-      - name: 삼프로TV
-        url: "https://www.3protv.com"
-        region: domestic
-        reason: "금융 및 증권 트렌드를 보도하며 다양한 기술적 매매 기법을 다루는 경제 전문 미디어입니다."
-      - name: Investopedia
-        url: "https://feeds-api.dotdashmeredith.com/v1/rss/google/f8466ec3-5044-46bc-94b7-2df65f770eff"
-        region: international
-        reason: "브레이크아웃 트레이딩(돌파매매)의 개념과 전략을 상세히 소개하는 금융 전문 매체입니다."
-      - name: BabyPips
-        url: "https://www.babypips.com/feed.rss"
-        region: international
-        reason: "초보 및 중급 트레이더를 위한 돌파매매 수칙과 프라이스 액션 블로그 콘텐츠를 제공합니다."
       - name: Tradeciety
         url: "https://www.tradeciety.com/rss.xml"
         region: international
         reason: "차트 패턴과 브레이크아웃 매매 시의 리스크 관리를 깊이 있게 다루는 전문 교육 블로그입니다."
-      - name: Seeking Alpha
-        url: "https://www.seekingalpha.com/feed/"
-        region: international
-        reason: "투자자들의 기술적 분석 글과 전고점 돌파 주식 리포트를 제공합니다."
     channels:
       - name: 하승훈의 주식투자
         channel_id: UCVqjwXde3zUk2GYHWbpqE3A
