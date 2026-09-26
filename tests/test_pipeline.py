@@ -971,6 +971,182 @@ class TestRecommend(unittest.TestCase):
             self.assertEqual(data["theme"], "테마")
 
 
+class TestGeminiClient(unittest.TestCase):
+    """recommend.py 에서 떼어낸 공용 모델 자가 치유 로직 — classify_subs.py 도 쓴다."""
+
+    def setUp(self):
+        import gemini_client
+
+        self.mod = gemini_client
+
+    def test_ask_gemini_sends_schema_and_parses_response(self):
+        from types import SimpleNamespace
+
+        def fake_request(client, system, content, schema, model, max_tokens):
+            self.assertEqual(system, "시스템")
+            self.assertEqual(content, "내용")
+            self.assertEqual(schema, {"type": "object"})
+            self.assertEqual(model, self.mod.MODEL)
+            self.assertEqual(max_tokens, 1234)
+            return {"ok": True}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=fake_request), \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod.ask_gemini("시스템", "내용", {"type": "object"}, max_tokens=1234)
+        self.assertEqual(result, {"ok": True})
+
+    def test_raises_without_api_key(self):
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(RuntimeError):
+                self.mod.ask_gemini("s", "c", {})
+
+    def test_rate_limit_is_retried_then_succeeds(self):
+        from google.genai import errors
+
+        calls = {"n": 0}
+
+        def flaky(client, system, content, schema, model, max_tokens):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise errors.APIError(429, {"error": {"message": "quota exceeded"}})
+            return {"ok": True}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=flaky), \
+             unittest.mock.patch("time.sleep", return_value=None), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod.ask_gemini("s", "c", {})
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(result, {"ok": True})
+
+    def test_model_not_found_falls_back_via_suggestion(self):
+        from google.genai import errors
+
+        calls = []
+
+        def flaky(client, system, content, schema, model, max_tokens):
+            calls.append(model)
+            if model == self.mod.MODEL:
+                raise errors.APIError(404, {"error": {
+                    "message": "no longer available. Please update your code to"
+                               " use models/gemini-9-flash for the latest.",
+                }})
+            return {"ok": True}
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=flaky), \
+             unittest.mock.patch.object(self.mod, "_generate_content_models") as list_mock, \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            result = self.mod.ask_gemini("s", "c", {})
+        self.assertEqual(calls, [self.mod.MODEL, "gemini-9-flash"])
+        list_mock.assert_not_called()
+        self.assertEqual(result, {"ok": True})
+
+    def test_chases_multiple_suggestions_then_gives_up(self):
+        from google.genai import errors
+
+        chain = {self.mod.MODEL: "gemini-a", "gemini-a": "gemini-b", "gemini-b": "gemini-c"}
+        calls = []
+
+        def always_redirecting(client, system, content, schema, model, max_tokens):
+            calls.append(model)
+            nxt = chain.get(model, "gemini-dead-end")
+            raise errors.APIError(404, {"error": {
+                "message": f"no longer available. Please update your code to use models/{nxt} now.",
+            }})
+
+        with unittest.mock.patch.object(self.mod, "_request", side_effect=always_redirecting), \
+             unittest.mock.patch("google.genai.Client"), \
+             unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            with self.assertRaises(RuntimeError):
+                self.mod.ask_gemini("s", "c", {})
+        self.assertEqual(len(calls), self.mod.MAX_MODEL_FALLBACKS + 1)
+
+
+class TestClassifySubs(unittest.TestCase):
+    """구독 채널을 주제별로 분류 — 배치로 나눠 Gemini 를 부른다."""
+
+    def setUp(self):
+        import classify_subs
+
+        self.mod = classify_subs
+
+    def test_classify_splits_into_batches(self):
+        channels = [{"id": f"UC{i}", "title": f"채널{i}"} for i in range(self.mod.BATCH_SIZE + 5)]
+        seen_batches = []
+
+        def fake_batch(batch, known_categories):
+            seen_batches.append(len(batch))
+            return {c["id"]: "기타" for c in batch}
+
+        with unittest.mock.patch.object(self.mod, "_classify_batch", side_effect=fake_batch):
+            result = self.mod.classify(channels)
+        self.assertEqual(seen_batches, [self.mod.BATCH_SIZE, 5])
+        self.assertEqual(len(result), len(channels))
+
+    def test_known_categories_accumulate_across_batches(self):
+        channels = [{"id": f"UC{i}", "title": f"채널{i}"} for i in range(self.mod.BATCH_SIZE + 1)]
+        seen_known = []
+
+        def fake_batch(batch, known_categories):
+            seen_known.append(set(known_categories))
+            return {c["id"]: "요리" for c in batch}
+
+        with unittest.mock.patch.object(self.mod, "_classify_batch", side_effect=fake_batch):
+            self.mod.classify(channels)
+        self.assertEqual(seen_known[0], set())
+        self.assertEqual(seen_known[1], {"요리"})
+
+    def test_one_failing_batch_does_not_stop_the_rest(self):
+        channels = [{"id": f"UC{i}", "title": f"채널{i}"} for i in range(self.mod.BATCH_SIZE + 1)]
+
+        def flaky(batch, known_categories):
+            if len(seen_calls) == 0:
+                seen_calls.append(1)
+                raise RuntimeError("모델이 요청을 거부했습니다")
+            return {c["id"]: "기타" for c in batch}
+
+        seen_calls = []
+        with unittest.mock.patch.object(self.mod, "_classify_batch", side_effect=flaky):
+            result = self.mod.classify(channels)
+        # 첫 배치는 실패, 둘째(마지막 1개짜리) 배치만 결과에 남는다
+        self.assertEqual(len(result), 1)
+
+    def test_classify_batch_drops_items_missing_id_or_category(self):
+        fake_response = {"items": [
+            {"id": "UC1", "category": "요리"},
+            {"id": "", "category": "빈 id"},
+            {"id": "UC2", "category": ""},
+            {"category": "id 없음"},
+        ]}
+        with unittest.mock.patch.object(self.mod.gemini_client, "ask_gemini", return_value=fake_response):
+            result = self.mod._classify_batch([{"id": "UC1", "title": "a"}], set())
+        self.assertEqual(result, {"UC1": "요리"})
+
+    def test_main_writes_result_from_input_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            classify_dir = Path(tmp) / "state" / "subs_classify"
+            classify_dir.mkdir(parents=True)
+            (classify_dir / "test-slug-input.json").write_text(
+                json.dumps([{"id": "UC1", "title": "채널"}]), encoding="utf-8",
+            )
+            with unittest.mock.patch.object(self.mod, "CLASSIFY_DIR", classify_dir), \
+                 unittest.mock.patch.object(self.mod, "classify", return_value={"UC1": "요리"}):
+                self.mod.main(["--slug", "test-slug"])
+            data = json.loads((classify_dir / "test-slug.json").read_text(encoding="utf-8"))
+            self.assertEqual(data["categories"], {"UC1": "요리"})
+            self.assertNotIn("error", data)
+
+    def test_main_writes_error_when_input_file_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            classify_dir = Path(tmp) / "state" / "subs_classify"
+            classify_dir.mkdir(parents=True)
+            with unittest.mock.patch.object(self.mod, "CLASSIFY_DIR", classify_dir):
+                self.mod.main(["--slug", "missing-slug"])
+            data = json.loads((classify_dir / "missing-slug.json").read_text(encoding="utf-8"))
+            self.assertIn("error", data)
+
+
 class TestMessageWithSummaries(unittest.TestCase):
     def item(self, n, summary_ko=""):
         return Item(

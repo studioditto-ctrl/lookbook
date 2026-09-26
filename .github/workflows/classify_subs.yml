@@ -1,0 +1,69 @@
+name: 구독 채널 분류
+
+on:
+  # 어드민 페이지의 '구독 채널' 화면에서 분류 버튼을 누르면, 채널 목록을
+  # state/subs_classify/<slug>-input.json 으로 먼저 커밋한 뒤 이 이벤트를 쏜다.
+  #   POST https://api.github.com/repos/<소유자>/<저장소>/dispatches
+  #   Authorization: Bearer <PAT>   (Contents: Read and write)
+  #   {"event_type": "classify_subs", "client_payload": {"slug": "..."}}
+  #
+  # 결과는 state/subs_classify/<slug>.json 에 커밋되고, 페이지는 그 파일이
+  # 생길 때까지 폴링한다. API 키를 브라우저에 둘 수 없어 이 경로로 돈다.
+  repository_dispatch:
+    types: [classify_subs]
+  # Actions 화면에서 수동으로 테스트해 볼 수 있는 경로. 입력 파일은 미리
+  # state/subs_classify/<slug>-input.json 으로 커밋해 둬야 한다.
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 입력·결과 파일 이름(state/subs_classify/<slug>(-input).json)
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 분류 생성
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            slug="${{ inputs.slug }}"
+          else
+            slug="${{ github.event.client_payload.slug }}"
+          fi
+          python src/classify_subs.py --slug "$slug"
+
+      - name: 결과 커밋
+        run: |
+          if [ -z "$(git status --porcelain state/subs_classify)" ]; then
+            echo "변경된 결과 파일이 없습니다."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/subs_classify
+          git commit -m "chore: 구독 채널 분류 결과 저장"
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "푸시 실패, 리베이스 후 재시도 ($attempt/3)"
+            sleep $((attempt * 3))
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          done
+          exit 1

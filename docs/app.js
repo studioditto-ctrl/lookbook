@@ -12,6 +12,8 @@ const LOCK_FILE = "docs/token.enc";
 // AI 추천은 repository_dispatch 로 워크플로를 깨우고, 결과 파일이 생길 때까지 이 자리에서 기다린다.
 const DISPATCH_URL = `https://api.github.com/repos/${REPO}/dispatches`;
 const RECOMMEND_PATH = slug => `state/recommend/${slug}.json`;
+const CLASSIFY_PATH = slug => `state/subs_classify/${slug}.json`;
+const CLASSIFY_INPUT_PATH = slug => `state/subs_classify/${slug}-input.json`;
 const BUILD = "2026-09-11";   // 화면에 찍어 어느 판인지 확인한다
 
 /* 넓은 화면에서는 주제를 한 번에 하나만 편다. 격자로 늘어놓으면 어느 것을
@@ -198,6 +200,7 @@ function sourcesSectionHTML(di, dg){
               <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
         </div>
+        ${subsCategoryChipsHTML(di)}
         <div class="add">
           <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
                  oninput="searchSubs(${di})" enterkeyhint="search">
@@ -768,19 +771,28 @@ async function dispatchRecommend(theme, slug, excludeNames){
   }
 }
 
-/* 결과 파일이 커밋될 때까지 기다린다. 워크플로 기동 + 실행 + 커밋까지
-   최대 50개 후보를 만들고, 유튜브 구독자·매체 방문자 수 확인·RSS 자동
-   발견까지 하나씩 열어 확인하느라 보통 2~8분 걸린다. 못 받으면 시간
-   초과로 알리고, 다시 시도할 수 있다. */
-async function pollRecommend(slug, {intervalMs = 5000, timeoutMs = 600000} = {}){
-  const path = RECOMMEND_PATH(slug);
+/* 결과 파일이 저장소에 커밋될 때까지 기다린다. repository_dispatch 로
+   워크플로를 깨우고 결과를 파일로 받는 모든 기능(AI 추천, 구독 채널
+   분류)이 이 방식을 쓴다 — 못 받으면 시간 초과로 알리고, timeoutMsg 로
+   기능별 안내를 다르게 준다. */
+async function pollForFile(path, {intervalMs = 5000, timeoutMs = 600000, timeoutMsg} = {}){
   const start = Date.now();
   while (Date.now() - start < timeoutMs){
     const j = await getFile(path).catch(() => null);
     if (j) return JSON.parse(dec(j.content));
     await new Promise(r => setTimeout(r, intervalMs));
   }
-  throw new Error("추천 결과를 받지 못했습니다 (시간 초과). 워크플로 실행 기록을 확인해 주세요.");
+  throw new Error(timeoutMsg || "결과를 받지 못했습니다 (시간 초과). 워크플로 실행 기록을 확인해 주세요.");
+}
+
+/* 워크플로 기동 + 실행 + 커밋까지 최대 50개 후보를 만들고, 유튜브 구독자·
+   매체 방문자 수 확인·RSS 자동 발견까지 하나씩 열어 확인하느라 보통
+   2~8분 걸린다. */
+async function pollRecommend(slug, opts){
+  return pollForFile(RECOMMEND_PATH(slug), {
+    timeoutMsg: "추천 결과를 받지 못했습니다 (시간 초과). 워크플로 실행 기록을 확인해 주세요.",
+    ...opts,
+  });
 }
 
 async function wizardStartRecommend(){
@@ -1214,6 +1226,8 @@ const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 let subs = JSON.parse(localStorage.getItem("subs") || "[]");
 let subsMeta = JSON.parse(localStorage.getItem("subs_meta") || "null");
 let gToken = null, gTokenAt = 0;
+let subsClassifying = false;
+let openSubCats = new Set();
 
 function subsInfo(){
   const el = $("subsInfo");
@@ -1267,6 +1281,10 @@ function renderDrive(){
       <button class="tiny" onclick="driveResync()" ${subsMeta ? "" : "disabled"}>다시 동기화</button>
     </div>
     <div class="chips" id="driveList"></div>
+    <button class="tiny wide ghost" style="margin-top:10px" onclick="classifySubs()"
+            ${subs.length && !subsClassifying ? "" : "disabled"}>
+      ${subsClassifying ? '<span class="spin"></span>분류하는 중… (1~2분)' : "🏷️ AI로 카테고리 분류하기"}</button>
+    <div id="subsCategoryBrowser"></div>
     <div class="duo" style="margin-top:10px">
       <button class="tiny ghost" onclick="clearSubs()">목록 지우기</button>
       <button class="tiny ghost" onclick="clearClientId()">클라이언트 ID 바꾸기</button>
@@ -1277,6 +1295,32 @@ function renderDrive(){
       저장소는 공개라 주제에 실제로 넣은 채널만 커밋됩니다.
     </div>`;
   subsInfo();
+  renderSubsCategoryBrowser();
+}
+
+/* 분류 결과를 쭉 훑어볼 수 있게 카테고리별로 접어 보여준다 — 여기서는
+   구경만 하고, 실제로 주제에 붙이는 건 각 주제의 '유튜브 채널' 카드에서
+   카테고리 칩을 눌러 한다(subsCategoryChipsHTML). */
+function renderSubsCategoryBrowser(){
+  const el = $("subsCategoryBrowser");
+  if (!el) return;
+  const cats = subCategoryCounts();
+  if (!cats.length){ el.innerHTML = ""; return; }
+  el.innerHTML = `
+    <div class="sub" style="margin-top:10px">카테고리 ${cats.length}개 — 눌러서 채널 목록 보기</div>
+    <div class="chips" style="margin-top:6px">
+      ${cats.map(([cat, n]) => `
+        <button class="tiny ghost" onclick="toggleSubCat(${arg(cat)})">
+          ${openSubCats.has(cat) ? "▾" : "▸"} ${esc(cat)} (${n})</button>`).join("")}
+    </div>
+    ${[...openSubCats].filter(cat => cats.some(([c]) => c === cat)).map(cat => `
+      <div class="chips" style="margin-top:6px">
+        ${subs.filter(s => s.category === cat).map(s => `<span class="chip plain">${esc(s.title)}</span>`).join("")}
+      </div>`).join("")}`;
+}
+function toggleSubCat(cat){
+  openSubCats.has(cat) ? openSubCats.delete(cat) : openSubCats.add(cat);
+  renderSubsCategoryBrowser();
 }
 function saveClientId(){
   const v = ($("gcid") || {}).value?.trim();
@@ -1433,7 +1477,10 @@ function useSubs(text, meta){
     toast("채널을 찾지 못했습니다. 유튜브 구독정보가 든 파일이 맞는지 확인해 주세요.", "err", true);
     return;
   }
-  subs = parsed;
+  // 다시 동기화해도 이전에 분류해 둔 카테고리는 그대로 이어받는다 —
+  // 새로 구독한 채널만 미분류로 남는다.
+  const prevCategory = new Map(subs.map(s => [s.id, s.category]).filter(([, c]) => c));
+  subs = parsed.map(s => prevCategory.has(s.id) ? {...s, category: prevCategory.get(s.id)} : s);
   subsMeta = {id: meta.id, name: meta.name, mimeType: meta.mimeType, at: Date.now()};
   localStorage.setItem("subs", JSON.stringify(subs));
   localStorage.setItem("subs_meta", JSON.stringify(subsMeta));
@@ -1467,6 +1514,50 @@ function reMatchAll(){
   }
   render(); touch();
   toast(`${esc(hit.join(", "))} 붙였습니다.`, "busy");
+}
+
+/* 구독 채널을 AI(Gemini)로 카테고리 분류한다. Takeout CSV 에는 이름·ID
+   뿐이라 분류 정보가 없다 — 키를 브라우저에 둘 수 없어 추천 마법사와
+   같은 구조를 쓴다: 입력 파일을 먼저 커밋하고 repository_dispatch 로
+   워크플로를 깨운 뒤, 결과 파일이 생기길 기다린다. */
+async function classifySubs(){
+  if (!subs.length || subsClassifying) return;
+  if (!token()){ toast("먼저 공통 설정에서 GitHub 토큰을 넣어주세요.", "err"); return; }
+
+  subsClassifying = true;
+  renderDrive();
+  toast(`${subs.length}개 채널을 분류하는 중… 보통 1~2분 걸립니다.`, "busy");
+  try{
+    const slug = "c" + Date.now().toString(36);
+    const channels = subs.map(s => ({id: s.id, title: s.title}));
+    await putFile(CLASSIFY_INPUT_PATH(slug), JSON.stringify(channels),
+                  undefined, "chore: 구독 채널 분류 입력 저장");
+    const r = await fetch(DISPATCH_URL, {
+      method: "POST", headers: headers(),
+      body: JSON.stringify({event_type: "classify_subs", client_payload: {slug}}),
+    });
+    if (!r.ok){
+      const j = await r.json().catch(() => ({}));
+      throw new Error(`${r.status} ${j.message || r.statusText}`);
+    }
+    const result = await pollForFile(CLASSIFY_PATH(slug), {
+      timeoutMsg: "분류 결과를 받지 못했습니다 (시간 초과). 워크플로 실행 기록을 확인해 주세요.",
+    });
+    if (result.error) throw new Error(result.error);
+
+    const categories = result.categories || {};
+    subs = subs.map(s => categories[s.id] ? {...s, category: categories[s.id]} : s);
+    localStorage.setItem("subs", JSON.stringify(subs));
+    const n = Object.keys(categories).length;
+    toast(n < subs.length
+      ? `${n}/${subs.length}개를 분류했습니다 (나머지는 실패해 미분류로 남았습니다 — 다시 눌러보세요).`
+      : `${n}개 채널을 분류했습니다.`, "ok");
+  }catch(e){
+    toast("분류하지 못했습니다: " + esc(e.message), "err", true);
+  }
+  subsClassifying = false;
+  renderDrive();
+  render();
 }
 
 /* 채널 ID 열의 자리가 언어판마다 달라 값으로 찾는다 */
@@ -1528,6 +1619,47 @@ function clearSubs(){
   renderDrive();
   toast("구독 목록을 지웠습니다.", "ok");
 }
+/* AI 분류 결과(각 구독 채널의 category)를 모아, 어느 카테고리가 몇 개인지
+   많은 순으로 돌려준다. 분류를 한 번도 안 했으면 빈 배열 — 그러면 칩
+   자체를 안 보여준다(검색만 있던 예전 화면 그대로). */
+function subCategoryCounts(){
+  const counts = new Map();
+  for (const s of subs){
+    if (!s.category) continue;
+    counts.set(s.category, (counts.get(s.category) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/* 이 주제에 아직 안 붙인 채널 수를 카테고리 칩에 같이 보여준다 — 다 붙인
+   카테고리는 눌러도 소용없다는 걸 숫자로 미리 알 수 있게. */
+function subsCategoryChipsHTML(di){
+  const cats = subCategoryCounts();
+  if (!cats.length) return "";
+  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
+  return `<div class="chips" style="margin-top:8px">
+    ${cats.map(([cat, total]) => {
+      const left = subs.filter(s => s.category === cat && !taken.has(s.id)).length;
+      return `<button class="tiny ghost" ${left ? "" : "disabled"}
+        onclick="pickSubsCategory(${di},${arg(cat)})">${esc(cat)} (${left}/${total})</button>`;
+    }).join("")}
+  </div>`;
+}
+
+/* 카테고리 칩을 누르면 그 카테고리 전체를 검색 결과 자리에 펼친다 —
+   이름을 몰라도 눌러서 훑어보고 고를 수 있게. */
+function pickSubsCategory(di, category){
+  const input = $("cs" + di);
+  if (input) input.value = "";
+  const box = $("cr" + di);
+  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
+  const hits = subs.filter(s => s.category === category && !taken.has(s.id));
+  box.innerHTML = hits.length
+    ? hits.map(h => `<span class="chip plain"><button onclick="pickChannel(${di},'${h.id}')"
+        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
+    : '<span class="sub">이 카테고리는 이미 다 추가했습니다.</span>';
+}
+
 function searchSubs(di){
   const needle = $("cs" + di).value.trim().toLowerCase();
   const box = $("cr" + di);
@@ -2145,6 +2277,7 @@ Object.assign(window, {
   addTopic,
   bump,
   checkToken,
+  classifySubs,
   clearClientId,
   clearSubs,
   clearToken,
@@ -2165,6 +2298,7 @@ Object.assign(window, {
   panel,
   pickChannel,
   pickSection,
+  pickSubsCategory,
   pickTier,
   pickTopic,
   reMatchAll,
@@ -2185,6 +2319,7 @@ Object.assign(window, {
   suggestFor,
   switchWizard,
   testSend,
+  toggleSubCat,
   wizardApply,
   wizardFinish,
   wizardGoto,
