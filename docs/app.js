@@ -1229,6 +1229,13 @@ let gToken = null, gTokenAt = 0;
 let subsClassifying = false;
 let openSubCats = new Set();
 
+/* ---------- 팔로우 계정 — 유튜브 구독(subs) + 인스타그램(igFollows) 통합 ----------
+   인스타그램은 API로 목록을 못 가져와서 사람이 카테고리까지 붙은 CSV를
+   직접 붙여넣는다(igFollows). 유튜브는 이름만 가져오고 여기서 AI로
+   분류한다(subs). 두 출처를 한 모양으로 합쳐 카테고리별로 훑어보고,
+   각 주제에 고를 때도 같은 화면에서 고른다. */
+let igFollows = JSON.parse(localStorage.getItem("ig_follows") || "[]");
+
 function subsInfo(){
   const el = $("subsInfo");
   if (!el) return;
@@ -1236,6 +1243,25 @@ function subsInfo(){
     ? `${subs.length}개 채널 · ${subsMeta ? subsMeta.name : "출처 미상"}`
       + (subsMeta ? ` (${new Date(subsMeta.at).toLocaleString("ko-KR")})` : "")
     : "아직 불러오지 않았습니다.";
+}
+
+function igInfo(){
+  const el = $("igInfo");
+  if (!el) return;
+  el.textContent = igFollows.length ? `${igFollows.length}개 계정` : "아직 불러오지 않았습니다.";
+}
+
+/* 유튜브·인스타그램을 한 모양으로 — kind 로 어느 쪽에 어떻게 추가할지 갈린다. */
+function combinedFollows(){
+  return [
+    ...subs.map(s => ({kind: "youtube", id: s.id, title: s.title, category: s.category})),
+    ...igFollows.map(f => ({kind: "instagram", id: f.id, title: f.name, url: f.url, category: f.category})),
+  ];
+}
+function isFollowTaken(dg, item){
+  return item.kind === "youtube"
+    ? (dg.channels || []).some(c => c.channel_id === item.id)
+    : (dg.feeds || []).some(f => f.url === item.url);
 }
 
 function renderDrive(){
@@ -1284,7 +1310,6 @@ function renderDrive(){
     <button class="tiny wide ghost" style="margin-top:10px" onclick="classifySubs()"
             ${subs.length && !subsClassifying ? "" : "disabled"}>
       ${subsClassifying ? '<span class="spin"></span>분류하는 중… (1~2분)' : "🏷️ AI로 카테고리 분류하기"}</button>
-    <div id="subsCategoryBrowser"></div>
     <div class="duo" style="margin-top:10px">
       <button class="tiny ghost" onclick="clearSubs()">목록 지우기</button>
       <button class="tiny ghost" onclick="clearClientId()">클라이언트 ID 바꾸기</button>
@@ -1295,6 +1320,7 @@ function renderDrive(){
       저장소는 공개라 주제에 실제로 넣은 채널만 커밋됩니다.
     </div>`;
   subsInfo();
+  igInfo();
   renderSubsCategoryBrowser();
 }
 
@@ -1305,9 +1331,10 @@ function renderSubsCategoryBrowser(){
   const el = $("subsCategoryBrowser");
   if (!el) return;
   const cats = subCategoryCounts();
-  if (!cats.length){ el.innerHTML = ""; return; }
+  if (!cats.length){ el.innerHTML = '<div class="sub">아직 분류된 계정이 없습니다.</div>'; return; }
+  const items = combinedFollows();
   el.innerHTML = `
-    <div class="sub" style="margin-top:10px">카테고리 ${cats.length}개 — 눌러서 채널 목록 보기</div>
+    <div class="sub" style="margin-top:10px">카테고리 ${cats.length}개 — 눌러서 계정 목록 보기</div>
     <div class="chips" style="margin-top:6px">
       ${cats.map(([cat, n]) => `
         <button class="tiny ghost" onclick="toggleSubCat(${arg(cat)})">
@@ -1315,12 +1342,82 @@ function renderSubsCategoryBrowser(){
     </div>
     ${[...openSubCats].filter(cat => cats.some(([c]) => c === cat)).map(cat => `
       <div class="chips" style="margin-top:6px">
-        ${subs.filter(s => s.category === cat).map(s => `<span class="chip plain">${esc(s.title)}</span>`).join("")}
+        ${items.filter(it => it.category === cat)
+          .map(it => `<span class="chip plain">${it.kind === "instagram" ? "📷" : "▶"} ${esc(it.title)}</span>`).join("")}
       </div>`).join("")}`;
 }
 function toggleSubCat(cat){
   openSubCats.has(cat) ? openSubCats.delete(cat) : openSubCats.add(cat);
   renderSubsCategoryBrowser();
+}
+
+/* "카테고리","인스타그램 ID","계정 이름","접속 URL","팔로워 수" 다섯 칸
+   CSV — 인용부호 안의 쉼표까지 다루는 최소 파서. 첫 줄은 헤더로 보고
+   건너뛴다. 카테고리는 사용자(또는 다른 AI)가 이미 정해서 주는 값을
+   그대로 믿는다 — 여기서 다시 분류하지 않는다. */
+function parseIgCsvLine(line){
+  const out = [];
+  let cur = "", inQuotes = false;
+  for (let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if (inQuotes){
+      if (ch === '"'){
+        if (line[i + 1] === '"'){ cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += ch;
+    } else if (ch === '"'){
+      inQuotes = true;
+    } else if (ch === ","){
+      out.push(cur); cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+function parseIgCsv(text){
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = [];
+  for (let i = 1; i < lines.length; i++){ // 0번째는 헤더
+    const [category, id, name, url] = parseIgCsvLine(lines[i]).map(c => (c || "").trim());
+    if (!id || !url) continue;
+    out.push({id, name: name || id, url, category: category || "기타"});
+  }
+  return out;
+}
+function importIgFollows(){
+  const text = ($("igCsv") || {}).value || "";
+  const parsed = parseIgCsv(text);
+  if (!parsed.length){
+    toast("계정을 찾지 못했습니다. 형식이 맞는지 확인해 주세요.", "err", true);
+    return;
+  }
+  const byId = new Map(igFollows.map(f => [f.id, f]));
+  parsed.forEach(f => byId.set(f.id, f));
+  igFollows = [...byId.values()];
+  localStorage.setItem("ig_follows", JSON.stringify(igFollows));
+  igInfo();
+  renderSubsCategoryBrowser();
+  render();
+  toast(`${parsed.length}개 계정을 가져왔습니다 (전체 ${igFollows.length}개).`, "ok");
+}
+function clearIgFollows(){
+  igFollows = [];
+  localStorage.removeItem("ig_follows");
+  igInfo();
+  renderSubsCategoryBrowser();
+  render();
+  toast("인스타그램 목록을 지웠습니다.", "ok");
+}
+function pickIgFollow(di, id){
+  const hit = igFollows.find(f => f.id === id);
+  if (!hit) return;
+  (data.digests[di].feeds ||= []).push({
+    name: hit.name, url: hit.url, region: "", reason: `인스타그램 · ${hit.category}`,
+  });
+  open.add("d" + di);
+  render(); touch();
 }
 function saveClientId(){
   const v = ($("gcid") || {}).value?.trim();
@@ -1619,27 +1716,27 @@ function clearSubs(){
   renderDrive();
   toast("구독 목록을 지웠습니다.", "ok");
 }
-/* AI 분류 결과(각 구독 채널의 category)를 모아, 어느 카테고리가 몇 개인지
-   많은 순으로 돌려준다. 분류를 한 번도 안 했으면 빈 배열 — 그러면 칩
-   자체를 안 보여준다(검색만 있던 예전 화면 그대로). */
+/* AI 분류 결과(각 구독 채널·인스타그램 계정의 category)를 모아, 어느
+   카테고리가 몇 개인지 많은 순으로 돌려준다. 분류를 한 번도 안 했으면
+   빈 배열 — 그러면 칩 자체를 안 보여준다(검색만 있던 예전 화면 그대로). */
 function subCategoryCounts(){
   const counts = new Map();
-  for (const s of subs){
-    if (!s.category) continue;
-    counts.set(s.category, (counts.get(s.category) || 0) + 1);
+  for (const it of combinedFollows()){
+    if (!it.category) continue;
+    counts.set(it.category, (counts.get(it.category) || 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-/* 이 주제에 아직 안 붙인 채널 수를 카테고리 칩에 같이 보여준다 — 다 붙인
+/* 이 주제에 아직 안 붙인 계정 수를 카테고리 칩에 같이 보여준다 — 다 붙인
    카테고리는 눌러도 소용없다는 걸 숫자로 미리 알 수 있게. */
 function subsCategoryChipsHTML(di){
   const cats = subCategoryCounts();
   if (!cats.length) return "";
-  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
+  const dg = data.digests[di];
   return `<div class="chips" style="margin-top:8px">
     ${cats.map(([cat, total]) => {
-      const left = subs.filter(s => s.category === cat && !taken.has(s.id)).length;
+      const left = combinedFollows().filter(it => it.category === cat && !isFollowTaken(dg, it)).length;
       return `<button class="tiny ghost" ${left ? "" : "disabled"}
         onclick="pickSubsCategory(${di},${arg(cat)})">${esc(cat)} (${left}/${total})</button>`;
     }).join("")}
@@ -1647,16 +1744,20 @@ function subsCategoryChipsHTML(di){
 }
 
 /* 카테고리 칩을 누르면 그 카테고리 전체를 검색 결과 자리에 펼친다 —
-   이름을 몰라도 눌러서 훑어보고 고를 수 있게. */
+   이름을 몰라도 눌러서 훑어보고 고를 수 있게. 유튜브는 channels 에,
+   인스타그램은 feeds 에 붙는다(RSS 로 등록되지만 실제로 살아있는 피드가
+   되려면 나중에 rss.app 등으로 바꿔줘야 한다 — 위 카드의 안내 참고). */
 function pickSubsCategory(di, category){
   const input = $("cs" + di);
   if (input) input.value = "";
   const box = $("cr" + di);
-  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
-  const hits = subs.filter(s => s.category === category && !taken.has(s.id));
+  const dg = data.digests[di];
+  const hits = combinedFollows().filter(it => it.category === category && !isFollowTaken(dg, it));
   box.innerHTML = hits.length
-    ? hits.map(h => `<span class="chip plain"><button onclick="pickChannel(${di},'${h.id}')"
-        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
+    ? hits.map(h => `<span class="chip plain">
+        <button onclick="${h.kind === "youtube" ? `pickChannel(${di},'${h.id}')` : `pickIgFollow(${di},'${h.id}')`}"
+        style="width:auto;padding:0;font-size:14px;color:var(--accent)">
+          + ${h.kind === "instagram" ? "📷 " : ""}${esc(h.title)}</button></span>`).join("")
     : '<span class="sub">이 카테고리는 이미 다 추가했습니다.</span>';
 }
 
@@ -2288,15 +2389,18 @@ Object.assign(window, {
   delKeyword,
   delSlot,
   delTopic,
+  clearIgFollows,
   discardDraft,
   driveCheck,
   driveOpen,
   drivePick,
   driveResync,
   exportSourcesCSV,
+  importIgFollows,
   load,
   panel,
   pickChannel,
+  pickIgFollow,
   pickSection,
   pickSubsCategory,
   pickTier,

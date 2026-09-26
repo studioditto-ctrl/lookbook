@@ -36,11 +36,12 @@
   .card h3{font-size:14px; margin:18px 0 6px; color:var(--ink)}
   .row{display:flex; gap:10px; align-items:center}
   label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
-  input{
+  input, textarea{
     width:100%; padding:11px 12px; font-size:16px; color:var(--ink);
     background:var(--bg); border:1px solid var(--line); border-radius:10px;
   }
   input[type=time]{font-variant-numeric:tabular-nums}
+  textarea{font-family:ui-monospace, monospace; font-size:13px; resize:vertical}
   button{
     font:inherit; font-size:15px; padding:10px 14px; border-radius:10px;
     border:1px solid var(--line); background:var(--card); color:var(--ink);

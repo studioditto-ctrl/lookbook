@@ -85,6 +85,38 @@
       <div id="driveBox"></div>
     </div>
     <div class="card">
+      <h2>팔로우 계정 (인스타그램)</h2>
+      <div class="sub" id="igInfo">아직 불러오지 않았습니다.</div>
+      <div class="note">
+        인스타그램은 API로 자동으로 목록을 가져올 방법이 없어 직접 붙여넣어야
+        합니다. 카테고리·아이디·계정 이름·URL·팔로워 수 다섯 칸짜리 CSV를
+        그대로 붙여넣으세요(첫 줄 헤더 포함, 팔로워 수는 몰라도 "미확인" 등
+        아무 값이나 괜찮습니다):
+        <br><code style="font-size:12px">"카테고리","인스타그램 ID","계정 이름","접속 URL","팔로워 수"</code>
+      </div>
+      <textarea id="igCsv" rows="6" style="margin-top:8px"
+        placeholder='"카테고리","인스타그램 ID","계정 이름","접속 URL","팔로워 수"
+"러닝 &amp; 마라톤","cltoo.run","클투","https://www.instagram.com/cltoo.run/","미확인"'></textarea>
+      <div class="duo" style="margin-top:8px">
+        <button class="tiny primary" onclick="importIgFollows()">가져오기</button>
+        <button class="tiny ghost" onclick="clearIgFollows()">목록 지우기</button>
+      </div>
+      <div class="note" style="margin-top:8px">
+        가져온 계정도 아래 <b>카테고리로 훑어보기</b>에서 위 구독 채널과
+        같은 카테고리 묶음으로 보여줍니다. 다만 인스타그램 계정은 유튜브처럼
+        실제 글이 자동으로 들어오지 않습니다 — 주제에 추가하면 RSS 주소로
+        등록되는데, 이 주소가 실제로 살아있는 피드가 되려면
+        <a href="https://rss.app/rss-feed" target="_blank"
+        rel="noopener" style="color:var(--accent)">rss.app</a> 같은 곳에서
+        변환한 주소로 나중에 바꿔줘야 합니다.
+      </div>
+    </div>
+    <div class="card">
+      <h2>카테고리로 훑어보기</h2>
+      <div class="sub">유튜브 구독과 인스타그램 팔로우를 분류 결과대로 모아서 보여줍니다.</div>
+      <div id="subsCategoryBrowser"></div>
+    </div>
+    <div class="card">
       <h2>공통 제외어</h2>
       <div class="sub">제목에 이 단어가 있으면 어느 주제든 보내지 않습니다.</div>
       <div class="chips" id="excludeChips"></div>
