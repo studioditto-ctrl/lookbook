@@ -116,6 +116,8 @@ digests:
         channel_id: UC5CyCSvCdoEP-VgQmFq3iww
       - name: 현명한 은퇴자들
         channel_id: UC6CNXBevdTEucEoVXu15WYQ
+      - name: AI 활용해서 투자하기
+        channel_id: UCRlR4qOz45kwqxmyZpyZKAA
   - key: tmty5oxn3
     label: 남성패션
     scope: [남성패션, 남자패션, 남성의류, 남자코디, menswear, men's fashion, 남자옷, 남친룩, 남자 데일리룩, 남성 코디, 남자 코디, 남성스타일, 남자 스타일, mens fashion, 남성복]
