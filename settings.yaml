@@ -99,19 +99,10 @@ digests:
         articles: 5
         videos: 5
     keywords:
-      단타: 1
-      지지선: 1
-      변동성: 1
-      resistance: 1
-      support: 1
-      volume: 1
-      chart pattern: 1
-      consolidation: 1
-      trend line: 1
       breakout strategy: 1
     queries:
       - name: 돌파매매
-        query: "단타 OR 지지선 OR 변동성 OR resistance OR support OR volume"
+        query: "\"breakout strategy\""
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
