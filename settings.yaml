@@ -99,11 +99,6 @@ digests:
         articles: 5
         videos: 5
     keywords:
-      기술적 분석: 1
-      breakout: 1
-      resistance level: 1
-      volume breakout: 1
-      price action: 1
       눌림목: 1
       손절매: 1
       stop loss: 1
@@ -125,7 +120,7 @@ digests:
       breakout strategy: 1
     queries:
       - name: 돌파매매
-        query: "\"기술적 분석\" OR breakout OR \"resistance level\" OR \"volume breakout\" OR \"price action\" OR 눌림목"
+        query: "눌림목 OR 손절매 OR \"stop loss\" OR 상승돌파 OR 모멘텀 OR momentum"
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
