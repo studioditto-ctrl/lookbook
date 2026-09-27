@@ -425,7 +425,7 @@ digests:
         reason: "해외 빈티지 및 아메리칸 캐주얼 감성을 유니크하게 풀어내는 패션 유튜버입니다."
 
 filters:
-  min_views: 1000
+  min_views: 100
 
 exclude:
   - 부고
