@@ -100,7 +100,6 @@ digests:
         videos: 5
     keywords:
       단타: 1
-      차트분석: 1
       지지선: 1
       변동성: 1
       resistance: 1
@@ -112,7 +111,7 @@ digests:
       breakout strategy: 1
     queries:
       - name: 돌파매매
-        query: "단타 OR 차트분석 OR 지지선 OR 변동성 OR resistance OR support"
+        query: "단타 OR 지지선 OR 변동성 OR resistance OR support OR volume"
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
