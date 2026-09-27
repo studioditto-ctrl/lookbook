@@ -92,7 +92,7 @@ digests:
     strict: true
     slots:
       - slot: daily
-        title: "돌파매매 브리핑"
+        title: "경제"
         send_at: "18:00"
         enabled: true
         articles: 5
