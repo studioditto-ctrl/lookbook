@@ -281,6 +281,87 @@ digests:
         url: "https://www.valetmag.com/feed/"
         region: international
         reason: "독립 스타일 매거진으로 남성 의류, 액세서리, 그루밍 팁을 독립적으로 다룹니다."
+      - name: "은철 | 옷입는 안경남"
+        url: "https://www.instagram.com/_metoko/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: David Beckham
+        url: "https://www.instagram.com/davidbeckham/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 데이바이마이 daybymy
+        url: "https://www.instagram.com/day.by.my/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 미미킹 OFJ
+        url: "https://www.instagram.com/theresqco.ofj/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 오늘의 기유
+        url: "https://www.instagram.com/giyu_clo/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: Jeremiah
+        url: "https://www.instagram.com/thepreppyprophet/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "센시노(SENSINO)"
+        url: "https://www.instagram.com/sensino_official/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: David Gandy
+        url: "https://www.instagram.com/davidgandy_official/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: SERKAN 세르칸
+        url: "https://www.instagram.com/iamtheserkan/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: MY Q
+        url: "https://www.instagram.com/iammyq/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: POTTERY
+        url: "https://www.instagram.com/ptry.inc/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "BETTER MAN, EDITED."
+        url: "https://www.instagram.com/edited.man.mag/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: Nickelson Wooster
+        url: "https://www.instagram.com/nickwooster/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: Johannes Huebl
+        url: "https://www.instagram.com/johanneshuebl/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 브랜디드 매거진
+        url: "https://www.instagram.com/branded_mag/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 논라벨 매거진
+        url: "https://www.instagram.com/nonlabel.mag/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 뻔더 FUNDAMENTAL
+        url: "https://www.instagram.com/fundamental_kr/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "데이지 | 데일리룩, 이지하게"
+        url: "https://www.instagram.com/daisyunnie_/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: FASHIONBIZ 패션비즈
+        url: "https://www.instagram.com/fashionbizkr/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: URH
+        url: "https://www.instagram.com/undercontrol.urh/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "IMBOLDN | 임볼든"
+        url: "https://www.instagram.com/imboldn.kr/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "Oxforder / 옥스포더"
+        url: "https://www.instagram.com/oxforder_official/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: "Adam’s peach official"
+        url: "https://www.instagram.com/adams_peach/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: MONONO 모노노
+        url: "https://www.instagram.com/monono.official/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: 미 라이킹 패션
+        url: "https://www.instagram.com/me_liking_fashion/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: meilinen
+        url: "https://www.instagram.com/meilinen_official/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: Somewon
+        url: "https://www.instagram.com/somewon_co/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
     channels:
       - name: 핏더사이즈
         channel_id: UCKWv0ScT6PpZcpg7ivUVWLA
