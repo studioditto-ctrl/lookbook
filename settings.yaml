@@ -326,10 +326,6 @@ digests:
         channel_id: UCJdZej-O_M69bB4M6aiiLcw
         region: domestic
         reason: "기본 아이템을 활용한 깔끔한 남성 데일리룩 스타일링을 이해하기 쉽게 설명합니다."
-      - name: 호수
-        channel_id: UC3FKRf9yBdtCvsrB8lcIAKg
-        region: domestic
-        reason: "깔끔하고 세련된 남성 미니멀 룩과 시즌별 아이템을 추천해 주는 패션 채널입니다."
       - name: Parker York Smith
         channel_id: UCDHnXzXMy11cWm95J-Lw-bQ
         region: international
@@ -346,18 +342,20 @@ digests:
         channel_id: UCgL9g1sShIgPcseyyKzhG5Q
         region: international
         reason: "하이엔드 디자이너 브랜드와 스트릿 웨어 위주의 남성 트렌드를 선보입니다."
-      - name: GFOD Studio
-        channel_id: UC6EpEu9f1zDZuIEjLTWqEEg
-      - name: 쪼선생 JJO TEACHER
-        channel_id: UC7vyTwJjcUdYsVQjiTHcPyg
-      - name: 석꾸축꾸
-        channel_id: UC8valWz_8jFnX4tMGCeC62w
-      - name: 엔듀로레이스 ENDURORACE
-        channel_id: UCJ6Rc1WZXhl_zU_RIaTlQag
-      - name: M10M
-        channel_id: UCLerjmOtu7XFPEt0bG5CoNQ
-      - name: Dude Perfect
-        channel_id: UCRijo3ddMTht_IHyNSNXpNQ
+      - name: 코스모쓰 패션한짠
+        channel_id: UC-J1TDoV4mQTQkCZRKmV3Xg
+      - name: "멋lab [남자교양서]"
+        channel_id: UC6GcqEmOuc0p-3tfzTg1a-g
+      - name: 우민준
+        channel_id: UC7lPLG5gKr5PSMqAkSfhJWA
+      - name: 삭휘 SakHwi
+        channel_id: UC8odT0sUbYikh39OSoarmVg
+      - name: 클래씨 ClassyTV
+        channel_id: UCJCNS4-1Bff7H2fzuUCZzig
+      - name: 쿨케이
+        channel_id: UCJQardzJmHJpsrEfWzVA6tA
+      - name: "롱진 Long:zine"
+        channel_id: UCOlfR9smC1skvEDbU81yMsg
   - key: tmu9xp9l9
     label: 아메카지
     scope: [아메카지, 아메리칸캐주얼, amekaji, american casual, 워크웨어, workwear, 복각패션, 시티보이, 빈티지패션]
