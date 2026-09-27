@@ -158,6 +158,23 @@
   .srcbox .chips:empty{display:none}
   .srclabel{font-size:12px; font-weight:600; color:var(--muted); margin:16px 0 2px}
 
+  /* 유튜브·인스타그램 칸 — 테마(카테고리)를 누르면 채널이 펼쳐지고,
+     체크박스로 바로 추가/삭제하는 트리. 가나다순으로 미리 정렬해 둔다. */
+  .follow-tree{max-height:340px; overflow-y:auto; margin:-2px}
+  .ftcat{border-bottom:1px solid var(--line)}
+  .ftcat:last-child{border-bottom:0}
+  .fthead{display:flex; align-items:center; gap:8px; padding:7px 2px}
+  .fthead input[type=checkbox]{width:18px; height:18px; flex:0 0 auto}
+  .fttitle{
+    flex:1; display:flex; align-items:center; gap:6px; text-align:left;
+    border:0; background:none; padding:0; min-height:0; font-size:14px; color:var(--ink);
+  }
+  .fttitle .tri{color:var(--muted); font-size:11px; width:9px}
+  .fttitle .sub{margin-left:auto; font-size:12px; padding-left:8px}
+  .ftlist{padding:2px 2px 8px 27px; display:flex; flex-direction:column; gap:7px}
+  .ftitem{display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer}
+  .ftitem input[type=checkbox]{width:16px; height:16px; flex:0 0 auto}
+
   /* ---------- 새 주제 만들기 마법사 ---------- */
   .wztabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
   .wztabs button{

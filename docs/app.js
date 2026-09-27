@@ -201,12 +201,7 @@ function sourcesSectionHTML(di, dg){
       <div>
         <label style="margin-top:6px">유튜브 채널</label>
         <div class="srcbox">
-          <div class="add">
-            <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
-                   oninput="searchSubs(${di})" enterkeyhint="search">
-          </div>
-          <div class="chips" id="cr${di}"></div>
-          ${followsCategoryChipsHTML(di, "youtube")}
+          ${followTreeHTML(di, "youtube")}
         </div>
         <div class="srclabel">등록됨 <span class="sub">${(dg.channels || []).length}</span></div>
         <div class="chips">
@@ -220,12 +215,7 @@ function sourcesSectionHTML(di, dg){
       <div>
         <label style="margin-top:6px">인스타그램</label>
         <div class="srcbox">
-          <div class="add">
-            <input id="igcs${di}" placeholder="가져온 목록에서 검색 — 예: 러닝"
-                   oninput="searchIgFollows(${di})" enterkeyhint="search">
-          </div>
-          <div class="chips" id="igcr${di}"></div>
-          ${followsCategoryChipsHTML(di, "instagram")}
+          ${followTreeHTML(di, "instagram")}
           <div class="add" style="margin-top:8px">
             <input id="igm${di}" placeholder="또는 아이디·URL 직접 추가" enterkeyhint="done"
                    autocapitalize="off" autocomplete="off"
@@ -364,6 +354,10 @@ function render(){
         ${dangerSec}
       </div>`;
   }).join("");
+  // 체크박스의 '일부만 선택됨' 표시는 속성이 아니라 DOM 프로퍼티라
+  // innerHTML 만으로는 못 켠다 — 그려진 다음 따로 켜준다.
+  document.querySelectorAll('#digests input[data-indeterminate="1"]')
+    .forEach(cb => cb.indeterminate = true);
 
   $("topicNav").innerHTML = data.digests.map((dg, di) => `
     <button aria-current="${mode === "topics" && di === selected}" onclick="pickTopic(${di})">
@@ -1810,62 +1804,96 @@ function subCategoryCounts(){
 function followKindItems(kind){
   return combinedFollows().filter(it => it.kind === kind);
 }
-function followsCategoryCounts(kind){
-  const counts = new Map();
-  for (const it of followKindItems(kind)){
-    if (!it.category) continue;
-    counts.set(it.category, (counts.get(it.category) || 0) + 1);
-  }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-}
+/* 테마(카테고리)를 누르면 하위 채널이 펼쳐지고, 체크박스로 바로
+   추가/삭제되는 트리 — 테마·채널 모두 가나다순. 테마 앞 체크박스는
+   그 테마 전체를 한 번에 추가/삭제하고(일부만 추가돼 있으면
+   '일부 선택' 표시), 채널 앞 체크박스는 그 채널 하나만 다룬다. */
+let openFollowCats = new Set();
 
-/* 이 주제에 아직 안 붙인 계정 수를 카테고리 칩에 같이 보여준다 — 다 붙인
-   카테고리는 눌러도 소용없다는 걸 숫자로 미리 알 수 있게. */
-function followsCategoryChipsHTML(di, kind){
-  const cats = followsCategoryCounts(kind);
-  if (!cats.length) return "";
+function followCategoryOf(it){ return it.category || "미분류"; }
+
+function followTreeHTML(di, kind){
+  const items = followKindItems(kind);
+  if (!items.length){
+    return `<div class="sub">${kind === "youtube"
+      ? "아직 구독 채널이 없습니다 — 공통 설정에서 Drive 로 불러오세요."
+      : "아직 인스타그램 목록이 없습니다 — 공통 설정에서 CSV 로 가져오세요."}</div>`;
+  }
   const dg = data.digests[di];
-  return `<div class="chips" style="margin-top:8px">
-    ${cats.map(([cat, total]) => {
-      const left = followKindItems(kind).filter(it => it.category === cat && !isFollowTaken(dg, it)).length;
-      return `<button class="tiny ghost" ${left ? "" : "disabled"}
-        onclick="pickFollowCategory(${di},${arg(cat)},${arg(kind)})">${esc(cat)} (${left}/${total})</button>`;
+  const byCat = new Map();
+  for (const it of items){
+    const cat = followCategoryOf(it);
+    if (!byCat.has(cat)) byCat.set(cat, []);
+    byCat.get(cat).push(it);
+  }
+  const cats = [...byCat.keys()].sort((a, b) => a.localeCompare(b, "ko"));
+  return `<div class="follow-tree">
+    ${cats.map(cat => {
+      const list = byCat.get(cat).slice().sort((a, b) => a.title.localeCompare(b.title, "ko"));
+      const takenCount = list.filter(it => isFollowTaken(dg, it)).length;
+      const allTaken = takenCount === list.length;
+      const someTaken = takenCount > 0 && !allTaken;
+      const catKey = `${kind}-${di}-${cat}`;
+      const isOpen = openFollowCats.has(catKey);
+      return `
+        <div class="ftcat">
+          <div class="fthead">
+            <input type="checkbox" ${allTaken ? "checked" : ""} ${someTaken ? 'data-indeterminate="1"' : ""}
+                   onchange="toggleFollowCategoryAll(${di},${arg(cat)},${arg(kind)},this.checked)"
+                   aria-label="${esc(cat)} 전체 추가/삭제">
+            <button class="fttitle" onclick="toggleFollowCatOpen(${arg(catKey)})">
+              <span class="tri">${isOpen ? "▾" : "▸"}</span> ${esc(cat)}
+              <span class="sub">${takenCount}/${list.length}</span>
+            </button>
+          </div>
+          ${isOpen ? `<div class="ftlist">
+            ${list.map(it => `
+              <label class="ftitem">
+                <input type="checkbox" ${isFollowTaken(dg, it) ? "checked" : ""}
+                       onchange="toggleFollowItem(${di},${arg(it.id)},${arg(kind)},this.checked)">
+                ${it.kind === "instagram" ? "📷 " : ""}${esc(it.title)}
+              </label>`).join("")}
+          </div>` : ""}
+        </div>`;
     }).join("")}
   </div>`;
 }
 
-/* 카테고리 칩을 누르면 그 카테고리 안의(같은 kind만) 계정 전체를 검색
-   결과 자리에 펼친다 — 이름을 몰라도 눌러서 훑어보고 고를 수 있게.
-   유튜브는 channels 에, 인스타그램은 feeds 에 붙는다(RSS 로 등록되지만
-   실제로 살아있는 피드가 되려면 나중에 rss.app 등으로 바꿔줘야 한다 —
-   위 카드의 안내 참고). */
-function pickFollowCategory(di, category, kind){
-  const boxId = kind === "youtube" ? "cr" : "igcr";
-  const inputId = kind === "youtube" ? "cs" : "igcs";
-  const input = $(inputId + di);
-  if (input) input.value = "";
-  const box = $(boxId + di);
-  const dg = data.digests[di];
-  const hits = followKindItems(kind).filter(it => it.category === category && !isFollowTaken(dg, it));
-  box.innerHTML = hits.length
-    ? hits.map(h => `<span class="chip plain">
-        <button onclick="${kind === "youtube" ? `pickChannel(${di},'${h.id}')` : `pickIgFollow(${di},'${h.id}')`}"
-        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
-    : '<span class="sub">이 카테고리는 이미 다 추가했습니다.</span>';
+function toggleFollowCatOpen(catKey){
+  openFollowCats.has(catKey) ? openFollowCats.delete(catKey) : openFollowCats.add(catKey);
+  render();
 }
 
-function searchSubs(di){
-  const needle = $("cs" + di).value.trim().toLowerCase();
-  const box = $("cr" + di);
-  if (!needle){ box.innerHTML = ""; return; }
-  if (!subs.length){ box.innerHTML = '<span class="sub">먼저 고급 설정에서 Drive 구독 목록을 불러오세요.</span>'; return; }
-  const taken = new Set((data.digests[di].channels || []).map(c => c.channel_id));
-  const hits = subs.filter(s => s.title.toLowerCase().includes(needle) && !taken.has(s.id)).slice(0, 12);
-  box.innerHTML = hits.length
-    ? hits.map(h => `<span class="chip plain"><button onclick="pickChannel(${di},'${h.id}')"
-        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
-    : '<span class="sub">일치하는 채널이 없습니다.</span>';
+function addFollowItem(di, kind, item){
+  kind === "youtube" ? pickChannel(di, item.id) : pickIgFollow(di, item.id);
 }
+function removeFollowItem(di, kind, item){
+  const dg = data.digests[di];
+  if (kind === "youtube"){
+    const ci = (dg.channels || []).findIndex(c => c.channel_id === item.id);
+    if (ci >= 0) delChannel(di, ci);
+  }else{
+    const fi = (dg.feeds || []).findIndex(f => f.url === item.url);
+    if (fi >= 0) delFeed(di, fi);
+  }
+}
+function toggleFollowItem(di, id, kind, checked){
+  const item = followKindItems(kind).find(it => it.id === id);
+  if (!item) return;
+  checked ? addFollowItem(di, kind, item) : removeFollowItem(di, kind, item);
+}
+/* 테마 앞 체크박스 — 그 테마의 모든 채널을 한 번에 추가하거나(체크),
+   지금까지 추가돼 있던 것들을 한 번에 뺀다(해제). */
+function toggleFollowCategoryAll(di, category, kind, checked){
+  const dg = data.digests[di];
+  const list = followKindItems(kind).filter(it => followCategoryOf(it) === category);
+  for (const it of list){
+    const taken = isFollowTaken(dg, it);
+    if (checked && !taken) addFollowItem(di, kind, it);
+    if (!checked && taken) removeFollowItem(di, kind, it);
+  }
+}
+
 function pickChannel(di, id){
   const hit = subs.find(s => s.id === id);
   if (!hit) return;
@@ -1971,21 +1999,6 @@ function igIdFromText(text){
 
 /* 가져온 팔로우 목록(igFollows) 안에서 이름·아이디로 찾는다 — 유튜브의
    searchSubs 와 같은 역할이지만 CSV 로 미리 카테고리가 붙어 있는 쪽. */
-function searchIgFollows(di){
-  const needle = ($("igcs" + di) || {}).value.trim().toLowerCase();
-  const box = $("igcr" + di);
-  if (!needle){ box.innerHTML = ""; return; }
-  if (!igFollows.length){ box.innerHTML = '<span class="sub">먼저 위 인스타그램 카드에서 CSV 를 가져오세요.</span>'; return; }
-  const dg = data.digests[di];
-  const taken = new Set((dg.feeds || []).map(f => f.url));
-  const hits = igFollows.filter(f => !taken.has(f.url)
-    && (f.name.toLowerCase().includes(needle) || f.id.toLowerCase().includes(needle))).slice(0, 12);
-  box.innerHTML = hits.length
-    ? hits.map(h => `<span class="chip plain"><button onclick="pickIgFollow(${di},'${h.id}')"
-        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.name)}</button></span>`).join("")
-    : '<span class="sub">일치하는 계정이 없습니다.</span>';
-}
-
 /* CSV 로 가져온 목록에 없어도, 아이디나 URL만 알면 직접 추가한다.
    카테고리는 없이 들어가니 나중에 "카테고리로 훑어보기"엔 안 잡힌다 —
    분류하려면 인스타그램 카드의 CSV 로 다시 가져와야 한다. */
@@ -2545,7 +2558,6 @@ Object.assign(window, {
   load,
   panel,
   pickChannel,
-  pickFollowCategory,
   pickIgFollow,
   pickSection,
   pickTier,
@@ -2555,8 +2567,9 @@ Object.assign(window, {
   saveClientId,
   saveToken,
   scopedQuery,   // 화면에 미리 보이는 검색어. 테스트에서 직접 부른다
-  searchIgFollows,
-  searchSubs,
+  toggleFollowCatOpen,
+  toggleFollowCategoryAll,
+  toggleFollowItem,
   lockToken,
   removeLock,
   setFilter,
