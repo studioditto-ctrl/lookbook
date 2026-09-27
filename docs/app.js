@@ -276,7 +276,11 @@ function dangerSectionHTML(di, dg){
             onclick="delTopic(${di})">'${esc(dg.label)}' 주제 삭제</button>`;
 }
 
-/* 가운데 단 — 고른 주제 안의 항목 목록. 데스크탑에서만 그린다. */
+/* 가운데 단 — 고른 주제 안의 STEP 순서를 훑어보는 타임라인. 데스크탑에서만
+   그린다. 예전에는 여기서 하나를 고르면 그 항목만 오른쪽에 보였지만, 지금은
+   다섯 STEP 이 오른쪽에 전부 이어져 있어(단계별 흐름) 이 목록은 그 중
+   어디로 스크롤할지 고르는 바로가기 + 지금 보는 중인 곳을 짚어주는
+   타임라인 역할만 한다. */
 const SECTIONS = [
   ["schedule", "발송 일정", dg => dg.slots.length],
   ["keywords", "키워드", dg => Object.keys(dg.keywords).length],
@@ -289,19 +293,31 @@ function renderSectionNav(){
   if (!dg){ $("sectionNav").innerHTML = ""; return; }
   $("sectionNav").innerHTML = `
     <div class="sub" style="margin-bottom:8px; font-weight:600; color:var(--ink)">${esc(dg.label)}</div>
-    <nav class="navlist">
+    <nav class="navlist steptrack">
       ${SECTIONS.map(([name, label, count]) => {
         const n = count(dg);
-        return `<button aria-current="${section === name}" onclick="pickSection('${name}')">
+        return `<button data-section="${name}" aria-current="${section === name}" onclick="pickSection('${name}')">
           ${label}${n != null ? ` <span class="sub">${n}</span>` : ""}
         </button>`;
       }).join("")}
     </nav>
     <div class="divider"></div>
-    <nav class="navlist">
-      <button class="danger" aria-current="${section === "danger"}"
+    <nav class="navlist steptrack">
+      <button class="danger" data-section="danger" aria-current="${section === "danger"}"
               onclick="pickSection('danger')">주제 삭제</button>
     </nav>`;
+}
+
+/* 주제 하나 안의 실제 흐름 — 이 다섯을 STEP 배지 순서로 이어 붙여 보여준다.
+   (reserve 사이트의 STEP 카드 참고) 예전에는 데스크탑에서 고른 하나만
+   보이고 모바일은 발송 일정 말고는 접혀 있었지만, 그러면 지금 이 주제가
+   전체적으로 어떻게 설정돼 있는지 한눈에 안 들어와 전부 펼쳐 순서대로
+   보여주는 쪽으로 바꿨다. */
+function topicSummary(dg){
+  const enabledSlots = dg.slots.filter(s => s.enabled).length;
+  const kw = Object.keys(dg.keywords).length;
+  const src = (dg.feeds || []).length + (dg.channels || []).length;
+  return `발송 ${enabledSlots}곳 · 키워드 ${kw}개 · 소스 ${src}개`;
 }
 
 function render(){
@@ -317,35 +333,26 @@ function render(){
     const sources = sourcesSectionHTML(di, dg);
     const danger = dangerSectionHTML(di, dg);
 
-    if (desktop){
-      // 다섯 항목을 각각 감싼다. 고른 것만 CSS 가 보여준다.
-      const sec = (name, title, body) => `
-        <section class="tsec${sel && section === name ? " sel" : ""}" data-section="${name}">
-          <h2>${title}</h2>${body}
-        </section>`;
-      return `
-        <div class="card${sel ? " sel" : ""}" data-di="${di}">
-          ${sec("schedule", "발송 일정", schedule)}
-          ${sec("keywords", "키워드 우선순위", keywords)}
-          ${sec("scope", "검색 범위", scope)}
-          ${sec("sources", "콘텐츠 소스", sources)}
-          ${sec("danger", "위험 구역", danger)}
-        </div>`;
-    }
+    const sec = (name, no, title, body) => `
+      <section class="tsec${sel && section === name ? " sel" : ""}" data-section="${name}">
+        <div class="stepline"><span class="no">${no}</span><h2>${title}</h2></div>
+        ${body}
+      </section>`;
+    const dangerSec = `
+      <section class="tsec danger${sel && section === "danger" ? " sel" : ""}" data-section="danger">
+        <div class="stepline"><span class="no warn">!</span><h2>위험 구역</h2></div>
+        ${danger}
+      </section>`;
 
-    // 모바일: 발송 일정은 늘 보이고, 나머지 넷은 한 덩어리로 접는다 — 예전과 같다.
     return `
-      <div class="card" data-di="${di}">
-        <h2>${esc(dg.label)}</h2>
-        ${schedule}
-        <details data-panel="d${di}" ${open.has("d" + di) ? "open" : ""}
-                 ontoggle="panel('d${di}',this.open)">
-          <summary>키워드 ${Object.keys(dg.keywords).length} · 채널 ${(dg.channels || []).length} · 블로그 ${(dg.feeds || []).length}</summary>
-          ${keywords}
-          ${scope}
-          ${sources}
-          <div style="margin-top:16px">${danger}</div>
-        </details>
+      <div class="card${sel ? " sel" : ""}" data-di="${di}">
+        <div class="flowTitle">${esc(dg.label)}</div>
+        <div class="sub" style="margin-bottom:18px">${topicSummary(dg)}</div>
+        ${sec("schedule", 1, "발송 일정", schedule)}
+        ${sec("keywords", 2, "키워드 우선순위", keywords)}
+        ${sec("scope", 3, "검색 범위", scope)}
+        ${sec("sources", 4, "콘텐츠 소스", sources)}
+        ${dangerSec}
       </div>`;
   }).join("");
 
@@ -365,7 +372,7 @@ function render(){
   if (desktop) $("sectionNav").hidden = mode !== "topics";
   else $("sectionNav").innerHTML = "";
 
-  if (desktop && mode === "topics") renderSectionNav();
+  if (desktop && mode === "topics"){ renderSectionNav(); observeSections(); }
   if (mode === "wizard") renderWizard();
   if (mode === "settings") renderFilters();
 
@@ -373,6 +380,31 @@ function render(){
     <span class="chip">${esc(w)}
       <button onclick="delExclude(${arg(w)})" aria-label="삭제">×</button>
     </span>`).join("");
+}
+
+/* 지금 스크롤로 보고 있는 STEP 이 어디인지 가운데 단 타임라인에 그대로
+   비춰준다 — 전체 재렌더 없이 aria-current 만 옮겨 스크롤 위치를 안 흔든다. */
+let sectionObserver = null;
+function observeSections(){
+  sectionObserver?.disconnect();
+  const card = document.querySelector("#digests .card.sel");
+  const secs = card ? card.querySelectorAll(".tsec[data-section]") : [];
+  if (!secs.length) return;
+  sectionObserver = new IntersectionObserver(entries => {
+    const visible = entries.filter(e => e.isIntersecting);
+    if (!visible.length) return;
+    visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    const name = visible[0].target.dataset.section;
+    if (name && name !== section){
+      section = name;
+      highlightSectionNav();
+    }
+  }, { rootMargin: "-96px 0px -70% 0px", threshold: 0 });
+  secs.forEach(el => sectionObserver.observe(el));
+}
+function highlightSectionNav(){
+  document.querySelectorAll("#sectionNav [data-section]")
+    .forEach(btn => btn.setAttribute("aria-current", String(btn.dataset.section === section)));
 }
 
 function panel(id, isOpen){ isOpen ? open.add(id) : open.delete(id); }
@@ -386,10 +418,14 @@ function pickTopic(di){
   document.querySelector(`#digests .card.sel`)?.scrollIntoView({block: "start"});
 }
 
-/* 데스크탑 가운데 단에서 항목을 고른다. */
+/* 데스크탑 가운데 단(타임라인)에서 STEP 을 고르면, 이제는 전체를 다시
+   그리는 대신 해당 STEP 카드로 스크롤만 옮긴다 — 다섯 STEP 이 이미
+   한 화면에 다 이어져 있기 때문이다. */
 function pickSection(name){
   section = name;
-  render();
+  highlightSectionNav();
+  const card = document.querySelector("#digests .card.sel");
+  card?.querySelector(`.tsec[data-section="${name}"]`)?.scrollIntoView({behavior: "smooth", block: "start"});
 }
 
 /* 주제 목록 / 새 주제 마법사 / 공통 설정 — 화면 전체를 바꾼다. */

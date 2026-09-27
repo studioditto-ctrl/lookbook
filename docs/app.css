@@ -100,6 +100,51 @@
   .filterGrid{display:grid; grid-template-columns:1fr; gap:14px; margin-top:12px}
   .filterGrid label{margin-bottom:6px}
 
+  /* ---------- 테마별 설정 — 단계별 흐름 (reserve 사이트 참고) ----------
+     발송 일정 → 키워드 → 검색 범위 → 소스 → 위험 구역, 다섯을 STEP 배지로
+     이어 붙여 위에서 아래로 순서대로 보여준다. 모바일·데스크탑 모두 같은
+     구조를 쓰고, 데스크탑은 가운데 단이 지금 보는 위치를 짚어주는
+     타임라인 역할만 한다(아래 900px 미디어쿼리). */
+  .flowTitle{
+    font-family:'Gowun Batang', Georgia, serif; font-weight:700;
+    font-size:21px; margin:0 0 4px;
+  }
+  .tsec{
+    position:relative; padding:22px 0; border-bottom:1px solid var(--line);
+    scroll-margin-top:96px;
+  }
+  .tsec:first-of-type{padding-top:2px}
+  .tsec:last-of-type{border-bottom:0; padding-bottom:2px}
+  .tsec .stepline{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .tsec .no{
+    flex:0 0 28px; width:28px; height:28px; border-radius:50%;
+    background:var(--accent); color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Gowun Batang', Georgia, serif; font-weight:700; font-size:13px;
+  }
+  .tsec .no.warn{background:var(--danger)}
+  .tsec .stepline h2{
+    font-family:'Gowun Batang', Georgia, serif; font-weight:700;
+    font-size:18px; margin:0; color:var(--ink);
+  }
+
+  /* 가운데 단 타임라인 — STEP 목록 왼쪽에 점을 이은 세로줄을 그린다 */
+  #sectionNav .steptrack{position:relative; padding-left:16px}
+  #sectionNav .steptrack::before{
+    content:""; position:absolute; left:4px; top:6px; bottom:6px; width:2px; background:var(--line);
+  }
+  #sectionNav .steptrack button{position:relative}
+  #sectionNav .steptrack button::before{
+    content:""; position:absolute; left:-14px; top:50%; transform:translateY(-50%);
+    width:9px; height:9px; border-radius:50%; background:var(--card);
+    border:2px solid var(--line);
+  }
+  #sectionNav .steptrack button[aria-current="true"]::before{
+    background:var(--accent); border-color:var(--accent);
+  }
+  #sectionNav .steptrack button.danger::before{border-color:var(--danger)}
+  #sectionNav .steptrack button.danger[aria-current="true"]::before{background:var(--danger)}
+
   /* ---------- 새 주제 만들기 마법사 ---------- */
   .wztabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
   .wztabs button{
@@ -196,9 +241,9 @@
      카드 폭이 좁아 모바일과 다를 바가 없었다. 왼쪽에 주제 목록을 두고
      고른 하나만 넓게 편다.
 
-     그 안이 다시 문제였다 — 발송 일정 / 키워드 / 검색 범위 / 소스 /
-     주제 삭제가 한 화면에 순서 구분 없이 이어져 있었다. 가운데 단을
-     하나 더 두어 무엇을 보고 있는지 고르고, 오른쪽은 그 하나만 보여준다. */
+     그 안은 STEP 배지로 이어진 다섯 흐름을 위에서 아래로 전부 보여준다.
+     가운데 단은 그중 지금 스크롤로 보고 있는 곳을 짚어주고, 눌렀을 때
+     그 STEP 으로 스크롤을 옮겨주는 타임라인이다. */
   @media (min-width:900px){
     body{padding-bottom:28px}
     header{padding:14px 28px}
@@ -225,12 +270,12 @@
     #sectionNav button.danger{color:var(--danger)}
     main{grid-column:3; padding:0; max-width:none; margin:0}
 
-    /* 고른 주제, 그 안에서도 고른 항목 하나만 보인다 */
+    /* 고른 주제만 보인다 — 그 안의 다섯 STEP 은 데스크탑에서도 전부
+       이어서 보여준다(가운데 단은 그중 어디를 보는 중인지 짚어주는
+       타임라인일 뿐, 더는 항목을 하나만 골라 가리는 역할이 아니다). */
     #digests > .card{display:none; margin-bottom:0}
     #digests > .card.sel{display:block; padding:20px 22px}
-    #digests > .card .tsec{display:none}
-    #digests > .card .tsec.sel{display:block}
-    #digests > .card .tsec h2{font-size:20px; margin:0 0 14px}
+    #digests > .card .tsec .stepline h2{font-size:20px}
 
     #tokenCard > .card, #driveSetup > .card{max-width:1100px}
     #wizardView .card, #settingsView .card{max-width:1100px}
