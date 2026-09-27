@@ -346,6 +346,18 @@ digests:
         channel_id: UCgL9g1sShIgPcseyyKzhG5Q
         region: international
         reason: "하이엔드 디자이너 브랜드와 스트릿 웨어 위주의 남성 트렌드를 선보입니다."
+      - name: GFOD Studio
+        channel_id: UC6EpEu9f1zDZuIEjLTWqEEg
+      - name: 쪼선생 JJO TEACHER
+        channel_id: UC7vyTwJjcUdYsVQjiTHcPyg
+      - name: 석꾸축꾸
+        channel_id: UC8valWz_8jFnX4tMGCeC62w
+      - name: 엔듀로레이스 ENDURORACE
+        channel_id: UCJ6Rc1WZXhl_zU_RIaTlQag
+      - name: M10M
+        channel_id: UCLerjmOtu7XFPEt0bG5CoNQ
+      - name: Dude Perfect
+        channel_id: UCRijo3ddMTht_IHyNSNXpNQ
   - key: tmu9xp9l9
     label: 아메카지
     scope: [아메카지, 아메리칸캐주얼, amekaji, american casual, 워크웨어, workwear, 복각패션, 시티보이, 빈티지패션]
