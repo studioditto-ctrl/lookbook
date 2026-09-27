@@ -253,6 +253,10 @@
     /* 블로그 목록과 유튜브 채널 목록을 나란히 — PC 폭에서 세로로 쌓아 둘
        이유가 없다 */
     .split2{display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start}
+    /* 블로그·유튜브·인스타그램 세 칸 — 폭이 좁아지면(태블릿 정도) 자동으로
+       두 칸, 한 칸으로 접힌다. 진짜 모바일에서는 이 미디어 쿼리 밖이라
+       위 .split2 처럼 그냥 세로로 쌓인다. */
+    .split3{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:24px; align-items:start}
 
     footer{
       left:auto; right:28px; bottom:28px; width:auto;

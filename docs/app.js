@@ -166,14 +166,18 @@ function scopeSectionHTML(di, dg){
 }
 
 function sourcesSectionHTML(di, dg){
+  const feedsWithIndex = (dg.feeds || []).map((f, fi) => ({...f, fi}));
+  const blogFeeds = feedsWithIndex.filter(f => f.kind !== "instagram");
+  const igFeeds = feedsWithIndex.filter(f => f.kind === "instagram");
+
   return `
-    <div class="split2">
+    <div class="split3">
       <div>
         <label style="margin-top:6px">블로그 · RSS</label>
         <div class="chips">
-          ${(dg.feeds || []).map((f, fi) => `
+          ${blogFeeds.map(f => `
             <span class="chip" title="${esc(f.url)}">${esc(f.name)}
-              <button onclick="delFeed(${di},${fi})" aria-label="삭제">×</button></span>`).join("")
+              <button onclick="delFeed(${di},${f.fi})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음</span>'}
         </div>
         <div class="add">
@@ -184,9 +188,8 @@ function sourcesSectionHTML(di, dg){
         </div>
         <div class="note">
           네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
-          (브런치·티스토리·서브스택 등).<br>
-          <b>인스타·페이스북·X</b> 는 아이디로 가져올 방법이 없습니다 —
-          공식 API 가 남의 공개 계정을 안 열어 줍니다.
+          (브런치·티스토리·서브스택 등). <b>페이스북·X</b> 는 아이디로 가져올
+          방법이 없습니다 — 공식 API 가 남의 공개 계정을 안 열어 줍니다.
           <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
              style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
         </div>
@@ -200,12 +203,38 @@ function sourcesSectionHTML(di, dg){
               <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
         </div>
-        ${subsCategoryChipsHTML(di)}
+        ${followsCategoryChipsHTML(di, "youtube")}
         <div class="add">
           <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
                  oninput="searchSubs(${di})" enterkeyhint="search">
         </div>
         <div class="chips" id="cr${di}"></div>
+      </div>
+
+      <div>
+        <label style="margin-top:6px">인스타그램</label>
+        <div class="chips">
+          ${igFeeds.map(f => `
+            <span class="chip" title="${esc(f.url)}">${esc(f.name)}
+              <button onclick="delFeed(${di},${f.fi})" aria-label="삭제">×</button></span>`).join("")
+            || '<span class="sub">없음</span>'}
+        </div>
+        ${followsCategoryChipsHTML(di, "instagram")}
+        <div class="add">
+          <input id="igcs${di}" placeholder="가져온 목록에서 검색 — 예: 러닝"
+                 oninput="searchIgFollows(${di})" enterkeyhint="search">
+        </div>
+        <div class="chips" id="igcr${di}"></div>
+        <div class="add" style="margin-top:8px">
+          <input id="igm${di}" placeholder="또는 아이디·URL 직접 추가" enterkeyhint="done"
+                 autocapitalize="off" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addIgManual(${di})}">
+          <button class="tiny" onclick="addIgManual(${di})">추가</button>
+        </div>
+        <div class="note">
+          실제 글이 자동으로 들어오지 않습니다 — RSS로 바꾼 주소로 나중에
+          바꿔줘야 합니다.
+        </div>
       </div>
     </div>
 
@@ -228,7 +257,7 @@ function exportSourcesCSV(di){
     rows.push([c.name, "youtube", c.channel_id, c.region || "", c.reason || ""]);
   }
   for (const f of dg.feeds || []){
-    rows.push([f.name, "blog", f.url, f.region || "", f.reason || ""]);
+    rows.push([f.name, f.kind === "instagram" ? "instagram" : "blog", f.url, f.region || "", f.reason || ""]);
   }
   const csv = rows.map(r => r.map(csvCell).join(",")).join("\r\n");
   const blob = new Blob(["﻿" + csv], {type: "text/csv;charset=utf-8"});
@@ -1325,8 +1354,8 @@ function renderDrive(){
 }
 
 /* 분류 결과를 쭉 훑어볼 수 있게 카테고리별로 접어 보여준다 — 여기서는
-   구경만 하고, 실제로 주제에 붙이는 건 각 주제의 '유튜브 채널' 카드에서
-   카테고리 칩을 눌러 한다(subsCategoryChipsHTML). */
+   구경만 하고, 실제로 주제에 붙이는 건 각 주제의 '유튜브 채널'·'인스타그램'
+   카드에서 카테고리 칩을 눌러 한다(followsCategoryChipsHTML). */
 function renderSubsCategoryBrowser(){
   const el = $("subsCategoryBrowser");
   if (!el) return;
@@ -1413,8 +1442,10 @@ function clearIgFollows(){
 function pickIgFollow(di, id){
   const hit = igFollows.find(f => f.id === id);
   if (!hit) return;
-  (data.digests[di].feeds ||= []).push({
-    name: hit.name, url: hit.url, region: "", reason: `인스타그램 · ${hit.category}`,
+  const feeds = (data.digests[di].feeds ||= []);
+  if (feeds.some(f => f.url === hit.url)){ toast(`'${esc(hit.name)}' 은(는) 이미 있습니다.`, "err"); return; }
+  feeds.push({
+    name: hit.name, url: hit.url, kind: "instagram", region: "", reason: `인스타그램 · ${hit.category}`,
   });
   open.add("d" + di);
   render(); touch();
@@ -1728,36 +1759,53 @@ function subCategoryCounts(){
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+/* 소스가 유튜브/인스타그램 칸으로 나뉘면서, 카테고리 칩도 그 칸에 맞는
+   것만(kind 로 걸러) 보여줘야 한다 — 유튜브 칸에서 인스타그램 계정이,
+   인스타그램 칸에서 유튜브 채널이 나오면 헷갈린다. */
+function followKindItems(kind){
+  return combinedFollows().filter(it => it.kind === kind);
+}
+function followsCategoryCounts(kind){
+  const counts = new Map();
+  for (const it of followKindItems(kind)){
+    if (!it.category) continue;
+    counts.set(it.category, (counts.get(it.category) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
 /* 이 주제에 아직 안 붙인 계정 수를 카테고리 칩에 같이 보여준다 — 다 붙인
    카테고리는 눌러도 소용없다는 걸 숫자로 미리 알 수 있게. */
-function subsCategoryChipsHTML(di){
-  const cats = subCategoryCounts();
+function followsCategoryChipsHTML(di, kind){
+  const cats = followsCategoryCounts(kind);
   if (!cats.length) return "";
   const dg = data.digests[di];
   return `<div class="chips" style="margin-top:8px">
     ${cats.map(([cat, total]) => {
-      const left = combinedFollows().filter(it => it.category === cat && !isFollowTaken(dg, it)).length;
+      const left = followKindItems(kind).filter(it => it.category === cat && !isFollowTaken(dg, it)).length;
       return `<button class="tiny ghost" ${left ? "" : "disabled"}
-        onclick="pickSubsCategory(${di},${arg(cat)})">${esc(cat)} (${left}/${total})</button>`;
+        onclick="pickFollowCategory(${di},${arg(cat)},${arg(kind)})">${esc(cat)} (${left}/${total})</button>`;
     }).join("")}
   </div>`;
 }
 
-/* 카테고리 칩을 누르면 그 카테고리 전체를 검색 결과 자리에 펼친다 —
-   이름을 몰라도 눌러서 훑어보고 고를 수 있게. 유튜브는 channels 에,
-   인스타그램은 feeds 에 붙는다(RSS 로 등록되지만 실제로 살아있는 피드가
-   되려면 나중에 rss.app 등으로 바꿔줘야 한다 — 위 카드의 안내 참고). */
-function pickSubsCategory(di, category){
-  const input = $("cs" + di);
+/* 카테고리 칩을 누르면 그 카테고리 안의(같은 kind만) 계정 전체를 검색
+   결과 자리에 펼친다 — 이름을 몰라도 눌러서 훑어보고 고를 수 있게.
+   유튜브는 channels 에, 인스타그램은 feeds 에 붙는다(RSS 로 등록되지만
+   실제로 살아있는 피드가 되려면 나중에 rss.app 등으로 바꿔줘야 한다 —
+   위 카드의 안내 참고). */
+function pickFollowCategory(di, category, kind){
+  const boxId = kind === "youtube" ? "cr" : "igcr";
+  const inputId = kind === "youtube" ? "cs" : "igcs";
+  const input = $(inputId + di);
   if (input) input.value = "";
-  const box = $("cr" + di);
+  const box = $(boxId + di);
   const dg = data.digests[di];
-  const hits = combinedFollows().filter(it => it.category === category && !isFollowTaken(dg, it));
+  const hits = followKindItems(kind).filter(it => it.category === category && !isFollowTaken(dg, it));
   box.innerHTML = hits.length
     ? hits.map(h => `<span class="chip plain">
-        <button onclick="${h.kind === "youtube" ? `pickChannel(${di},'${h.id}')` : `pickIgFollow(${di},'${h.id}')`}"
-        style="width:auto;padding:0;font-size:14px;color:var(--accent)">
-          + ${h.kind === "instagram" ? "📷 " : ""}${esc(h.title)}</button></span>`).join("")
+        <button onclick="${kind === "youtube" ? `pickChannel(${di},'${h.id}')` : `pickIgFollow(${di},'${h.id}')`}"
+        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.title)}</button></span>`).join("")
     : '<span class="sub">이 카테고리는 이미 다 추가했습니다.</span>';
 }
 
@@ -1828,6 +1876,10 @@ function addFeed(di){
   if (!raw) return;
 
   const blocked = needsBridge(raw);
+  if (blocked === "인스타그램"){
+    toast(`인스타그램 계정은 이 칸이 아니라 아래 <b>인스타그램</b> 칸에 넣어주세요.`, "err", true);
+    return;
+  }
   if (blocked){
     toast(`${esc(blocked)} 은(는) 주소만으로는 가져올 수 없습니다. `
         + `RSS 주소로 바꾼 뒤 그 주소를 넣어주세요. `
@@ -1855,13 +1907,60 @@ function addFeed(di){
 
   const feeds = (data.digests[di].feeds ||= []);
   if (feeds.some(f => f.url === url)){ toast(`'${esc(name)}' 은(는) 이미 있습니다.`, "err"); return; }
-  feeds.push({name, url});
+  feeds.push({name, url, kind: "blog"});
   el.value = "";
   open.add("d" + di);
   render(); touch();
   toast(`'${esc(name)}' 을(를) ${esc(data.digests[di].label)} 에 넣었습니다.`, "busy");
 }
 function delFeed(di, fi){ data.digests[di].feeds.splice(fi, 1); render(); touch(); }
+
+/* 인스타그램 프로필 주소 또는 아이디에서 아이디만 뽑는다. */
+function igIdFromText(text){
+  let s = String(text).trim().replace(/^@/, "");
+  const m = s.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9._]+$/.test(s)) return s;
+  return "";
+}
+
+/* 가져온 팔로우 목록(igFollows) 안에서 이름·아이디로 찾는다 — 유튜브의
+   searchSubs 와 같은 역할이지만 CSV 로 미리 카테고리가 붙어 있는 쪽. */
+function searchIgFollows(di){
+  const needle = ($("igcs" + di) || {}).value.trim().toLowerCase();
+  const box = $("igcr" + di);
+  if (!needle){ box.innerHTML = ""; return; }
+  if (!igFollows.length){ box.innerHTML = '<span class="sub">먼저 위 인스타그램 카드에서 CSV 를 가져오세요.</span>'; return; }
+  const dg = data.digests[di];
+  const taken = new Set((dg.feeds || []).map(f => f.url));
+  const hits = igFollows.filter(f => !taken.has(f.url)
+    && (f.name.toLowerCase().includes(needle) || f.id.toLowerCase().includes(needle))).slice(0, 12);
+  box.innerHTML = hits.length
+    ? hits.map(h => `<span class="chip plain"><button onclick="pickIgFollow(${di},'${h.id}')"
+        style="width:auto;padding:0;font-size:14px;color:var(--accent)">+ ${esc(h.name)}</button></span>`).join("")
+    : '<span class="sub">일치하는 계정이 없습니다.</span>';
+}
+
+/* CSV 로 가져온 목록에 없어도, 아이디나 URL만 알면 직접 추가한다.
+   카테고리는 없이 들어가니 나중에 "카테고리로 훑어보기"엔 안 잡힌다 —
+   분류하려면 인스타그램 카드의 CSV 로 다시 가져와야 한다. */
+function addIgManual(di){
+  const el = $("igm" + di);
+  const raw = (el.value || "").trim();
+  if (!raw) return;
+  const id = igIdFromText(raw);
+  if (!id){ toast("인스타그램 아이디 또는 프로필 주소를 넣어주세요.", "err"); return; }
+  const url = `https://www.instagram.com/${id}/`;
+
+  const feeds = (data.digests[di].feeds ||= []);
+  if (feeds.some(f => f.url === url)){ toast(`'${esc(id)}' 은(는) 이미 있습니다.`, "err"); return; }
+  feeds.push({name: id, url, kind: "instagram", reason: "직접 추가"});
+  el.value = "";
+  open.add("d" + di);
+  render(); touch();
+  toast(`'${esc(id)}' 을(를) ${esc(data.digests[di].label)} 에 넣었습니다. `
+      + `실제 글이 들어오려면 이 주소를 RSS 로 바꿔줘야 합니다.`, "busy", true);
+}
 
 /* ---------- GitHub ---------- */
 const token = () => localStorage.getItem("gh_token") || "";
@@ -2373,6 +2472,7 @@ Object.assign(window, {
   addAllSuggestions,
   addExclude,
   addFeed,
+  addIgManual,
   addKeyword,
   addSlot,
   addTopic,
@@ -2400,9 +2500,9 @@ Object.assign(window, {
   load,
   panel,
   pickChannel,
+  pickFollowCategory,
   pickIgFollow,
   pickSection,
-  pickSubsCategory,
   pickTier,
   pickTopic,
   reMatchAll,
@@ -2410,6 +2510,7 @@ Object.assign(window, {
   saveClientId,
   saveToken,
   scopedQuery,   // 화면에 미리 보이는 검색어. 테스트에서 직접 부른다
+  searchIgFollows,
   searchSubs,
   lockToken,
   removeLock,
