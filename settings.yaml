@@ -109,6 +109,47 @@ digests:
         url: "https://rss.blog.naver.com/tysinvs.xml"
       - name: press02
         url: "https://rss.blog.naver.com/press02.xml"
+    channels:
+      - name: 제미의 트레이딩
+        channel_id: UC-jpxcZAds-GDEwFpigrCfw
+      - name: 강남개미의 주식매매일지
+        channel_id: UC0d8hdMG9SRfOCL4cqgmRwg
+      - name: 박두환의 실전투자교실
+        channel_id: UC2nxUZX9N1WBhbM1yZBHjVw
+      - name: 미스터황TV
+        channel_id: UC3IMbjdcMvDhcUoWN2dlBeQ
+      - name: 뉴욕주민
+        channel_id: UC3dYEYtdihZpsexdC9-qKDA
+      - name: LESS GET MORE
+        channel_id: UC4Esf2Ydw4YeibuFL0lpIkw
+      - name: 싱글파이어
+        channel_id: UC5CyCSvCdoEP-VgQmFq3iww
+      - name: Codie Sanchez
+        channel_id: UC5fI3kxC-ewZ6ZXEYgznM7g
+      - name: "Investor's Business Daily"
+        channel_id: UC5fZv7bPcF5j2RsfO-9OiLA
+      - name: 현명한 은퇴자들
+        channel_id: UC6CNXBevdTEucEoVXu15WYQ
+      - name: Finer Market Points
+        channel_id: UC7N0NPq6REt_F7HOQOGgC9Q
+      - name: 경제사냥꾼
+        channel_id: UC7usMJDHmtbs_oegmzQKKMA
+      - name: 매경 월가월부
+        channel_id: UCIipmgxpUxDmPP-ma3Ahvbw
+      - name: "JD Rich Lab] 소장 조던 "
+        channel_id: UCJN8yfW2p6Gd8-wZ04pGAkg
+      - name: TraderLion
+        channel_id: UCMgOSW62URSxzPCcNXyohLw
+      - name: 설명왕_테이버
+        channel_id: UCOio3vyYLWiKlHSYRKW-9UA
+      - name: 주식독학
+        channel_id: UCPGqTMXHRRdbodOOgeYgLGg
+      - name: 성정길
+        channel_id: UCPsRj5tjL48pFVow7HyLhOQ
+      - name: 부동산경매꾼
+        channel_id: UCRiG9EDaebyUH11P_TXgskQ
+      - name: AI 활용해서 투자하기
+        channel_id: UCRlR4qOz45kwqxmyZpyZKAA
   - key: tmty5oxn3
     label: 남성패션
     scope: [남성패션, 남자패션, 남성의류, 남자코디, menswear, men's fashion, 남자옷, 남친룩, 남자 데일리룩, 남성 코디, 남자 코디, 남성스타일, 남자 스타일, mens fashion, 남성복]
