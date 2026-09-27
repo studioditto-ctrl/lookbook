@@ -57,6 +57,9 @@ digests:
       - name: 블리에이
         url: "https://www.instagram.com/vely.a_kr/"
         reason: "인스타그램 · 개인 크리에이터/기타"
+      - name: "데이지 | 데일리룩, 이지하게"
+        url: "https://www.instagram.com/daisyunnie_/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
     channels:
       - name: 마라닉 TV
         channel_id: UCx_2bXULZciQY76UoDhIntA
