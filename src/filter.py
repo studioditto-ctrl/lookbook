@@ -134,7 +134,7 @@ def _pick(candidates, limit):
 
 
 def select(items, seen, config, slot):
-    """발송할 항목을 고른다. (기사 리스트, 영상 리스트) 반환."""
+    """발송할 항목을 고른다. (기사, 유튜브, 블로그, 인스타 리스트) 반환."""
     keywords = config.get("keywords") or {}
     exclude = config.get("exclude") or []
     slot_config = (config.get("slots") or {}).get(slot) or {}
@@ -197,6 +197,16 @@ def select(items, seen, config, slot):
     videos = _pick(
         [i for i in fresh if i.kind == "video"], slot_config.get("videos", 2)
     )
+    # 블로그는 예전엔 '기사'에 같이 섞여 있었다 — 분리해도 갑자기 안 오던
+    # 걸로 보이지 않게, 슬롯에 값이 없으면 기사와 같은 기본값을 쓴다.
+    # 인스타그램은 RSS 로 바꾼 주소가 있어야 실제로 뭐가 오므로 기본은 0.
+    blogs = _pick(
+        [i for i in fresh if i.kind == "blog"], slot_config.get("blog", 3)
+    )
+    instagrams = _pick(
+        [i for i in fresh if i.kind == "instagram"], slot_config.get("instagram", 0)
+    )
 
-    print(f"[filter] 후보 {len(fresh)}건 → 기사 {len(articles)}건, 영상 {len(videos)}건")
-    return articles, videos
+    print(f"[filter] 후보 {len(fresh)}건 → 기사 {len(articles)}건, 유튜브 {len(videos)}건, "
+          f"블로그 {len(blogs)}건, 인스타 {len(instagrams)}건")
+    return articles, videos, blogs, instagrams

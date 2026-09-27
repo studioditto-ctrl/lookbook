@@ -59,6 +59,8 @@
   button.danger{color:var(--danger)}
   button.dashed{border-style:dashed; color:var(--muted)}
   .duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+  /* 기사·유튜브·블로그·인스타 네 칸 — 2x2 로 자연히 접힌다 */
+  .quad{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
   .step{display:flex; align-items:center; background:var(--bg);
         border:1px solid var(--line); border-radius:10px; overflow:hidden}
   .step button{flex:0 0 38px; min-height:42px; padding:0; border:0; background:none;

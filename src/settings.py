@@ -149,7 +149,7 @@ def apply(config, settings, config_name, slot_name):
     merged = dict(config)
     slots = {k: dict(v) for k, v in (config.get("slots") or {}).items()}
     target = slots.setdefault(slot_name, {})
-    for key in ("title", "articles", "videos"):
+    for key in ("title", "articles", "videos", "blog", "instagram"):
         if slot.get(key) is not None:
             target[key] = slot[key]
     merged["slots"] = slots
@@ -196,7 +196,8 @@ def apply(config, settings, config_name, slot_name):
     # 네이버 블로그는 검색 API 가 NAVER API HUB 로 옮겨가 키를 새로 받아야 한다.
     # 블로그별 RSS 는 키 없이 그대로 되므로 페이지에서 주소만 받아 rss 로 넣는다.
     for feed in digest.get("feeds") or []:
-        entry = {"name": feed.get("name") or feed.get("url"), "url": feed["url"]}
+        entry = {"name": feed.get("name") or feed.get("url"), "url": feed["url"],
+                  "kind": feed.get("kind") or "blog"}
         if feed.get("tags"):
             entry["tags"] = feed["tags"]
         sources.setdefault("rss", []).append(entry)

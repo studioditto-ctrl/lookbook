@@ -109,7 +109,7 @@ def search_naver_blog(query, source_name, client_id, client_secret,
                 url=url_,
                 # 블로그 이름을 출처로 둬야 한 블로그가 회차를 독식하지 않는다
                 source=_plain(entry.get("bloggername")) or source_name,
-                kind="article",
+                kind="blog",
                 published=when,
                 summary=_plain(entry.get("description")),
             )

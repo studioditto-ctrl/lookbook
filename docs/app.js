@@ -100,9 +100,11 @@ function slotCardHTML(di, si, s, scope = ""){
         <label>보내는 시각</label>
         <input type="time" value="${s.send_at}" onchange="set(${di},${si},'send_at',this.value)">
       </div>
-      <div class="duo">
+      <div class="quad">
         <div><label>기사</label>${stepper(di, si, "articles", s.articles, scope)}</div>
-        <div><label>영상</label>${stepper(di, si, "videos", s.videos, scope)}</div>
+        <div><label>유튜브</label>${stepper(di, si, "videos", s.videos, scope)}</div>
+        <div><label>블로그</label>${stepper(di, si, "blog", s.blog, scope)}</div>
+        <div><label>인스타</label>${stepper(di, si, "instagram", s.instagram, scope)}</div>
       </div>
       <div class="duo">
         <button class="tiny ghost" onclick="testSend(${di},${si})">지금 테스트 발송</button>
@@ -456,6 +458,8 @@ function addSlot(di){
     enabled: true,
     articles: last ? last.articles : 1,
     videos: last ? last.videos : 3,
+    blog: last ? last.blog : 2,
+    instagram: last ? last.instagram : 0,
   });
   render(); touch();
   toast(`${esc(dg.label)} 에 보낼 시간을 하나 더 넣었습니다. 시각과 제목을 정해주세요.`, "busy");
@@ -590,6 +594,15 @@ function syncQueries(dg){
     .slice(0, QUERY_WORDS)
     .map(([word]) => asPhrase(word));
   dg.queries = words.length ? [{name: dg.label, query: words.join(" OR ")}] : [];
+}
+
+/* src/filter.py 의 기본값과 맞춰 둔다 — 여기서 다르게 채우면 화면에
+   보이는 개수와 실제로 보내는 개수가 어긋난다. */
+function fillSlotDefaults(dg){
+  for (const s of dg.slots){
+    if (s.blog === undefined) s.blog = 3;
+    if (s.instagram === undefined) s.instagram = 0;
+  }
 }
 
 function addKeyword(di, word){
@@ -748,7 +761,7 @@ function addTopic(label){
   data.digests.push({
     config: "", key, label, scope: [],
     slots: [{slot: "daily", title: `${label} 브리핑`, send_at: "18:00",
-             enabled: true, articles: 2, videos: 3}],
+             enabled: true, articles: 2, videos: 3, blog: 2, instagram: 0}],
     keywords: {[label]: 3},
     queries: [{name: label, query: label}],
     channels: matchChannels(label),
@@ -970,7 +983,7 @@ function wizardApply(){
     data.digests.push({
       config: "", key, label: wizard.theme, scope: wizard.result.scope || [],
       slots: [{slot: "daily", title: `${wizard.theme} 브리핑`, send_at: "18:00",
-               enabled: true, articles: 2, videos: 3}],
+               enabled: true, articles: 2, videos: 3, blog: 2, instagram: 0}],
       keywords, queries: [], channels, feeds,
       // AI 로 한꺼번에 붙인 채널이라 사람이 하나씩 고른 게 아니다 — 발송 전에
       // 다시 한 번 주제와 맞는지 확인한다 (filter.select 의 strict).
@@ -2354,9 +2367,18 @@ async function load(){
     // 화면에 적힌 것과 실제로 도는 것이 달라지지 않게 여기서 맞춘다.
     const before = data.digests.map(d => JSON.stringify(d.queries || []));
     data.digests.forEach(syncQueries);
-    if (data.digests.some((d, i) => JSON.stringify(d.queries || []) !== before[i])){
+    // 발송 개수를 기사/영상 둘에서 기사/유튜브/블로그/인스타 넷으로
+    // 나누기 전에 만든 슬롯은 블로그·인스타 개수가 아예 없다. 화면엔
+    // 빈칸(0)으로 보이는데 실제로는 서버 쪽 기본값(블로그 3·인스타 0)이
+    // 그대로 적용되고 있어, 화면과 실제 발송이 어긋나지 않도록 여기서
+    // 같은 기본값을 채워 넣는다.
+    const beforeSlots = data.digests.map(d => JSON.stringify(d.slots));
+    data.digests.forEach(fillSlotDefaults);
+    const changed = data.digests.some((d, i) => JSON.stringify(d.queries || []) !== before[i])
+      || data.digests.some((d, i) => JSON.stringify(d.slots) !== beforeSlots[i]);
+    if (changed){
       render(); touch();
-      toast("키워드로 검색어를 맞췄습니다. 저장하는 중…", "busy");
+      toast("설정을 최신 형식에 맞췄습니다. 저장하는 중…", "busy");
       return;
     }
     toast("최신 설정을 불러왔습니다.", "ok");

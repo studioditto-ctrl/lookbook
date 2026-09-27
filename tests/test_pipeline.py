@@ -173,23 +173,23 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(_parse_feed(self.server.url("nope.xml"), "없는피드", "article"), [])
 
     def test_excluded_titles_are_dropped(self):
-        articles, _ = select(self.collect_fixtures(), {}, CONFIG, "morning")
+        articles, _, *_ = select(self.collect_fixtures(), {}, CONFIG, "morning")
         self.assertNotIn("러닝 코치 채용 공고", [a.title for a in articles])
 
     def test_keyword_scoring_orders_results(self):
-        articles, _ = select(self.collect_fixtures(), {}, CONFIG, "morning")
+        articles, _, *_ = select(self.collect_fixtures(), {}, CONFIG, "morning")
         self.assertEqual(articles[0].title, "무릎 부상 예방 스트레칭")
 
     def test_seen_items_are_skipped(self):
         items = self.collect_fixtures()
-        articles, _ = select(items, {}, CONFIG, "morning")
+        articles, _, *_ = select(items, {}, CONFIG, "morning")
         seen = {a.id: NOW.isoformat() for a in articles}
-        again, _ = select(items, seen, CONFIG, "morning")
+        again, _, *_ = select(items, seen, CONFIG, "morning")
         self.assertFalse(set(a.id for a in again) & set(seen))
 
     def test_slot_limits_are_respected(self):
         items = self.collect_fixtures()
-        articles, videos = select(items, {}, CONFIG, "evening")
+        articles, videos, *_ = select(items, {}, CONFIG, "evening")
         self.assertEqual(len(articles), 1)
         self.assertEqual(len(videos), 2)  # 후보가 2건뿐이라 상한 4보다 적다
 
@@ -202,7 +202,7 @@ class TestPipeline(unittest.TestCase):
             kind="article",
             published=NOW,
         )
-        articles, _ = select(self.collect_fixtures() + [dup], {}, CONFIG, "morning")
+        articles, _, *_ = select(self.collect_fixtures() + [dup], {}, CONFIG, "morning")
         self.assertEqual(len([a for a in articles if a.url == "https://ex.com/1"]), 1)
 
 
@@ -221,14 +221,14 @@ class TestMessage(unittest.TestCase):
         ]
 
     def test_message_has_header_and_links(self):
-        message = build_message(self.make_items(2), self.make_items(1, "video"), CONFIG, "morning")
+        message = build_message(self.make_items(2), self.make_items(1, "video"), [], [], CONFIG, "morning")
         self.assertIn("🏃 오늘 아침 러닝 브리핑", message)
         self.assertIn('<a href="https://ex.com/0">', message)
-        self.assertIn("📰 <b>읽을거리</b>", message)
-        self.assertIn("🎬 <b>영상</b>", message)
+        self.assertIn("📰 <b>기사</b>", message)
+        self.assertIn("🎬 <b>유튜브</b>", message)
 
     def test_video_numbering_continues_after_articles(self):
-        message = build_message(self.make_items(2), self.make_items(1, "video"), CONFIG, "morning")
+        message = build_message(self.make_items(2), self.make_items(1, "video"), [], [], CONFIG, "morning")
         self.assertIn("3. <a", message)
 
     def test_html_special_characters_are_escaped(self):
@@ -240,7 +240,7 @@ class TestMessage(unittest.TestCase):
             kind="article",
             published=NOW,
         )
-        message = build_message([item], [], CONFIG, "morning")
+        message = build_message([item], [], [], [], CONFIG, "morning")
         self.assertIn("러닝 &amp; &lt;b&gt;기록&lt;/b&gt;", message)
         self.assertIn("https://ex.com/a?x=1&amp;y=2", message)
 
@@ -256,12 +256,12 @@ class TestMessage(unittest.TestCase):
             )
             for n in range(120)
         ]
-        message = build_message(long_items, [], CONFIG, "morning")
+        message = build_message(long_items, [], [], [], CONFIG, "morning")
         self.assertLessEqual(len(message), 4096)
         self.assertIn("🏃 오늘 아침 러닝 브리핑", message)
 
     def test_empty_sections_are_omitted(self):
-        message = build_message(self.make_items(1), [], CONFIG, "morning")
+        message = build_message(self.make_items(1), [], [], [], CONFIG, "morning")
         self.assertNotIn("🎬", message)
 
 
@@ -1160,21 +1160,21 @@ class TestMessageWithSummaries(unittest.TestCase):
         )
 
     def test_summary_line_is_rendered(self):
-        message = build_message([self.item(0, "무릎 부상을 예방하는 스트레칭 세 가지.")], [], CONFIG, "morning")
+        message = build_message([self.item(0, "무릎 부상을 예방하는 스트레칭 세 가지.")], [], [], [], CONFIG, "morning")
         self.assertIn("무릎 부상을 예방하는 스트레칭 세 가지.", message)
 
     def test_item_without_summary_still_renders(self):
-        message = build_message([self.item(0)], [], CONFIG, "morning")
+        message = build_message([self.item(0)], [], [], [], CONFIG, "morning")
         self.assertIn("제목 0", message)
         self.assertIn("매체0", message)
 
     def test_summary_is_html_escaped(self):
-        message = build_message([self.item(0, "러닝 & <b>기록</b>")], [], CONFIG, "morning")
+        message = build_message([self.item(0, "러닝 & <b>기록</b>")], [], [], [], CONFIG, "morning")
         self.assertIn("러닝 &amp; &lt;b&gt;기록&lt;/b&gt;", message)
 
     def test_long_summaries_trim_whole_items(self):
         items = [self.item(n, "긴 요약 문장. " * 40) for n in range(60)]
-        message = build_message(items, [], CONFIG, "morning")
+        message = build_message(items, [], [], [], CONFIG, "morning")
         self.assertLessEqual(len(message), 4096)
         # 잘려도 항목이 줄 단위로 쪼개지지 않는다
         self.assertFalse(message.endswith("   "))
@@ -1588,16 +1588,16 @@ class TestSlotTagFiltering(unittest.TestCase):
         return {"slots": {"s": slot}, "keywords": {}, "exclude": []}
 
     def test_slot_keeps_only_its_tag(self):
-        _, videos = select(self.items(), {}, self.config(["food"]), "s")
+        _, videos, *_ = select(self.items(), {}, self.config(["food"]), "s")
         self.assertTrue(videos)
         self.assertTrue(all("food" in v.tags for v in videos))
 
     def test_other_slot_gets_the_other_tag(self):
-        _, videos = select(self.items(), {}, self.config(["fashion"]), "s")
+        _, videos, *_ = select(self.items(), {}, self.config(["fashion"]), "s")
         self.assertTrue(all("fashion" in v.tags for v in videos))
 
     def test_no_tags_on_slot_keeps_everything(self):
-        _, videos = select(self.items(), {}, self.config(None), "s")
+        _, videos, *_ = select(self.items(), {}, self.config(None), "s")
         self.assertEqual(len({v.tags[0] for v in videos}), 2)
 
     def test_untagged_item_is_dropped_by_a_tagged_slot(self):
@@ -1605,7 +1605,7 @@ class TestSlotTagFiltering(unittest.TestCase):
             Item(id="x", title="분류 없음", url="https://ex.com/x", source="기타",
                  kind="video", published=NOW)
         ]
-        _, videos = select(items, {}, self.config(["food"]), "s")
+        _, videos, *_ = select(items, {}, self.config(["food"]), "s")
         self.assertNotIn("분류 없음", [v.title for v in videos])
 
 
@@ -1739,7 +1739,7 @@ class TestNaverBlogSearch(unittest.TestCase):
         # <b> 와 엔티티가 그대로 텔레그램에 나가면 안 된다
         self.assertEqual(item.title, "서브3 마라톤 훈련 & 후기")
         self.assertEqual(item.summary, "인터벌 훈련을 12주간")
-        self.assertEqual(item.kind, "article")
+        self.assertEqual(item.kind, "blog")
         # 한 블로그가 회차를 독식하지 않도록 출처는 블로그 이름
         self.assertEqual(item.source, "달리는 사람")
         # 추적 파라미터는 떨어져야 같은 글이 두 번 안 온다
@@ -1865,7 +1865,8 @@ class TestPageFeeds(unittest.TestCase):
     def test_feed_lands_in_rss(self):
         cfg = self.apply({}, self.data, "run", "daily")
         self.assertEqual(cfg["sources"]["rss"],
-                         [{"name": "달리는회계사", "url": "https://rss.blog.naver.com/runner.xml"}])
+                         [{"name": "달리는회계사", "url": "https://rss.blog.naver.com/runner.xml",
+                           "kind": "blog"}])
 
     def test_config_feeds_are_kept(self):
         base = {"sources": {"rss": [{"name": "기존", "url": "https://x.test/f.xml"}]}}
@@ -1921,14 +1922,14 @@ class TestRepeatedStories(unittest.TestCase):
             self.article("b", "서울마라톤 접수 시작 | 뉴시스"),
             self.article("c", "러닝화 고르는 법"),
         ]
-        articles, _ = self.select(items, {}, self.config, "m")
+        articles, _, *_ = self.select(items, {}, self.config, "m")
         self.assertEqual(len(articles), 2)
 
     def test_story_sent_before_does_not_return(self):
         sent = self.article("a", "서울마라톤 접수 시작 - 연합뉴스")
         seen = {self.fingerprint(sent.title): "2026-08-21"}
         again = self.article("b", "서울마라톤 접수 시작 | 뉴시스")
-        articles, _ = self.select([again], seen, self.config, "m")
+        articles, _, *_ = self.select([again], seen, self.config, "m")
         self.assertEqual(articles, [])
 
     def test_mark_sent_records_both(self):
@@ -2054,7 +2055,7 @@ class TestTrustedChannelPriority(unittest.TestCase):
         found = self.video("found", "러닝 꿀팁 모음", "검색:러닝", searched=True)
         config = {"slots": {"m": {"articles": 0, "videos": 1}},
                   "keywords": {"러닝": 3}}
-        _, videos = self.select([mine, found], {}, config, "m")
+        _, videos, *_ = self.select([mine, found], {}, config, "m")
         self.assertEqual([v.id for v in videos], ["mine"])
 
     def test_search_results_still_fill_remaining_slots(self):
@@ -2062,7 +2063,7 @@ class TestTrustedChannelPriority(unittest.TestCase):
         found = self.video("found", "러닝 꿀팁 모음", "검색:러닝", searched=True)
         config = {"slots": {"m": {"articles": 0, "videos": 2}},
                   "keywords": {"러닝": 3}}
-        _, videos = self.select([mine, found], {}, config, "m")
+        _, videos, *_ = self.select([mine, found], {}, config, "m")
         self.assertEqual({v.id for v in videos}, {"mine", "found"})
 
     def test_trusted_channels_still_diversify_among_themselves(self):
@@ -2070,7 +2071,7 @@ class TestTrustedChannelPriority(unittest.TestCase):
         a2 = self.video("a2", "마라톤 완주 후기", "채널A", trusted=True)
         b = self.video("b1", "홈트레이닝 루틴 공유", "채널B", trusted=True)
         config = {"slots": {"m": {"articles": 0, "videos": 2}}}
-        _, videos = self.select([a, a2, b], {}, config, "m")
+        _, videos, *_ = self.select([a, a2, b], {}, config, "m")
         self.assertEqual({v.source for v in videos}, {"채널A", "채널B"})
 
 
@@ -2097,13 +2098,13 @@ class TestRelevanceGate(unittest.TestCase):
     def test_searched_items_need_a_keyword(self):
         items = [self.make("서울 마라톤 접수", searched=True),
                  self.make("부동산 시장 전망", searched=True)]
-        articles, _ = self.select(items, {}, self.config, "m")
+        articles, _, *_ = self.select(items, {}, self.config, "m")
         self.assertEqual([a.title for a in articles], ["서울 마라톤 접수"])
 
     def test_curated_sources_are_not_gated(self):
         """채널·피드는 채널을 믿고 담는 것이라 낱말이 안 걸려도 남긴다."""
         items = [self.make("제주도 브이로그", searched=False, kind="video")]
-        _, videos = self.select(items, {}, self.config, "m")
+        _, videos, *_ = self.select(items, {}, self.config, "m")
         self.assertEqual(len(videos), 1)
 
     def test_strict_mode_gates_curated_sources_too(self):
@@ -2111,37 +2112,37 @@ class TestRelevanceGate(unittest.TestCase):
         config = dict(self.config, strict=True)
         items = [self.make("제주도 브이로그", searched=False, kind="video"),
                  self.make("서울 마라톤 완주 후기", searched=False, kind="video")]
-        _, videos = self.select(items, {}, config, "m")
+        _, videos, *_ = self.select(items, {}, config, "m")
         self.assertEqual([v.title for v in videos], ["서울 마라톤 완주 후기"])
 
     def test_summary_counts_too(self):
         # '이번 주 정리' 같은 맹숭한 제목의 알맹이 있는 글을 살린다
         item = self.make("이번 주 정리", searched=True, summary="러닝 훈련 기록을 모았다")
-        articles, _ = self.select([item], {}, self.config, "m")
+        articles, _, *_ = self.select([item], {}, self.config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_multi_word_keywords_need_not_be_adjacent(self):
         config = dict(self.config, keywords={"남성 피부": 3})
         loose = self.make("남성의 피부 관리 기초", searched=True)
-        articles, _ = self.select([loose], {}, config, "m")
+        articles, _, *_ = self.select([loose], {}, config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_multi_word_keywords_still_need_every_word(self):
         config = dict(self.config, keywords={"남성 피부": 3})
         items = [self.make("여성 피부 관리", searched=True)]
-        articles, _ = self.select(items, {}, config, "m")
+        articles, _, *_ = self.select(items, {}, config, "m")
         self.assertEqual(articles, [])
 
     def test_gate_can_be_turned_off(self):
         config = dict(self.config, require_keyword=False)
         items = [self.make("부동산 시장 전망", searched=True)]
-        articles, _ = self.select(items, {}, config, "m")
+        articles, _, *_ = self.select(items, {}, config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_no_keywords_means_no_gate(self):
         config = dict(self.config, keywords={})
         items = [self.make("아무 기사", searched=True)]
-        articles, _ = self.select(items, {}, config, "m")
+        articles, _, *_ = self.select(items, {}, config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_freshness_bonus_no_longer_carries_off_topic_items(self):
@@ -2149,7 +2150,7 @@ class TestRelevanceGate(unittest.TestCase):
         stale = self.make("마라톤 훈련법", searched=True)
         stale.published = self.now - timedelta(hours=30)
         brand_new = self.make("연예인 결혼 소식", searched=True)
-        articles, _ = self.select([brand_new, stale], {}, self.config, "m")
+        articles, _, *_ = self.select([brand_new, stale], {}, self.config, "m")
         self.assertEqual([a.title for a in articles], ["마라톤 훈련법"])
 
 
@@ -2182,30 +2183,30 @@ class TestTopicScope(unittest.TestCase):
     def test_keyword_alone_does_not_pass(self):
         items = [self.make("한미연합훈련 이번 주 시작"),
                  self.make("러닝 훈련 루틴 짜기")]
-        articles, _ = self.select(items, {}, self.config, "m")
+        articles, _, *_ = self.select(items, {}, self.config, "m")
         self.assertEqual([a.title for a in articles], ["러닝 훈련 루틴 짜기"])
 
     def test_scope_word_alone_is_enough(self):
         """주제어가 있으면 키워드가 하나도 안 걸려도 남긴다."""
-        articles, _ = self.select([self.make("달리기 좋은 코스 열 곳")],
+        articles, _, *_ = self.select([self.make("달리기 좋은 코스 열 곳")],
                                   {}, self.config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_english_scope_word_catches_foreign_articles(self):
-        articles, _ = self.select([self.make("Best running shoes of 2026")],
+        articles, _, *_ = self.select([self.make("Best running shoes of 2026")],
                                   {}, self.config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_summary_counts_too(self):
         item = self.make("이번 주 정리", summary="달리기 기록을 모았다")
-        articles, _ = self.select([item], {}, self.config, "m")
+        articles, _, *_ = self.select([item], {}, self.config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_without_scope_keywords_still_gate(self):
         config = dict(self.config)
         del config["scope"]
         items = [self.make("한미연합훈련 이번 주 시작"), self.make("부동산 전망")]
-        articles, _ = self.select(items, {}, config, "m")
+        articles, _, *_ = self.select(items, {}, config, "m")
         self.assertEqual([a.title for a in articles], ["한미연합훈련 이번 주 시작"])
 
 
@@ -2264,7 +2265,7 @@ class TestScopedQueries(unittest.TestCase):
                     published=datetime.now(timezone.utc), searched=True)
         config = {"slots": {"m": {"articles": 3, "videos": 3}},
                   "keywords": {"강환국": 2, "깡토": 2}}
-        articles, _ = select([item], {}, config, "m")
+        articles, _, *_ = select([item], {}, config, "m")
         self.assertEqual(len(articles), 1)
 
     def test_terms_that_are_only_scope_words_vanish(self):
@@ -2553,12 +2554,12 @@ class TestIgnoreSeenFlag(unittest.TestCase):
 
     def test_seen_items_are_dropped_by_default(self):
         seen = {"a1": "2026-01-01"}
-        articles, _ = self.select(self.items, seen, self.config, "morning")
+        articles, _, *_ = self.select(self.items, seen, self.config, "morning")
         self.assertEqual(articles, [])
 
     def test_empty_seen_brings_them_back(self):
         # --ignore-seen 은 seen 대신 빈 딕셔너리를 넘긴다
-        articles, _ = self.select(self.items, {}, self.config, "morning")
+        articles, _, *_ = self.select(self.items, {}, self.config, "morning")
         self.assertEqual([a.url for a in articles], ["https://a.test/1"])
 
 

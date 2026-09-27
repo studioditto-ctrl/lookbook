@@ -43,7 +43,7 @@ def collect(config, channel_cache):
 
     for src in sources.get("rss") or []:
         items += _tag(
-            _parse_feed(src["url"], src["name"], "article", problems), src.get("tags")
+            _parse_feed(src["url"], src["name"], src.get("kind", "blog"), problems), src.get("tags")
         )
 
     naver_id = os.environ.get("NAVER_CLIENT_ID")
@@ -111,6 +111,10 @@ def collect(config, channel_cache):
     fresh = youtube.filter_youtube(fresh, config, api_key, channel_cache, problems)
     # 종류별로 나눠 찍는다. 합계만 보면 기사가 통째로 잘려도 눈에 띄지 않는다.
     articles = sum(1 for i in fresh if i.kind == "article")
+    videos = sum(1 for i in fresh if i.kind == "video")
+    blogs = sum(1 for i in fresh if i.kind == "blog")
+    instagrams = sum(1 for i in fresh if i.kind == "instagram")
     print(f"[collect] 전체 {len(items)}건 중 최근 {len(fresh)}건 "
-          f"(기사 {articles} · 영상 {len(fresh) - articles}, 최근 {lookback}시간)")
+          f"(기사 {articles} · 유튜브 {videos} · 블로그 {blogs} · 인스타 {instagrams}, "
+          f"최근 {lookback}시간)")
     return fresh

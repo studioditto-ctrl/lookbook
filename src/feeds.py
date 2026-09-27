@@ -31,7 +31,7 @@ class Item:
     title: str
     url: str
     source: str
-    kind: str  # "article" | "video"
+    kind: str  # "article" | "video" | "blog" | "instagram"
     published: datetime
     summary: str = ""      # 피드에서 가져온 원문 발췌
     summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
@@ -43,22 +43,6 @@ class Item:
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
-
-@dataclass
-class Item:
-    id: str
-    title: str
-    url: str
-    source: str
-    kind: str  # "article" | "video"
-    published: datetime
-    summary: str = ""      # 피드에서 가져온 원문 발췌
-    summary_ko: str = ""   # 한국어 요약 (요약 단계에서 채움)
-    tags: tuple = ()       # 소스에 붙인 분류 (슬롯별 필터에 쓴다)
-    channel_id: str = ""   # 영상일 때 올린 채널 (구독자 수 확인에 쓴다)
-    trusted: bool = False  # 사람이 골라 config 에 적어둔 채널에서 온 것
-    searched: bool = False # 검색으로 찾아온 것 (주제와 무관할 수 있다)
-    score: float = 0.0
 
 def _plain(text):
     """네이버가 검색어에 <b> 를 씌워 돌려주고 엔티티도 섞여 온다."""

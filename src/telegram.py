@@ -43,7 +43,7 @@ def _blocks(heading, items, start_index):
     return blocks
 
 
-def build_message(articles, videos, config, slot):
+def build_message(articles, videos, blogs, instagrams, config, slot):
     slot_config = (config.get("slots") or {}).get(slot) or {}
     tz = ZoneInfo(config.get("timezone", "Asia/Seoul"))
     now = datetime.now(tz)
@@ -55,10 +55,19 @@ def build_message(articles, videos, config, slot):
     ]
 
     blocks = [header]
+    n = 0
     if articles:
-        blocks += [[""]] + _blocks("📰 <b>읽을거리</b>", articles, 1)
+        blocks += [[""]] + _blocks("📰 <b>기사</b>", articles, n + 1)
+        n += len(articles)
     if videos:
-        blocks += [[""]] + _blocks("🎬 <b>영상</b>", videos, len(articles) + 1)
+        blocks += [[""]] + _blocks("🎬 <b>유튜브</b>", videos, n + 1)
+        n += len(videos)
+    if blogs:
+        blocks += [[""]] + _blocks("📝 <b>블로그</b>", blogs, n + 1)
+        n += len(blogs)
+    if instagrams:
+        blocks += [[""]] + _blocks("📷 <b>인스타그램</b>", instagrams, n + 1)
+        n += len(instagrams)
 
     def render(bs):
         return "\n".join(line for block in bs for line in block)
@@ -81,7 +90,7 @@ def _is_redirect(url):
         return False
 
 
-def _link_preview_options(config, articles, videos):
+def _link_preview_options(config, articles, videos, blogs=(), instagrams=()):
     """첫 항목의 링크 미리보기(썸네일) 설정.
 
     문자열("none"/"first")과 딕셔너리 두 형태를 모두 받는다.
@@ -96,10 +105,11 @@ def _link_preview_options(config, articles, videos):
     # 유튜브 링크는 썸네일이 확실히 잡히는 반면, Google 뉴스 링크는 리다이렉트라
     # 미리보기가 비는 일이 잦다. 그래서 메시지 순서와 무관하게 영상을 먼저 쓰고,
     # 리다이렉트 링크는 건너뛴다. 빈 미리보기 카드가 붙느니 없는 편이 낫다.
+    rest = list(blogs or []) + list(instagrams or [])
     if setting.get("prefer", "video") == "video":
-        pool = list(videos or []) + list(articles or [])
+        pool = list(videos or []) + list(articles or []) + rest
     else:
-        pool = list(articles or []) + list(videos or [])
+        pool = list(articles or []) + list(videos or []) + rest
 
     first = next((i for i in pool if not _is_redirect(i.url)), None)
     if first is None:

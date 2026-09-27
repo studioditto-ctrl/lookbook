@@ -115,22 +115,26 @@ def run_one(config_name, slot_name, dry_run, ignore_seen=False):
 
     seen = state.load_seen(ns)
     # 테스트 발송은 이력을 무시하고 고르되, 보낸 기록은 그대로 남긴다.
-    articles, videos = select(items, {} if ignore_seen else seen, config, slot_name)
+    articles, videos, blogs, instagrams = select(
+        items, {} if ignore_seen else seen, config, slot_name
+    )
 
-    if not articles and not videos:
+    if not articles and not videos and not blogs and not instagrams:
         print("[main] 보낼 새 항목이 없습니다. 이번 회차는 건너뜁니다.")
         return 1 if missing else 0
 
-    summarize(articles + videos, config)
-    message = build_message(articles, videos, config, slot_name)
+    all_items = articles + videos + blogs + instagrams
+    summarize(all_items, config)
+    message = build_message(articles, videos, blogs, instagrams, config, slot_name)
 
     if preview_only:
         print("--- 전송하지 않고 미리보기 ---")
         print(message)
         return 1 if missing else 0
 
-    send(token, chat_id, message, _link_preview_options(config, articles, videos))
-    state.save_seen(state.mark_sent(seen, articles + videos), ns)
+    send(token, chat_id, message,
+         _link_preview_options(config, articles, videos, blogs, instagrams))
+    state.save_seen(state.mark_sent(seen, all_items), ns)
     return 0
 
 
