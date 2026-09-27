@@ -99,10 +99,7 @@ digests:
         articles: 5
         videos: 5
     keywords:
-      momentum: 1
-      day trading: 1
       단타: 1
-      박스권: 1
       차트분석: 1
       지지선: 1
       변동성: 1
@@ -115,7 +112,7 @@ digests:
       breakout strategy: 1
     queries:
       - name: 돌파매매
-        query: "momentum OR \"day trading\" OR 단타 OR 박스권 OR 차트분석 OR 지지선"
+        query: "단타 OR 차트분석 OR 지지선 OR 변동성 OR resistance OR support"
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
