@@ -174,66 +174,75 @@ function sourcesSectionHTML(di, dg){
     <div class="split3">
       <div>
         <label style="margin-top:6px">블로그 · RSS</label>
+        <div class="srcbox">
+          <div class="add">
+            <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
+                   autocapitalize="off" autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
+            <button class="tiny primary" onclick="addFeed(${di})">추가</button>
+          </div>
+          <div class="note">
+            네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
+            (브런치·티스토리·서브스택 등). <b>페이스북·X</b> 는 아이디로 가져올
+            방법이 없습니다 — 공식 API 가 남의 공개 계정을 안 열어 줍니다.
+            <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
+               style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
+          </div>
+        </div>
+        <div class="srclabel">등록됨 <span class="sub">${blogFeeds.length}</span></div>
         <div class="chips">
           ${blogFeeds.map(f => `
             <span class="chip" title="${esc(f.url)}">${esc(f.name)}
               <button onclick="delFeed(${di},${f.fi})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음</span>'}
         </div>
-        <div class="add">
-          <input id="bl${di}" placeholder="RSS 주소, 또는 네이버 블로그 아이디" enterkeyhint="done"
-                 autocapitalize="off" autocomplete="off"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addFeed(${di})}">
-          <button class="tiny" onclick="addFeed(${di})">추가</button>
-        </div>
-        <div class="note">
-          네이버 블로그는 아이디만, 나머지는 RSS 주소를 그대로 넣으면 됩니다
-          (브런치·티스토리·서브스택 등). <b>페이스북·X</b> 는 아이디로 가져올
-          방법이 없습니다 — 공식 API 가 남의 공개 계정을 안 열어 줍니다.
-          <a href="https://rss.app/rss-feed" target="_blank" rel="noopener"
-             style="color:var(--accent)">RSS 주소로 바꿔서 →</a> 넣어주세요.
-        </div>
       </div>
 
       <div>
         <label style="margin-top:6px">유튜브 채널</label>
+        <div class="srcbox">
+          <div class="add">
+            <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
+                   oninput="searchSubs(${di})" enterkeyhint="search">
+          </div>
+          <div class="chips" id="cr${di}"></div>
+          ${followsCategoryChipsHTML(di, "youtube")}
+        </div>
+        <div class="srclabel">등록됨 <span class="sub">${(dg.channels || []).length}</span></div>
         <div class="chips">
           ${(dg.channels || []).map((c, ci) => `
             <span class="chip">${esc(c.name)}
               <button onclick="delChannel(${di},${ci})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음 (config 파일 목록은 그대로 쓰입니다)</span>'}
         </div>
-        ${followsCategoryChipsHTML(di, "youtube")}
-        <div class="add">
-          <input id="cs${di}" placeholder="구독에서 검색 — 예: 커피"
-                 oninput="searchSubs(${di})" enterkeyhint="search">
-        </div>
-        <div class="chips" id="cr${di}"></div>
       </div>
 
       <div>
         <label style="margin-top:6px">인스타그램</label>
+        <div class="srcbox">
+          <div class="add">
+            <input id="igcs${di}" placeholder="가져온 목록에서 검색 — 예: 러닝"
+                   oninput="searchIgFollows(${di})" enterkeyhint="search">
+          </div>
+          <div class="chips" id="igcr${di}"></div>
+          ${followsCategoryChipsHTML(di, "instagram")}
+          <div class="add" style="margin-top:8px">
+            <input id="igm${di}" placeholder="또는 아이디·URL 직접 추가" enterkeyhint="done"
+                   autocapitalize="off" autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addIgManual(${di})}">
+            <button class="tiny primary" onclick="addIgManual(${di})">추가</button>
+          </div>
+          <div class="note">
+            실제 글이 자동으로 들어오지 않습니다 — RSS로 바꾼 주소로 나중에
+            바꿔줘야 합니다.
+          </div>
+        </div>
+        <div class="srclabel">등록됨 <span class="sub">${igFeeds.length}</span></div>
         <div class="chips">
           ${igFeeds.map(f => `
             <span class="chip" title="${esc(f.url)}">${esc(f.name)}
               <button onclick="delFeed(${di},${f.fi})" aria-label="삭제">×</button></span>`).join("")
             || '<span class="sub">없음</span>'}
-        </div>
-        ${followsCategoryChipsHTML(di, "instagram")}
-        <div class="add">
-          <input id="igcs${di}" placeholder="가져온 목록에서 검색 — 예: 러닝"
-                 oninput="searchIgFollows(${di})" enterkeyhint="search">
-        </div>
-        <div class="chips" id="igcr${di}"></div>
-        <div class="add" style="margin-top:8px">
-          <input id="igm${di}" placeholder="또는 아이디·URL 직접 추가" enterkeyhint="done"
-                 autocapitalize="off" autocomplete="off"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addIgManual(${di})}">
-          <button class="tiny" onclick="addIgManual(${di})">추가</button>
-        </div>
-        <div class="note">
-          실제 글이 자동으로 들어오지 않습니다 — RSS로 바꾼 주소로 나중에
-          바꿔줘야 합니다.
         </div>
       </div>
     </div>

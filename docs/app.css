@@ -145,6 +145,19 @@
   #sectionNav .steptrack button.danger::before{border-color:var(--danger)}
   #sectionNav .steptrack button.danger[aria-current="true"]::before{background:var(--danger)}
 
+  /* 콘텐츠 소스 — 채널별 입력창을 맨 앞으로, 박스로 둘러 눈에 띄게 한다.
+     그 박스 안(=추가 예정: 검색·카테고리 후보·직접 입력)과 아래
+     '등록됨' 목록을 색·배치로 갈라 지금 이미 붙은 것과 앞으로 고를 것을
+     헷갈리지 않게 한다. */
+  .srcbox{
+    margin-top:8px; padding:12px 12px 10px; border-radius:12px;
+    border:1px solid var(--accent);
+    background:color-mix(in srgb, var(--accent) 7%, var(--card));
+  }
+  .srcbox > .add:first-child{margin-top:0}
+  .srcbox .chips:empty{display:none}
+  .srclabel{font-size:12px; font-weight:600; color:var(--muted); margin:16px 0 2px}
+
   /* ---------- 새 주제 만들기 마법사 ---------- */
   .wztabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
   .wztabs button{
