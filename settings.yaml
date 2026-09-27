@@ -54,15 +54,6 @@ digests:
         url: "https://www.dcrainmaker.com/feed"
         region: international
         reason: "가민, 애플워치 등 러닝용 스마트워치 및 GPS 테크 기기에 관한 최고 수준의 리뷰 블로그입니다."
-      - name: 블리에이
-        url: "https://www.instagram.com/vely.a_kr/"
-        reason: "인스타그램 · 개인 크리에이터/기타"
-      - name: "데이지 | 데일리룩, 이지하게"
-        url: "https://www.instagram.com/daisyunnie_/"
-        reason: "인스타그램 · 남성 패션/스타일/뷰티"
-      - name: SERKAN 세르칸
-        url: "https://www.instagram.com/iamtheserkan/"
-        reason: "인스타그램 · 남성 패션/스타일/뷰티"
     channels:
       - name: 런업 RunUp
         channel_id: UCGDGw1dMotpPPWXC6ee_cZA
