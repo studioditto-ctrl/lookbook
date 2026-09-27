@@ -64,10 +64,6 @@ digests:
         url: "https://www.instagram.com/iamtheserkan/"
         reason: "인스타그램 · 남성 패션/스타일/뷰티"
     channels:
-      - name: 마라닉 TV
-        channel_id: UCx_2bXULZciQY76UoDhIntA
-        region: domestic
-        reason: "러닝 초보자를 위한 폼 교정, 마라톤 훈련법 및 다양한 러닝 관련 정보와 팁을 제공합니다."
       - name: 런업 RunUp
         channel_id: UCGDGw1dMotpPPWXC6ee_cZA
         region: domestic
@@ -100,6 +96,12 @@ digests:
         channel_id: UCx2Xqm8S3Ghqn5puhSKWH4Q
         region: international
         reason: "세계적인 러닝 전문 매거진의 공식 유튜브 채널로 선수 인터뷰와 트레이닝 팁을 전달합니다."
+      - name: "[THE SOY]루퐁이네"
+        channel_id: UC3PSZivQbIegrfavj4fmgQQ
+      - name: 요즘이즈뭔들with_shepherd
+        channel_id: UCKa78jv3ZyIw6y8khhyh_XA
+      - name: 본이
+        channel_id: UCMN8GsAYJem_O2pxeEojB7g
   - key: tmty4s0qk
     label: 돌파매매
     scope: [돌파매매, breakout trading, 신고가 매매, 돌파 매매, breakout strategy, 전고점 돌파, 저항선 돌파, breakout, 신고가돌파, 박스권 돌파, Breakout, Breakout Trading, 신고가 돌파]
