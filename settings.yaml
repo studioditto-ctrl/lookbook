@@ -60,6 +60,9 @@ digests:
       - name: "데이지 | 데일리룩, 이지하게"
         url: "https://www.instagram.com/daisyunnie_/"
         reason: "인스타그램 · 남성 패션/스타일/뷰티"
+      - name: SERKAN 세르칸
+        url: "https://www.instagram.com/iamtheserkan/"
+        reason: "인스타그램 · 남성 패션/스타일/뷰티"
     channels:
       - name: 마라닉 TV
         channel_id: UCx_2bXULZciQY76UoDhIntA
