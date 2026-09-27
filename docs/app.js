@@ -14,7 +14,10 @@ const DISPATCH_URL = `https://api.github.com/repos/${REPO}/dispatches`;
 const RECOMMEND_PATH = slug => `state/recommend/${slug}.json`;
 const CLASSIFY_PATH = slug => `state/subs_classify/${slug}.json`;
 const CLASSIFY_INPUT_PATH = slug => `state/subs_classify/${slug}-input.json`;
-const BUILD = "2026-09-11";   // 화면에 찍어 어느 판인지 확인한다
+// 화면에 찍어 어느 판인지 확인한다. index.html 의 app.js?v=/app.css?v= 뒤에 붙은
+// 캐시 무력화용 숫자와 늘 같이 올린다 — 안 올리면 브라우저가 예전 app.js 를
+// 계속 쓰면서도 화면 위 날짜만 보고는 최신인 줄 착각하게 된다.
+const BUILD = "2026-09-27";
 
 /* 넓은 화면에서는 주제를 한 번에 하나만 편다. 격자로 늘어놓으면 어느 것을
    고치는 중인지 알기 어렵고 카드가 좁아 모바일과 다를 바가 없었다. */
