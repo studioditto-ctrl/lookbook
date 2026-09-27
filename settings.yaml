@@ -112,6 +112,8 @@ digests:
     channels:
       - name: 뉴욕주민
         channel_id: UC3dYEYtdihZpsexdC9-qKDA
+      - name: 싱글파이어
+        channel_id: UC5CyCSvCdoEP-VgQmFq3iww
   - key: tmty5oxn3
     label: 남성패션
     scope: [남성패션, 남자패션, 남성의류, 남자코디, menswear, men's fashion, 남자옷, 남친룩, 남자 데일리룩, 남성 코디, 남자 코디, 남성스타일, 남자 스타일, mens fashion, 남성복]
