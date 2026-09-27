@@ -99,8 +99,6 @@ digests:
         articles: 5
         videos: 5
     keywords:
-      breakout trading: 3
-      전고점: 3
       저항선: 2
       신고가: 2
       거래량: 2
@@ -131,7 +129,7 @@ digests:
       breakout strategy: 1
     queries:
       - name: 돌파매매
-        query: "\"breakout trading\" OR 전고점 OR 저항선 OR 신고가 OR 거래량 OR \"차트 분석\""
+        query: "저항선 OR 신고가 OR 거래량 OR \"차트 분석\" OR \"기술적 분석\" OR breakout"
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
