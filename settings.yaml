@@ -89,7 +89,6 @@ digests:
         reason: "세계적인 러닝 전문 매거진의 공식 유튜브 채널로 선수 인터뷰와 트레이닝 팁을 전달합니다."
   - key: tmty4s0qk
     label: 돌파매매
-    scope: [돌파매매, breakout trading, 신고가 매매, 돌파 매매, breakout strategy, 전고점 돌파, 저항선 돌파, breakout, 신고가돌파, 박스권 돌파, Breakout, Breakout Trading, 신고가 돌파]
     strict: true
     slots:
       - slot: daily
@@ -99,10 +98,6 @@ digests:
         articles: 5
         videos: 5
     keywords:
-      breakout strategy: 1
-    queries:
-      - name: 돌파매매
-        query: "\"breakout strategy\""
     feeds:
       - name: love392722
         url: "https://rss.blog.naver.com/love392722.xml"
