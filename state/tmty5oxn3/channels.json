@@ -248,8 +248,8 @@
     "2026-10-03T05:09:37.012609+00:00"
   ],
   "subs:UCRNG2OxSWq5L4LVjn0pS-6Q": [
-    45900,
-    "2026-09-15T04:45:42.447319+00:00"
+    46200,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCRfQJZbuKcsiDla0izDeE7Q": [
     572,
@@ -262,6 +262,10 @@
   "subs:UCTf7DeGoEkEV6kHdmlEW5AQ": [
     20,
     "2026-09-12T09:02:48.595669+00:00"
+  ],
+  "subs:UCTx-RDjlOFRhr6DcVy4TY9A": [
+    9,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCU7ssh7TQ8XuVNaNuw3UyjA": [
     1650,
@@ -286,6 +290,14 @@
   "subs:UCWFy8p80OrIo19h0aOdWjpg": [
     6,
     "2026-09-27T13:32:31.437601+00:00"
+  ],
+  "subs:UCWMbRYRTUt9BbgGvGH9oUkg": [
+    43800,
+    "2026-10-04T05:42:38.928484+00:00"
+  ],
+  "subs:UCWNIPLMUy65cWvWXFuxJ-Dg": [
+    85800,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCWWqtps_U7DdEevj5ZhctaQ": [
     45100,
@@ -356,8 +368,8 @@
     "2026-09-30T09:36:25.161920+00:00"
   ],
   "subs:UCckwG-RyVUdkE-lDTo3FVZw": [
-    307,
-    "2026-09-12T09:02:48.595669+00:00"
+    6760,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCd1xS77y8C2rJrXVYL_xdAA": [
     1060,
@@ -384,8 +396,8 @@
     "2026-09-26T04:49:08.742551+00:00"
   ],
   "subs:UCegX5BNmtjkILIm9wkOaAFw": [
-    1490,
-    "2026-09-27T05:10:41.591615+00:00"
+    1790,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCet5YC6PO3DEOGO__d6zEfw": [
     44,
@@ -422,6 +434,10 @@
   "subs:UCiR4YN_nqGIHjwq0S6S91FA": [
     35,
     "2026-10-02T09:40:25.798751+00:00"
+  ],
+  "subs:UCiiVip4xTO8TjOrqnGUrHUg": [
+    372,
+    "2026-10-04T05:42:38.928484+00:00"
   ],
   "subs:UCjK_VGPFwNE-MTbYZQ6XZRw": [
     317,
@@ -562,5 +578,9 @@
   "subs:UCzEKx-oyXAjSDxPatbFFDnQ": [
     49,
     "2026-09-15T04:45:42.447319+00:00"
+  ],
+  "subs:UCzM45cl4XJJc2R33cMNXkeA": [
+    16,
+    "2026-10-04T05:42:38.928484+00:00"
   ]
 }
