@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 
-from .config import ENV_PATH, load_config, load_env, missing_secrets
+from .config import ENV_PATH, OPTIONAL_KEYS, load_config, load_env, missing_secrets
 
 
 def _gmaps(config):
@@ -34,6 +34,9 @@ def cmd_check(config):
     for key in missing_secrets():
         print(f"  ✗ {key} 없음")
         ok = False
+    for key in OPTIONAL_KEYS:
+        if not os.environ.get(key):
+            print(f"  - {key} 없음 (선택: 국내 장소 위치 검증을 건너뜀)")
     ok &= _vault_ok(config)
     try:
         import playwright  # noqa: F401

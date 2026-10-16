@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -133,6 +134,17 @@ class GeocodeTest(unittest.TestCase):
         place = geocode.resolve(cand, CONFIG, search=lambda q: [DOC])
         self.assertEqual((place.area, place.confidence), ("연남", 0.0))
 
+    def test_without_kakao_key_uses_caption_hints(self):
+        cand = extract.Candidate(name="어니언", branch="성수", category="카페",
+                                 country="대한민국", city="서울특별시", area_hint="성수")
+        with unittest.mock.patch.dict("os.environ", {"KAKAO_REST_API_KEY": ""}):
+            place = geocode.resolve(cand, CONFIG)
+        self.assertEqual((place.name, place.sido, place.area), ("어니언 성수", "서울", "성수"))
+        self.assertFalse(place.checked)
+        # 띄어쓰기만 다른 이름은 같은 장소로 합친다
+        other = geocode.Place(name="어니언성수", category="카페", sido="서울", area="성수")
+        self.assertEqual(place.key, other.key)
+
     def test_overseas_uses_country_city(self):
         cand = extract.Candidate(name="Blue Bottle", category="카페", country="일본", city="도쿄")
         place = geocode.resolve(cand, CONFIG, search=lambda q: self.fail("국내 검색 호출됨"))
@@ -235,6 +247,22 @@ class AppTest(unittest.TestCase):
         note = (self.vault / "서울" / "성수" / "어니언 성수.md").read_text(encoding="utf-8")
         self.assertNotIn("  - \"https://www.instagram.com/p/BBB/\"", note)
         self.assertFalse((self.vault / "서울" / "성수" / "새가게.md").exists())
+
+    def test_without_kakao_no_per_place_warning(self):
+        self.app.resolver = lambda c: geocode.resolve(c, self.config, search=None)
+        with unittest.mock.patch.dict("os.environ", {"KAKAO_REST_API_KEY": ""}):
+            [reply] = self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertIn("📍 1곳 저장", reply)
+        self.assertNotIn("위치 확인 필요", reply)
+        self.assertIn("카카오 키가 없어", reply)
+        self.assertEqual(self.gmaps.calls, [("어니언 성수", "📍서울 성수")])
+        self.assertTrue((self.vault / "서울" / "성수" / "어니언.md").exists())
+
+    def test_kakao_miss_warns_per_place(self):
+        self.app.resolver = lambda c: geocode.resolve(c, self.config, search=lambda q: [])
+        [reply] = self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertIn("⚠️위치 확인 필요", reply)
+        self.assertNotIn("카카오 키가 없어", reply)
 
     def test_stats_and_recent(self):
         self.app.handle("https://www.instagram.com/p/AAA/")

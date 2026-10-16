@@ -31,13 +31,15 @@ class Place:
     phone: str = ""
     note: str = ""
     confidence: float = 0.0
+    checked: bool = False  # 카카오로 확인을 시도했는지 (키가 없으면 False)
     sources: list = field(default_factory=list)
 
     @property
     def key(self):
         if self.kakao_id:
             return f"kakao:{self.kakao_id}"
-        return f"name:{self.sido}:{self.area}:{self.name}".lower()
+        # 카카오 ID 가 없으면 이름으로 합친다. 띄어쓰기 차이는 같은 곳으로 본다
+        return f"name:{self.sido}:{self.area}:{self.name}".lower().replace(" ", "")
 
     @property
     def gmaps_query(self):
@@ -122,10 +124,13 @@ def resolve(candidate, config, search=None):
                 phone=best.get("phone", ""),
                 note=candidate.note,
                 confidence=round(best_score, 2),
+                checked=True,
             )
         sido = region.short_sido(candidate.city)
+        checked = search is not None
     else:
         sido = candidate.country
+        checked = False
 
     area = candidate.area_hint if candidate.domestic else (candidate.city or candidate.area_hint)
     return Place(
@@ -136,4 +141,5 @@ def resolve(candidate, config, search=None):
         address=candidate.address_hint,
         note=candidate.note,
         confidence=0.0 if candidate.domestic else 0.5,
+        checked=checked,
     )

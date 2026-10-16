@@ -90,7 +90,7 @@ if (-not (Test-Path $EnvPath)){
     Write-Host "비밀값을 입력합니다. 화면에 표시되지 않고 이 PC 에만 저장됩니다."
     $tg  = Read-Secret "텔레그램 봇 토큰 (BotFather 에서 받은 값)"
     $ant = Read-Secret "Claude API 키 (sk-ant-...)"
-    $kko = Read-Secret "카카오 REST API 키"
+    $kko = Read-Secret "카카오 REST API 키 (선택 — 없으면 그냥 Enter)"
     @(
         "TELEGRAM_BOT_TOKEN=$tg",
         "TELEGRAM_CHAT_ID=",
@@ -101,6 +101,7 @@ if (-not (Test-Path $EnvPath)){
     Write-Host "저장했습니다: $EnvPath"
 } else {
     Write-Host "이미 있는 비밀값 파일을 씁니다: $EnvPath"
+    Write-Host "(카카오 키를 나중에 넣으려면 그 파일의 KAKAO_REST_API_KEY= 뒤에 적고 이 스크립트를 다시 실행)"
 }
 
 # --- 3. vault 경로 ---

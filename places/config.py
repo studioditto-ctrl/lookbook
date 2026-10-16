@@ -19,8 +19,9 @@ SECRET_KEYS = (
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_CHAT_ID",
     "ANTHROPIC_API_KEY",
-    "KAKAO_REST_API_KEY",
 )
+# 없어도 돈다. 넣으면 국내 장소의 주소·좌표·동네 상권이 정확해진다.
+OPTIONAL_KEYS = ("KAKAO_REST_API_KEY",)
 
 
 def load_env(path=ENV_PATH):

@@ -70,7 +70,7 @@ class App:
         if not result.places:
             return f"🤔 장소를 찾지 못했어요.\n{esc(result.summary)}\n{esc(post.url)}"
 
-        lines, keys, new_keys = [], [], []
+        lines, keys, new_keys, unchecked = [], [], [], False
         for i, cand in enumerate(result.places, 1):
             place = self.resolver(cand)
             list_name = region.list_name(place.sido, place.area, self.config)
@@ -84,7 +84,9 @@ class App:
                 obsidian.write_place(entry, list_name, result.summary, self.config)
             else:
                 gm = "(미리보기)"
-            flag = " ⚠️위치 확인 필요" if place.confidence < geocode.MIN_CONFIDENCE else ""
+            low = place.confidence < geocode.MIN_CONFIDENCE
+            flag = " ⚠️위치 확인 필요" if place.checked and low else ""
+            unchecked |= cand.domestic and not place.checked
             lines.append(
                 f"{i}. <b>{esc(place.name)}</b> · {esc(place.category)} · "
                 f"{esc(list_name)} {gm}{flag}\n   {esc(place.address)}"
@@ -95,7 +97,9 @@ class App:
             obsidian.write_index(self.store.all_places(), self.config)
             self.store.save()
         head = f"📍 {len(result.places)}곳 {'저장' if save else '찾음'}"
-        return f"{head}\n<i>{esc(result.summary)}</i>\n\n" + "\n".join(lines)
+        tail = ("\n\n<i>카카오 키가 없어 위치는 캡션 기준이에요 (지점·동네가 다를 수 있음)</i>"
+                if unchecked else "")
+        return f"{head}\n<i>{esc(result.summary)}</i>\n\n" + "\n".join(lines) + tail
 
     def _save_gmaps(self, place, entry, list_name):
         if entry.get("gmaps_saved"):
