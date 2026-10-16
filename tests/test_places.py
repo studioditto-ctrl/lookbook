@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from places import extract, geocode, instagram, region  # noqa: E402
 from places.app import App  # noqa: E402
+from places.telegram_bot import handle_update  # noqa: E402
 from places.store import Store  # noqa: E402
 
 EMBED = """<html><body><div class="EmbedCaption">
@@ -268,6 +269,43 @@ class AppTest(unittest.TestCase):
         self.app.handle("https://www.instagram.com/p/AAA/")
         self.assertIn("서울 성수: 1", self.app.command("/stats"))
         self.assertIn("어니언 성수", self.app.command("/recent"))
+
+
+def _update(chat_id, text):
+    return {"update_id": 1, "message": {"chat": {"id": int(chat_id)}, "text": text}}
+
+
+class BotTest(unittest.TestCase):
+    def setUp(self):
+        self.sent = []
+        self.reply = lambda chat_id, text: self.sent.append((chat_id, text))
+        self.app = SimpleNamespace(handle=lambda text: ["결과"])
+
+    def test_no_chat_id_configured_tells_id(self):
+        handle_update(self.app, _update("111", "/start"), "", self.reply, set())
+        self.assertEqual(len(self.sent), 1)
+        self.assertIn("111", self.sent[0][1])
+
+    def test_other_chat_is_told_once(self):
+        notified = set()
+        handle_update(self.app, _update("222", "hi"), "111", self.reply, notified)
+        handle_update(self.app, _update("222", "hi"), "111", self.reply, notified)
+        self.assertEqual(len(self.sent), 1)
+        self.assertIn("다른 채팅방 전용", self.sent[0][1])
+        self.assertIn("222", self.sent[0][1])
+
+    def test_url_gets_ack_then_result(self):
+        handle_update(self.app, _update("111", "https://www.instagram.com/p/AAA/"), "111",
+                      self.reply, set())
+        self.assertTrue(self.sent[0][1].startswith("🔎"))
+        self.assertEqual(self.sent[-1], ("111", "결과"))
+
+    def test_handler_crash_is_reported(self):
+        def boom(text):
+            raise ValueError("x")
+        self.app.handle = boom
+        handle_update(self.app, _update("111", "/start"), "111", self.reply, set())
+        self.assertIn("오류", self.sent[-1][1])
 
 
 if __name__ == "__main__":

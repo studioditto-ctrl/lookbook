@@ -3,12 +3,13 @@
   python -m places check            설정·키·vault 경로 점검
   python -m places login            구글 로그인 (최초 1회, 창이 뜬다)
   python -m places try URL [URL..]  저장 없이 분석만 해 보기 (--save 로 실제 저장)
-  python -m places run              텔레그램 봇 실행
+  python -m places run [--log FILE] 텔레그램 봇 실행 (--log 면 출력을 UTF-8 파일에 덧붙인다)
 """
 
 import argparse
 import os
 import sys
+import traceback
 from pathlib import Path
 
 from .config import ENV_PATH, OPTIONAL_KEYS, load_config, load_env, missing_secrets
@@ -80,6 +81,9 @@ def cmd_run(config):
         telegram_bot.run(App(config, gmaps=gmaps))
     except KeyboardInterrupt:
         print("\n종료합니다.")
+    except Exception:  # noqa: BLE001 — 왜 꺼졌는지 로그에 남기고 재시작은 run.ps1 에 맡긴다
+        traceback.print_exc()
+        return 1
     finally:
         if gmaps:
             gmaps.close()
@@ -94,13 +98,18 @@ def main(argv=None):
     p_try = sub.add_parser("try")
     p_try.add_argument("urls", nargs="+")
     p_try.add_argument("--save", action="store_true")
-    sub.add_parser("run")
+    p_run = sub.add_parser("run")
+    p_run.add_argument("--log", help="출력을 덧붙일 로그 파일")
     args = parser.parse_args(argv)
 
-    # 윈도우 콘솔(cp949)은 이모지를 못 찍어 UnicodeEncodeError 로 죽는다
-    for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8", errors="replace")
+    if getattr(args, "log", None):
+        # PowerShell 5.1 의 >> 리디렉션은 UTF-16·cp949 로 섞여 로그가 깨진다. 직접 쓴다.
+        sys.stdout = sys.stderr = open(args.log, "a", encoding="utf-8", buffering=1)
+    else:
+        # 윈도우 콘솔(cp949)은 이모지를 못 찍어 UnicodeEncodeError 로 죽는다
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
     load_env()
     config = load_config()
     os.makedirs(config["data_dir"], exist_ok=True)
