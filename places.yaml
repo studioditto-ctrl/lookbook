@@ -1,0 +1,38 @@
+# 인스타 장소 아카이브 봇 기본 설정
+#
+# PC마다 다른 값(vault 경로 등)은 %USERPROFILE%\.lookbook\places.yaml 에 같은 키로
+# 적으면 이 파일 위에 덮어쓴다. 비밀값은 같은 폴더의 places.env 에.
+
+# 옵시디언 vault — 구글 드라이브 데스크톱 앱이 동기화하는 로컬 경로
+obsidian:
+  vault_path: ""                            # 설치 스크립트가 PC 쪽 places.yaml 에 적는다
+  folder: "Places"                          # vault 안에서 장소 노트를 둘 폴더
+  index_note: "장소 목록"                   # 지역별 목록 노트 이름
+
+# 구글 지도 저장 목록 자동 저장 (Playwright 브라우저 자동화, 실험 기능)
+gmaps:
+  enabled: true
+  list_prefix: "📍"           # 목록 이름: 📍서울 성수
+  headless: false             # 구글이 헤드리스 브라우저를 막는 경우가 많아 기본은 창을 띄운다
+  browser_channel: "chrome"   # 설치된 크롬 사용. 없으면 "" 로 두면 Playwright 크로미움
+
+# 장소 추출 (Claude)
+extract:
+  model: "claude-opus-5-5"
+  effort: "low"
+
+# 동네 상권 이름 보정. 카카오 주소의 동 이름 → 상권 이름
+# 규칙에 없으면 '성수동2가 → 성수', '연남동 → 연남' 처럼 자동으로 줄인다.
+region_alias:
+  서교동: 홍대
+  동교동: 홍대
+  신사동: 신사
+  청담동: 청담
+  삼청동: 삼청
+  소격동: 삼청
+  익선동: 익선
+  을지로3가: 을지로
+  을지로4가: 을지로
+
+# 수도권·광역시는 '서울 성수' 처럼 시+동네, 그 외 지역은 '강원 강릉' 처럼 도+시군
+metro: [서울, 부산, 대구, 인천, 광주, 대전, 울산, 세종]
