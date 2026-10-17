@@ -2,6 +2,7 @@
 
   python -m places check            설정·키·vault 경로 점검
   python -m places login            구글 로그인 (최초 1회, 창이 뜬다)
+  python -m places iglogin          인스타 로그인 (카드뉴스 슬라이드 읽기용, 최초 1회)
   python -m places try URL [URL..]  저장 없이 분석만 해 보기 (--save 로 실제 저장)
   python -m places run [--log FILE] 텔레그램 봇 실행 (--log 면 출력을 UTF-8 파일에 덧붙인다)
 """
@@ -95,6 +96,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check")
     sub.add_parser("login")
+    sub.add_parser("iglogin")
     p_try = sub.add_parser("try")
     p_try.add_argument("urls", nargs="+")
     p_try.add_argument("--save", action="store_true")
@@ -119,6 +121,11 @@ def main(argv=None):
         from .gmaps import GMaps
         ok = GMaps(config, config["data_dir"]).login()
         print("로그인 확인됨" if ok else "로그인을 확인하지 못했습니다. 다시 시도하세요.")
+        return 0 if ok else 1
+    if args.cmd == "iglogin":
+        from .instagram_session import InstagramSession
+        ok = InstagramSession(config, config["data_dir"]).login()
+        print("인스타 로그인 확인됨" if ok else "로그인을 확인하지 못했습니다. 다시 시도하세요.")
         return 0 if ok else 1
     if args.cmd == "try":
         return cmd_try(config, args.urls, args.save)

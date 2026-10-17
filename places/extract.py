@@ -1,5 +1,6 @@
 """캡션에서 장소 목록 추출 (Gemini 또는 Claude, 구조화 출력)."""
 
+import base64
 import json
 from dataclasses import dataclass, field
 
@@ -7,6 +8,8 @@ MAX_TOKENS = 16000
 CATEGORIES = ["식당", "카페", "베이커리", "바", "전시/공간", "숙소", "쇼핑", "자연/산책", "기타"]
 
 SYSTEM = """인스타그램 장소 추천 게시물의 캡션에서 방문할 수 있는 장소를 뽑습니다.
+슬라이드 이미지가 함께 오면 이미지에 적힌 가게 이름·주소도 읽습니다 (카드뉴스는 캡션에
+장소 없이 이미지에만 적혀 있는 경우가 많습니다).
 
 각 장소에 대해:
 - name: 가게·장소의 정식 이름. 지점명은 branch 로 분리 (예: name "블루보틀", branch "성수").
@@ -97,14 +100,28 @@ def parse(data):
     return Extraction(summary=(data.get("summary") or "").strip(), places=places)
 
 
-def extract(caption, config, client=None, ask=None):
-    """캡션 → Extraction. 실패하면 예외를 올린다 (봇이 사용자에게 알린다).
+def image_type(data):
+    if data[:4] == b"\x89PNG":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
+def extract(caption, config, client=None, ask=None, images=()):
+    """캡션(+슬라이드 이미지) → Extraction. 실패하면 예외를 올린다 (봇이 사용자에게 알린다).
 
     extract.provider 가 gemini(기본)면 러닝 다이제스트와 같은 Gemini 클라이언트,
     claude 면 Claude. client 를 넘기면 Claude 로 본다 (테스트용).
     """
     settings = config.get("extract") or {}
-    content = f"<caption>\n{caption}\n</caption>"
+    text = f"<caption>\n{caption}\n</caption>"
+    if images:
+        text += f"\n\n위 이미지 {len(images)}장은 이 게시물의 슬라이드입니다."
+    content = text
+    if images and client is None and provider(config) == "gemini" and ask is None:
+        from google.genai import types
+        content = [types.Part.from_bytes(data=b, mime_type=image_type(b)) for b in images] + [text]
     if client is None and provider(config) == "gemini":
         if ask is None:
             import os
@@ -127,7 +144,12 @@ def extract(caption, config, client=None, ask=None):
             "effort": settings.get("effort", "low"),
             "format": {"type": "json_schema", "schema": SCHEMA},
         },
-        messages=[{"role": "user", "content": content}],
+        messages=[{"role": "user", "content": [
+            *({"type": "image", "source": {"type": "base64", "media_type": image_type(b),
+                                           "data": base64.standard_b64encode(b).decode()}}
+              for b in images),
+            {"type": "text", "text": text},
+        ]}],
     )
     if response.stop_reason == "refusal":
         raise RuntimeError("모델이 요청을 거부했습니다")

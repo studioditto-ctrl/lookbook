@@ -65,6 +65,18 @@ class InstagramTest(unittest.TestCase):
         session = SimpleNamespace(get=lambda url, **kw: wall)
         self.assertEqual(instagram.fetch("abc", "u", session=session).caption, "")
 
+    def test_logged_in_session_comes_first(self):
+        slides = instagram.Post("abc", "u", caption="소개팅 성지", source="session", images=[b"img"])
+        session = SimpleNamespace(configured=True, fetch=lambda code, url: slides)
+        with unittest.mock.patch.object(instagram, "fetch", side_effect=AssertionError("호출되면 안 됨")):
+            self.assertIs(instagram.fetch_any("abc", "u", session=session), slides)
+
+    def test_session_failure_falls_back(self):
+        session = SimpleNamespace(configured=True, fetch=lambda code, url: None)
+        plain = instagram.Post("abc", "u", caption="캡션", source="og")
+        with unittest.mock.patch.object(instagram, "fetch", return_value=plain):
+            self.assertIs(instagram.fetch_any("abc", "u", session=session), plain)
+
     def test_blocked_request_falls_back_to_browser(self):
         calls = []
 
@@ -193,7 +205,7 @@ class FakeGMaps:
 
 
 def _candidates(*names):
-    return lambda caption: extract.Extraction(summary="요약", places=[
+    return lambda caption, images=(): extract.Extraction(summary="요약", places=[
         extract.Candidate(name=n, category="카페", country="대한민국", city="서울", area_hint="성수")
         for n in names])
 
@@ -229,7 +241,7 @@ class AppTest(unittest.TestCase):
         self.assertTrue(Store(self.config["data_dir"]).seen("AAA"))
 
     def test_low_credit_is_explained(self):
-        def broke(caption):
+        def broke(caption, images=()):
             raise RuntimeError("Your credit balance is too low to access the Anthropic API.")
         self.app.extractor = broke
         [reply] = self.app.handle("https://www.instagram.com/p/AAA/")

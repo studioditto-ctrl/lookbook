@@ -23,8 +23,13 @@ class App:
         self.store = store or Store(config["data_dir"])
         self.gmaps = gmaps
         channel = (config.get("gmaps") or {}).get("browser_channel")
-        self.fetch = fetch or (lambda code, url: instagram.fetch_any(code, url, channel))
-        self.extractor = extractor or (lambda caption: extract_mod.extract(caption, config))
+        if fetch is None:
+            from .instagram_session import InstagramSession
+            session = InstagramSession(config, config["data_dir"])
+            fetch = lambda code, url: instagram.fetch_any(code, url, channel, session=session)  # noqa: E731
+        self.fetch = fetch
+        self.extractor = extractor or (
+            lambda caption, images=(): extract_mod.extract(caption, config, images=images))
         self.resolver = resolver or (lambda c: geocode.resolve(c, config))
         self.pending = {}  # 캡션을 못 받은 게시물: shortcode → url
 
@@ -64,7 +69,7 @@ class App:
     # --- 처리 ---
     def process(self, post, save=True):
         try:
-            result = self.extractor(post.caption)
+            result = self.extractor(post.caption, images=post.images)
         except Exception as e:  # noqa: BLE001 — API 오류는 사용자에게 알리고 다음 메시지로
             self.pending[post.shortcode] = post.url
             print(f"[app] 장소 분석 실패: {e}")

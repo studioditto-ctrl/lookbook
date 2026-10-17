@@ -10,7 +10,7 @@
 
 import html
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 
 import requests
@@ -34,7 +34,8 @@ class Post:
     url: str
     caption: str = ""
     username: str = ""
-    source: str = ""  # embed | og | user
+    source: str = ""  # embed | og | browser | session | user
+    images: list = field(default_factory=list)  # 슬라이드 이미지 bytes (로그인 세션일 때만)
 
 
 def find_urls(text):
@@ -181,8 +182,12 @@ def fetch_browser(shortcode, url, channel=None):
     return post
 
 
-def fetch_any(shortcode, url, channel=None, browser=fetch_browser):
-    """HTTP 요청으로 먼저 시도하고, 캡션이 없으면 브라우저로."""
+def fetch_any(shortcode, url, channel=None, browser=fetch_browser, session=None):
+    """로그인 세션(슬라이드 이미지까지) → HTTP 요청 → 로그인 없는 브라우저 순."""
+    if session is not None and session.configured:
+        post = session.fetch(shortcode, url)
+        if post:
+            return post
     post = fetch(shortcode, url)
     if not post.caption and browser:
         post = browser(shortcode, url, channel)
