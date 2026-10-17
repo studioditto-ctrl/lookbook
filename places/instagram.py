@@ -3,7 +3,8 @@
 로그인 없이 받을 수 있는 두 경로를 차례로 시도한다.
   1. 임베드 페이지 /p/<code>/embed/captioned/ 의 Caption 블록 (전문)
   2. 게시물 페이지의 og:description 메타태그 (잘릴 수 있음)
-둘 다 실패하면 None 을 돌려주고, 봇이 사용자에게 캡션을 붙여넣어 달라고 한다.
+인스타가 단순 HTTP 요청을 막으면(2026-10 확인) 헤드리스 크롬으로 같은 두 페이지를
+다시 연다 (로그인 없음). 그래도 실패하면 봇이 사용자에게 캡션을 붙여넣어 달라고 한다.
 유료 수집 API·로그인 세션은 쓰지 않는다 (계정 정지 위험, 비용).
 """
 
@@ -148,4 +149,41 @@ def fetch(shortcode, url, session=None):
                 post.source = "og"
     except requests.RequestException as e:
         print(f"[instagram] {shortcode} 수집 실패: {e}")
+    return post
+
+
+BROWSER_TIMEOUT = 30_000
+
+
+def fetch_browser(shortcode, url, channel=None):
+    """헤드리스 크롬으로 임베드 → 게시물 페이지 순으로 열어 같은 파서로 읽는다."""
+    from .browser import playwright
+    post = Post(shortcode=shortcode, url=url)
+    browser = None
+    try:
+        browser = playwright().chromium.launch(channel=channel or None, headless=True)
+        page = browser.new_page(locale="ko-KR")
+        for target, parse in (
+            (f"https://www.instagram.com/p/{shortcode}/embed/captioned/", parse_embed),
+            (url, parse_og),
+        ):
+            page.goto(target, wait_until="domcontentloaded", timeout=BROWSER_TIMEOUT)
+            page.wait_for_timeout(2500)  # 캡션은 스크립트가 그린다
+            caption, username = parse(page.content())
+            if caption:
+                post.caption, post.username, post.source = caption, username, "browser"
+                break
+    except Exception as e:  # noqa: BLE001 — 실패하면 캡션 붙여넣기로 넘어간다
+        print(f"[instagram] {shortcode} 브라우저 수집 실패: {e}")
+    finally:
+        if browser:
+            browser.close()
+    return post
+
+
+def fetch_any(shortcode, url, channel=None, browser=fetch_browser):
+    """HTTP 요청으로 먼저 시도하고, 캡션이 없으면 브라우저로."""
+    post = fetch(shortcode, url)
+    if not post.caption and browser:
+        post = browser(shortcode, url, channel)
     return post

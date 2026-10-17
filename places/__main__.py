@@ -56,7 +56,7 @@ def cmd_try(config, urls, save):
     app = App(config, gmaps=gmaps)
     try:
         for code, url in instagram.find_urls(" ".join(urls)):
-            post = instagram.fetch(code, url)
+            post = app.fetch(code, url)
             print(f"\n=== {url}\n수집 경로: {post.source or '실패'} · 계정: {post.username}")
             print(f"캡션:\n{post.caption or '(없음)'}\n")
             if post.caption:

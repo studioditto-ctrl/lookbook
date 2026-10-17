@@ -34,8 +34,8 @@ class GMaps:
     def start(self):
         if self.page:
             return
-        from playwright.sync_api import sync_playwright
-        self._pw = sync_playwright().start()
+        from .browser import playwright
+        self._pw = playwright()
         self._ctx = self._pw.chromium.launch_persistent_context(
             user_data_dir=str(self.profile),
             channel=self.channel,
@@ -51,8 +51,6 @@ class GMaps:
         try:
             if self._ctx:
                 self._ctx.close()
-            if self._pw:
-                self._pw.stop()
         finally:
             self._pw = self._ctx = self.page = None
 

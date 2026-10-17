@@ -65,6 +65,17 @@ class InstagramTest(unittest.TestCase):
         session = SimpleNamespace(get=lambda url, **kw: wall)
         self.assertEqual(instagram.fetch("abc", "u", session=session).caption, "")
 
+    def test_blocked_request_falls_back_to_browser(self):
+        calls = []
+
+        def browser(code, url, channel):
+            calls.append(channel)
+            return instagram.Post(code, url, caption="성수 카페", source="browser")
+
+        with unittest.mock.patch.object(instagram, "fetch", return_value=instagram.Post("abc", "u")):
+            post = instagram.fetch_any("abc", "u", "chrome", browser=browser)
+        self.assertEqual((post.source, calls), ("browser", ["chrome"]))
+
 
 class RegionTest(unittest.TestCase):
     def test_metro_neighborhood(self):
@@ -196,6 +207,13 @@ class AppTest(unittest.TestCase):
         self.assertIn("[[Places/서울/성수/어니언 성수|어니언 성수]]", index)
         # 기록은 레포가 아니라 data_dir 에
         self.assertTrue(Store(self.config["data_dir"]).seen("AAA"))
+
+    def test_low_credit_is_explained(self):
+        def broke(caption):
+            raise RuntimeError("Your credit balance is too low to access the Anthropic API.")
+        self.app.extractor = broke
+        [reply] = self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertIn("크레딧이 부족", reply)
 
     def test_same_place_from_second_post_merges(self):
         self.app.handle("https://www.instagram.com/p/AAA/")

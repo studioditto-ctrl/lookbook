@@ -22,7 +22,8 @@ class App:
         self.config = config
         self.store = store or Store(config["data_dir"])
         self.gmaps = gmaps
-        self.fetch = fetch or instagram.fetch
+        channel = (config.get("gmaps") or {}).get("browser_channel")
+        self.fetch = fetch or (lambda code, url: instagram.fetch_any(code, url, channel))
         self.extractor = extractor or (lambda caption: extract_mod.extract(caption, config))
         self.resolver = resolver or (lambda c: geocode.resolve(c, config))
         self.pending = {}  # 캡션을 못 받은 게시물: shortcode → url
@@ -66,6 +67,10 @@ class App:
             result = self.extractor(post.caption)
         except Exception as e:  # noqa: BLE001 — API 오류는 사용자에게 알리고 다음 메시지로
             self.pending[post.shortcode] = post.url
+            print(f"[app] 장소 분석 실패: {e}")
+            if "credit balance" in str(e):
+                return ("⚠️ Claude API 크레딧이 부족해 분석하지 못했어요. "
+                        "console.anthropic.com → Plans &amp; Billing 에서 충전한 뒤 URL 을 다시 보내주세요.")
             return f"⚠️ 장소 분석에 실패했어요 ({esc(type(e).__name__)}). 잠시 후 URL 을 다시 보내주세요."
         if not result.places:
             return f"🤔 장소를 찾지 못했어요.\n{esc(result.summary)}\n{esc(post.url)}"
