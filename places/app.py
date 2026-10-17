@@ -5,16 +5,19 @@ import html
 import time
 
 from . import extract as extract_mod
-from . import geocode, instagram, obsidian, region
-from .gmaps import NO_SAVE
+from . import coords as coords_mod
+from . import geocode, instagram, nearby, obsidian, region
+from .gmaps import MISMATCH, NO_SAVE
 from .progress import Progress
 from .store import Store
 
 HELP = (
     "인스타그램 게시물 URL 을 보내면 장소를 찾아 구글 지도 목록과 옵시디언에 저장합니다.\n"
-    "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장 · /status 작동 확인"
+    "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장 · /status 작동 확인\n"
+    "📍 근처 장소: '근처 카페' · '/near 맛집 3' 라고 보낸 뒤 위치를 보내면 가까운 저장 장소를 알려줘요"
 )
 MIN_CAPTION = 20  # URL 과 함께 온 텍스트가 이보다 길면 캡션으로 본다
+NEAR_MEMORY_SECONDS = 600  # '근처 카페' 라고 한 뒤 이 안에 위치를 보내면 카페만 보여 준다
 
 
 def esc(text):
@@ -36,6 +39,7 @@ class App:
             lambda caption, images=(): extract_mod.extract(caption, config, images=images))
         self.resolver = resolver or (lambda c: geocode.resolve(c, config))
         self.pending = {}  # 캡션을 못 받은 게시물: shortcode → url
+        self.near_state = {}  # chat_id → (찾는 말, 개수, 시각)
         self.started = time.time()
         self.last_done = ""  # /status 용: 마지막으로 처리한 게시물
 
@@ -146,13 +150,20 @@ class App:
             return region.list_name(place.sido, place.area, self.config,
                                     info.get("address") or place.address)
 
-        ok, reason = self.gmaps.save(place.gmaps_query, pick)
+        ok, reason = self.gmaps.save(place.gmaps_query, pick, expect=place.name, expect_addr=place.address)
         info = getattr(self.gmaps, "last", None) or {}
+        if reason == MISMATCH:
+            # 열린 곳이 다른 가게다. 이 정보(주소·좌표)를 장소 기록에 넣으면 안 된다
+            entry["gmaps_mismatch"] = True
+            return (f"⚠️지도에서 같은 가게를 못 찾았어요 (열린 곳: {esc(info.get('name', ''))}) · {link}",
+                    list_name)
         # 캡션의 '황새울로342번길 19' 같은 부분 주소는 구글의 전체 주소로 바꾼다
         old = entry.get("address") or ""
         if info.get("address") and (not old or old.replace(" ", "") in info["address"].replace(" ", "")):
             entry["address"] = info["address"]
         list_name = info.get("list") or list_name
+        if info.get("lat") is not None and entry.get("lat") is None:
+            entry["lat"], entry["lng"] = info["lat"], info["lng"]  # '내 주변' 추천용 좌표
         if ok:
             entry["gmaps_saved"] = True
             entry["gmaps_list"] = list_name
@@ -176,14 +187,34 @@ class App:
             return self._status()
         return HELP
 
+    # --- 내 주변 추천 ---
+    def near_request(self, chat_id, text):
+        """'근처 카페' → 무엇을 찾는지 기억해 두고 위치를 보내 달라고 한다."""
+        terms, n = nearby.parse_request(text)
+        self.near_state[str(chat_id)] = (terms, n, time.time())
+        what = " ".join(terms) or "전체"
+        return (f"📍 지금 계신 곳 기준으로 가까운 저장 장소를 찾을게요 ({esc(what)} · {n}곳).\n"
+                "아래 버튼을 누르거나, 📎 → 위치로 현재 위치를 보내 주세요.")
+
+    def nearby_reply(self, chat_id, lat, lng):
+        """받은 GPS 위치 → 가까운 저장 장소 답장. 위치는 저장하지 않는다."""
+        terms, n = [], nearby.DEFAULT_N
+        state = self.near_state.pop(str(chat_id), None)
+        if state and time.time() - state[2] < NEAR_MEMORY_SECONDS:  # 바로 앞에 '근처 카페' 라고 했으면 그걸로
+            terms, n = state[0], state[1]
+        places, missing = nearby.candidates(self.store.data["places"], coords_mod.load(self.config["data_dir"]))
+        return nearby.render(nearby.nearest(places, lat, lng, terms, n), terms, missing)
+
     def _status(self):
         """밖에서도 봇이 도는지 확인용."""
         up = int(time.time() - self.started)
         places = self.store.all_places()
-        unsaved = sum(1 for e in places if not e.get("gmaps_saved") and not e.get("gmaps_no_save"))
+        unsaved = sum(1 for e in places if not (e.get("gmaps_saved") or e.get("gmaps_no_save") or e.get("gmaps_mismatch")))
+        mismatch = sum(1 for e in places if e.get("gmaps_mismatch") and not e.get("gmaps_saved"))
         return "\n".join([
             f"🟢 작동 중 · 켜진 지 {up // 3600}시간 {up % 3600 // 60}분 ({time.strftime('%m-%d %H:%M', time.localtime(self.started))})",
-            f"저장 장소 {len(places)}곳 · 지도 미저장 {unsaved}곳" + (" → /retry" if unsaved else ""),
+            f"저장 장소 {len(places)}곳 · 지도 미저장 {unsaved}곳" + (" → /retry" if unsaved else "")
+            + (f" · 같은 가게를 못 찾은 {mismatch}곳(직접 확인)" if mismatch else ""),
             f"마지막 처리: {esc(self.last_done) or '이번 실행에서는 아직 없음'}",
         ])
 
@@ -192,7 +223,7 @@ class App:
         if not self.gmaps:
             return "구글 지도 자동 저장이 꺼져 있어요."
         todo = [e for e in self.store.all_places()
-                if not e.get("gmaps_saved") and not e.get("gmaps_no_save")]
+                if not (e.get("gmaps_saved") or e.get("gmaps_no_save") or e.get("gmaps_mismatch"))]
         if not todo:
             return "✅ 지도에 저장 안 된 장소가 없어요."
         progress = progress or Progress()

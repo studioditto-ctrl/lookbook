@@ -14,25 +14,13 @@ LIST.json (레포 밖 %USERPROFILE%\\.lookbook\\lists\\ 에 둔다):
 """
 
 import json
-import re
-from difflib import SequenceMatcher
 from pathlib import Path
 
 from . import obsidian, region
 from .gmaps import NO_SAVE, GMaps
+from .namematch import name_matches  # noqa: F401 — 다른 모듈·테스트가 여기서 가져다 쓴다
+from .namematch import norm as _norm
 from .store import Store
-
-
-def _norm(text):
-    return re.sub(r"[\s·\-_.()（）,]+", "", text or "").lower()
-
-
-def name_matches(want, got):
-    """구글이 연 이름이 찾던 이름과 같은 가게인가 (영문 병기·지점명이 붙어도 통과)."""
-    a, b = _norm(want), _norm(got)
-    if not a or not b:
-        return False
-    return a in b or b in a or SequenceMatcher(None, a, b).ratio() >= 0.7
 
 
 def queries(item):
@@ -119,6 +107,8 @@ class AddList:
                     entry["sources"].append(source)
                 entry["gmaps_saved"] = entry.get("gmaps_saved") or saved
                 entry["gmaps_list"] = r["target"]
+                if entry.get("lat") is None and info.get("lat") is not None:
+                    entry["lat"], entry["lng"] = info["lat"], info["lng"]
                 entry["tags"] = list(dict.fromkeys((entry.get("tags") or []) + tags))
                 obsidian.write_place(entry, r["target"], item.get("note", ""), self.config)
                 updated += 1
@@ -127,7 +117,8 @@ class AddList:
             entry = {
                 "name": info["name"], "category": item.get("category") or self.spec.get("category", "식당"),
                 "sido": sido, "area": area, "address": info["address"],
-                "lat": None, "lng": None, "kakao_id": "", "kakao_url": "", "phone": "",
+                "lat": info.get("lat"), "lng": info.get("lng"),
+                "kakao_id": "", "kakao_url": "", "phone": "",
                 "note": item.get("note", ""), "confidence": 1.0, "checked": True,
                 "sources": [s for s in (source, info["url"]) if s],
                 "gmaps_saved": saved, "gmaps_no_save": not saved, "gmaps_list": r["target"],

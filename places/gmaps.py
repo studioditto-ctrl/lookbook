@@ -14,12 +14,16 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
+from . import coords
+from .namematch import address_match, name_matches
+
 NAV_TIMEOUT = 30_000
 UI_TIMEOUT = 10_000
 MENU_SCROLLS = 6
 # 이미 저장한 장소는 '저장됨'/'Saved' 로 바뀐다. 누르면 같은 목록 메뉴가 열린다
 SAVE_BUTTON = re.compile(r"^(저장됨|저장|Saved|Save)(?!\w)")
 NO_SAVE = "저장 버튼 없음"  # 공유숙박 등 구글 지도에 저장 기능이 없는 장소
+MISMATCH = "다른 가게가 열림"  # 검색 결과에 찾는 가게가 없어 저장하지 않았다
 NEW_LIST = re.compile(r"(새 목록|New list)")
 CREATE = re.compile(r"^(만들기|Create)$")
 
@@ -83,15 +87,16 @@ class GMaps:
         return self.page.locator('a[aria-label*="Google 계정"], a[aria-label*="Google Account"]').count() > 0
 
     # --- 저장 ---
-    def save(self, query, list_name):
+    def save(self, query, list_name, expect=None, expect_addr=""):
         """(성공 여부, 사유). list_name 이 함수면 연 장소의 정보(place_info)로 목록 이름을 정한다.
-        연 장소의 정보와 실제로 쓴 목록 이름은 self.last 에 남는다."""
+        연 장소의 정보와 실제로 쓴 목록 이름은 self.last 에 남는다.
+        expect(가게 이름)를 주면 열린 장소가 이름이나 주소(expect_addr)로 맞을 때만 저장한다."""
         self.last = {}
         for attempt in (1, 2):
             try:
                 self.start()
-                self._open_place(query)
-                ok, reason = self.save_current(list_name)
+                self._open_place(query, expect)
+                ok, reason = self.save_current(list_name, expect, expect_addr)
                 if reason == NO_SAVE:
                     print(f"[gmaps] '{query}' 에는 저장 버튼이 없습니다 (공유숙박 등)")
                 return ok, reason
@@ -109,14 +114,18 @@ class GMaps:
         print(f"[gmaps] '{query}' 저장 실패: {e} (스크린샷: {shot})")
         return False, f"{type(e).__name__}"
 
-    def _open_place(self, query):
+    def _open_place(self, query, expect=None):
         page = self.page
         page.goto(f"https://www.google.com/maps/search/{quote(query)}?hl=ko", timeout=NAV_TIMEOUT)
         title = page.locator("h1.DUwDvf")
         results = page.locator("a.hfpxzc")
         page.wait_for_timeout(2500)
         if title.count() == 0 and results.count() > 0:
-            results.first.click()  # 검색 결과가 여러 개면 첫 번째
+            idx = 0  # 검색 결과가 여러 개면, 찾는 이름과 맞는 것을 먼저 (없으면 첫 번째)
+            if expect:
+                labels = results.evaluate_all("els => els.slice(0, 6).map(e => e.getAttribute('aria-label') || '')")
+                idx = next((i for i, label in enumerate(labels) if name_matches(expect, label)), 0)
+            results.nth(idx).click()
         title.first.wait_for(timeout=UI_TIMEOUT)
 
     def place_info(self):
@@ -132,6 +141,13 @@ class GMaps:
         address = re.sub(r"^주소:\s*", "", first_text('button[data-item-id="address"]', "aria-label")).strip()
         m = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", page.url)
         pid = m.group(1) if m else ""
+        # 주소창에 장소 핀 좌표가 늦게 붙는다. '내 주변' 추천에 쓸 좌표를 같이 읽어 둔다
+        ll = coords.from_url(page.url)
+        for _ in range(12):
+            if ll:
+                break
+            page.wait_for_timeout(250)
+            ll = coords.from_url(page.url)
         return {
             "name": first_text("h1.DUwDvf").strip(),
             "address": address,
@@ -139,11 +155,17 @@ class GMaps:
             "id": pid,
             # cid 링크는 장소 이름·검색어가 바뀌어도 같은 곳을 연다
             "url": f"https://maps.google.com/?cid={int(pid.split(':')[1], 16)}" if pid else "",
+            "lat": ll[0] if ll else None,
+            "lng": ll[1] if ll else None,
         }
 
-    def save_current(self, list_name):
+    def save_current(self, list_name, expect=None, expect_addr=""):
         """열려 있는 장소를 목록에 저장. (성공 여부, 사유)."""
         info = self.place_info()
+        if expect and not (name_matches(expect, info["name"]) or address_match(expect_addr, info["address"])):
+            # 1순위 결과를 그대로 저장하면 엉뚱한 가게('거제시', 다른 카페)가 내 목록에 들어간다
+            self.last = dict(info, list="")
+            return False, MISMATCH
         name = list_name(info) if callable(list_name) else list_name
         self.last = dict(info, list=name)
         if not self._click_save():

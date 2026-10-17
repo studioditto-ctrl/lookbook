@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from places import extract, geocode, instagram, region  # noqa: E402
 from places.app import App  # noqa: E402
+from places.gmaps import MISMATCH  # noqa: E402
+from places.namematch import address_match, name_matches  # noqa: E402
 from places.telegram_bot import handle_update  # noqa: E402
 from places.store import Store  # noqa: E402
 
@@ -272,10 +274,15 @@ class GeocodeTest(unittest.TestCase):
 
 
 class FakeGMaps:
-    def __init__(self, ok=True, reason="", address=""):
+    def __init__(self, ok=True, reason="", address="", opened_name=""):
         self.ok, self.reason, self.address, self.calls = ok, reason, address, []
+        self.opened_name = opened_name  # 비워 두면 항상 찾던 가게가 열린다
 
-    def save(self, query, list_name):
+    def save(self, query, list_name, expect=None, expect_addr=""):
+        if self.opened_name and expect and not (
+                name_matches(expect, self.opened_name) or address_match(expect_addr, self.address)):
+            self.last = {"name": self.opened_name, "address": self.address, "list": ""}
+            return False, MISMATCH  # 실제 GMaps 처럼 다른 가게가 열리면 저장하지 않는다
         if callable(list_name):  # 실제 GMaps 처럼 연 장소의 주소로 목록을 정한다
             list_name = list_name({"address": self.address})
         self.last = {"address": self.address, "list": list_name}
@@ -331,6 +338,17 @@ class AppTest(unittest.TestCase):
         entry = Store(self.config["data_dir"]).all_places()[0]
         self.assertTrue(entry["gmaps_saved"])
         self.assertIn("✅ 지도에 저장 안 된", self.app.handle("/retry")[0])
+
+    def test_wrong_shop_is_not_saved_and_not_retried(self):
+        self.app.gmaps = FakeGMaps(opened_name="거제시", address="경상남도 거제시")
+        [reply] = self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertIn("같은 가게를 못 찾았어요 (열린 곳: 거제시)", reply)
+        self.assertEqual(self.app.gmaps.calls, [])  # 저장 안 함
+        entry = Store(self.config["data_dir"]).all_places()[0]
+        self.assertFalse(entry["gmaps_saved"])
+        self.assertTrue(entry["gmaps_mismatch"])
+        self.assertIn("✅ 지도에 저장 안 된", self.app.handle("/retry")[0])  # 다시 시도 대상이 아니다
+        self.assertIn("같은 가게를 못 찾은 1곳", self.app.handle("/status")[0])
 
     def test_place_without_save_button_is_explained(self):
         from places.gmaps import NO_SAVE
@@ -437,6 +455,106 @@ def _update(chat_id, text):
     return {"update_id": 1, "message": {"chat": {"id": int(chat_id)}, "text": text}}
 
 
+class NearbyTest(unittest.TestCase):
+    PLACES = {
+        "a": {"name": "리사르커피 성수", "category": "카페", "gmaps_saved": True, "gmaps_list": "📍서울",
+              "lat": 37.5446, "lng": 127.0558, "sources": ["https://maps.google.com/?cid=111"], "tags": []},
+        "b": {"name": "모수", "category": "식당", "gmaps_saved": True, "gmaps_list": "📍서울",
+              "lat": 37.5330, "lng": 126.9990, "sources": [], "tags": ["미쉐린"], "note": "카페 같은 분위기"},
+        "c": {"name": "먼 곳 카페", "category": "카페", "gmaps_saved": True, "gmaps_list": "📍제주 제주시",
+              "lat": 33.5, "lng": 126.5, "sources": [], "tags": []},
+        "d": {"name": "좌표 모름", "category": "카페", "gmaps_saved": True, "sources": []},
+        "e": {"name": "저장 안 됨", "category": "카페", "gmaps_saved": False, "lat": 37.5446, "lng": 127.0558},
+    }
+
+    def test_parse_request(self):
+        from places import nearby
+        self.assertEqual(nearby.parse_request("근처 카페 3 추천해줘"), (["카페"], 3))
+        self.assertEqual(nearby.parse_request("/near 맛집 99"), (["식당"], 10))
+        self.assertEqual(nearby.parse_request("주변 미슐랭"), (["미쉐린"], 5))
+        self.assertEqual(nearby.parse_request("/near"), ([], 5))
+        self.assertTrue(nearby.wants_nearby("근처에 뭐 있어?"))
+        self.assertFalse(nearby.wants_nearby("https://www.instagram.com/p/AAA/ 근처 카페"))
+
+    def test_nearest_filters_and_sorts(self):
+        from places import nearby
+        places, missing = nearby.candidates(self.PLACES, {})
+        self.assertEqual(missing, 1)  # 좌표 모름. 저장 안 된 곳은 세지도 않는다
+        hits = nearby.nearest(places, 37.5450, 127.0560, [], 5)
+        self.assertEqual([p["name"] for _, p in hits], ["리사르커피 성수", "모수", "먼 곳 카페"])
+        cafes = nearby.nearest(places, 37.5450, 127.0560, ["카페"], 5)
+        self.assertEqual([p["name"] for _, p in cafes], ["리사르커피 성수", "먼 곳 카페"])  # 설명 글의 '카페' 는 제외
+        star = nearby.nearest(places, 37.5450, 127.0560, ["미쉐린"], 5)
+        self.assertEqual([p["name"] for _, p in star], ["모수"])
+
+    def test_sidecar_coords_fill_in(self):
+        from places import nearby
+        places, missing = nearby.candidates(self.PLACES, {"d": [37.54, 127.05]})
+        self.assertEqual(missing, 0)
+        self.assertIn("좌표 모름", [p["name"] for p in places])
+
+    def test_confirmed_unknown_is_not_counted_as_missing(self):
+        from places import nearby
+        places, missing = nearby.candidates(self.PLACES, {"d": None})
+        self.assertEqual(missing, 0)
+        self.assertNotIn("좌표 모름", [p["name"] for p in places])
+
+    def test_render(self):
+        from places import nearby
+        places, missing = nearby.candidates(self.PLACES, {})
+        text = nearby.render(nearby.nearest(places, 37.5450, 127.0560, ["카페"], 2), ["카페"], missing)
+        self.assertIn("<b>리사르커피 성수</b> · 카페 · 50m", text)
+        self.assertIn("api=1&amp;destination=37.5446,127.0558", text)  # HTML 안이라 & 를 이스케이프
+        self.assertIn("https://maps.google.com/?cid=111", text)
+        self.assertIn("좌표를 아직 모르는 1곳", text)
+        self.assertIn("근처 30km 안에는 없어요", nearby.render(
+            nearby.nearest(places, 35.0, 129.0, [], 1), [], 0))  # 부산 에서는 제일 가까워도 멀다
+        self.assertIn("맞는 저장 장소가 없어요", nearby.render([], ["숙소"], 0))
+
+    def test_app_remembers_request_then_answers_location(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        cfg = dict(CONFIG, data_dir=str(Path(tmp.name) / "data"))
+        store = Store(cfg["data_dir"])
+        store.data["places"].update(self.PLACES)
+        app = App(cfg, store=store)
+        self.assertIn("카페 · 3곳", app.near_request(7, "근처 카페 3"))
+        reply = app.nearby_reply(7, 37.5450, 127.0560)
+        self.assertIn("리사르커피 성수", reply)
+        self.assertNotIn("모수", reply)  # 카페만
+        again = app.nearby_reply(7, 37.5450, 127.0560)  # 요청은 한 번 쓰면 잊는다 → 전체
+        self.assertIn("모수", again)
+
+    def test_plus_code_decodes_to_coordinates(self):
+        from places import coords
+        lat, lng = coords.decode_plus_code("849VCWC8+R9")  # 공개된 예시 코드 (구글 본사)
+        self.assertAlmostEqual(lat, 37.42206, places=4)
+        self.assertAlmostEqual(lng, -122.08406, places=4)
+        # 로그인 없는 장소 주소에는 좌표 대신 플러스 코드가 든다
+        url = "https://www.google.com/maps/place/x/data=!3m1!4b1!4m4!3m3!1s0x1:0x2!16s%2Fg%2F1!20s8Q58FHF2%2B6JF?hl=ko"
+        lat, lng = coords.from_url(url)
+        self.assertTrue(33.0 < lat < 34.0 and 126.0 < lng < 127.0)  # 제주
+
+    def test_address_match_ignores_floors_and_needs_every_part(self):
+        ok = address_match("인천광역시 옹진군 영흥면 영흥로 109-12", "주소: 인천광역시 옹진군 영흥면 영흥로 109-12 영흥수협회센터 34호")
+        self.assertTrue(ok)
+        # 같은 가게: 글은 'YMCA 2층', 구글은 '서울YMCA 2층'. 'B1F'·'2F' 같은 층 표기는 안 따진다
+        self.assertTrue(address_match("종로구 종로 69 YMCA 2층", "서울특별시 종로구 종로 69 서울YMCA 2층"))
+        self.assertTrue(address_match("용산구 소월로20길 42 2층", "2F, 42 소월로20길 용산구 서울특별시"))
+        # 다른 가게: 길 번호가 다르다
+        self.assertFalse(address_match("마포구 성미산로 183 4, 5층", "서울특별시 마포구 성미산로17길 85 1층"))
+        self.assertFalse(address_match("종로구 대학로14길 24 1층", "서울특별시 종로구 대학로12길 22 아트포레스트 2층"))
+        self.assertFalse(address_match("", "서울"))
+        self.assertFalse(address_match("서울", "서울특별시"))  # 한 조각만으로는 믿지 않는다
+
+    def test_coords_from_url(self):
+        from places import coords
+        url = "https://www.google.com/maps/place/x/@37.5,127.0,17z/data=!3m1!8m2!3d37.5446!4d127.0558"
+        self.assertEqual(coords.from_url(url), (37.5446, 127.0558))  # 핀이 화면 중심보다 우선
+        self.assertEqual(coords.from_url("https://www.google.com/maps/@37.5,127.0,15z"), (37.5, 127.0))
+        self.assertIsNone(coords.from_url("https://www.google.com/maps/search/x"))
+
+
 class AddListTest(unittest.TestCase):
     def test_name_match_tolerates_branch_and_english(self):
         from places.addlist import name_matches
@@ -540,6 +658,28 @@ class ProgressTest(unittest.TestCase):
 
 
 class BotTest(unittest.TestCase):
+    def test_location_message_gets_nearby_reply_without_logging_coordinates(self):
+        seen = []
+        app = SimpleNamespace(nearby_reply=lambda chat, lat, lng: seen.append((lat, lng)) or "가까운 곳")
+        update = {"message": {"chat": {"id": 7}, "location": {"latitude": 37.5, "longitude": 127.0}}}
+        sent = []
+        with unittest.mock.patch("builtins.print") as out:
+            handle_update(app, update, "7", lambda c, t: sent.append(t), set())
+        self.assertEqual((seen, sent), ([(37.5, 127.0)], ["가까운 곳"]))
+        logged = " ".join(str(c.args[0]) for c in out.call_args_list)
+        self.assertIn("위치 수신", logged)
+        self.assertNotIn("37.5", logged)  # 좌표는 로그에 안 남는다
+
+    def test_near_request_shows_location_button(self):
+        from places.telegram_bot import LOCATION_KEYBOARD
+        app = SimpleNamespace(near_request=lambda chat, text: "위치를 보내 주세요")
+        update = {"message": {"chat": {"id": 7}, "text": "근처 카페 추천해줘"}}
+        sent = []
+        handle_update(app, update, "7", lambda c, t, markup=None: sent.append((t, markup)), set())
+        self.assertEqual(sent, [("위치를 보내 주세요", LOCATION_KEYBOARD)])
+        button = LOCATION_KEYBOARD["keyboard"][0][0]
+        self.assertTrue(button["request_location"])
+
     def test_progress_message_wraps_url_processing(self):
         calls = []
         progress = SimpleNamespace(finish=lambda text=None: calls.append(("finish", text)),

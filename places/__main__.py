@@ -3,7 +3,8 @@
   python -m places check            설정·키·vault 경로 점검
   python -m places login            구글 로그인 (최초 1회, 창이 뜬다)
   python -m places iglogin          인스타 로그인 (카드뉴스 슬라이드 읽기용, 최초 1회)
-  python -m places addlist FILE [--apply]  장소 목록(미쉐린 등)을 지도 목록·옵시디언에 추가 (addlist.py)
+  python -m places coords           저장 장소의 좌표를 구글 지도에서 읽어 채움 ('내 주변 추천'용, coords.py)
+  python -m places addlist FILE [--apply]장소 목록(미쉐린 등)을 지도 목록·옵시디언에 추가 (addlist.py)
   python -m places reorg [--apply]구글 지도 저장 목록을 시 단위로 재정리 + 옵시디언 노트 (reorg.py)
   python -m places try URL [URL..]  저장 없이 분석만 해 보기 (--save 로 실제 저장)
   python -m places run [--log FILE] 텔레그램 봇 실행 (--log 면 출력을 UTF-8 파일에 덧붙인다)
@@ -103,6 +104,8 @@ def main(argv=None):
     p_reorg.add_argument("--apply", action="store_true", help="실제로 새 목록에 추가하고 노트를 쓴다")
     p_reorg.add_argument("--sample", type=int, default=0, help="목록마다 앞 N곳만 (미리보기용)")
     p_reorg.add_argument("--retry", action="store_true", help="--apply 중 실패한 곳만 다시")
+    p_coords = sub.add_parser("coords")
+    p_coords.add_argument("--limit", type=int, default=0, help="처음 N곳만 (시험용)")
     p_add = sub.add_parser("addlist")
     p_add.add_argument("file", help="장소 목록 JSON (addlist.py 설명 참고)")
     p_add.add_argument("--apply", action="store_true", help="확인을 통과한 장소를 실제로 저장")
@@ -131,6 +134,10 @@ def main(argv=None):
         ok = GMaps(config, config["data_dir"]).login()
         print("로그인 확인됨" if ok else "로그인을 확인하지 못했습니다. 다시 시도하세요.")
         return 0 if ok else 1
+    if args.cmd == "coords":
+        from . import coords
+        coords.fill(config, log=lambda m: print(m, flush=True), limit=args.limit)
+        return 0
     if args.cmd == "addlist":
         from . import addlist
         addlist.AddList(config, addlist.load(args.file), log=lambda m: print(m, flush=True)).run(apply=args.apply)

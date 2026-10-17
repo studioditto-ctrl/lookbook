@@ -6,7 +6,7 @@ import traceback
 
 import requests
 
-from . import instagram
+from . import instagram, nearby
 from .progress import Progress
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -42,10 +42,17 @@ def chunks(text, limit=MAX_LEN):
     return out
 
 
-def send(token, chat_id, text):
-    for part in chunks(text):
+def send(token, chat_id, text, markup=None):
+    parts = chunks(text)
+    for i, part in enumerate(parts):
+        extra = {"reply_markup": markup} if markup and i == len(parts) - 1 else {}
         call(token, "sendMessage", chat_id=chat_id, text=part,
-             parse_mode="HTML", link_preview_options={"is_disabled": True})
+             parse_mode="HTML", link_preview_options={"is_disabled": True}, **extra)
+
+
+# 누르면 휴대폰이 현재 위치(GPS)를 한 번 보내 준다. 한 번 쓰면 키보드는 접힌다
+LOCATION_KEYBOARD = {"keyboard": [[{"text": "📍 내 위치 보내기", "request_location": True}]],
+                     "resize_keyboard": True, "one_time_keyboard": True}
 
 
 def send_one(token, chat_id, text):
@@ -75,9 +82,12 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
     msg = update.get("message") or {}
     chat_id = str((msg.get("chat") or {}).get("id", ""))
     text = msg.get("text") or msg.get("caption") or ""
-    if not chat_id or not text:
+    location = msg.get("location")
+    if not chat_id or not (text or location):
         return
-    log(f"[bot] 메시지 수신 (채팅 {chat_id}, {len(text)}자)")
+    # 위치 좌표는 로그에 남기지 않는다
+    log(f"[bot] 위치 수신 (채팅 {chat_id})" if location and not text
+        else f"[bot] 메시지 수신 (채팅 {chat_id}, {len(text)}자)")
     if not allowed:
         reply(chat_id, f"이 채팅방 ID 는 <code>{chat_id}</code> 입니다.\n"
               "places.env 의 TELEGRAM_CHAT_ID 에 넣고 봇을 다시 실행하세요.")
@@ -87,6 +97,17 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
         if chat_id not in notified:  # 설정 실수를 알아챌 수 있게 채팅방마다 한 번만 알린다
             notified.add(chat_id)
             reply(chat_id, f"이 봇은 다른 채팅방 전용입니다. 이 채팅방 ID: <code>{chat_id}</code>")
+        return
+    if location and not text:  # 📎 → 위치, 또는 '내 위치 보내기' 버튼
+        try:
+            out = app.nearby_reply(chat_id, location["latitude"], location["longitude"])
+        except Exception:  # noqa: BLE001
+            log("[bot] 주변 추천 실패\n" + traceback.format_exc())
+            out = "⚠️ 주변 추천 중 오류가 났어요. places.log 를 확인해 주세요."
+        reply(chat_id, out)
+        return
+    if nearby.wants_nearby(text):  # '근처 카페' · /near 맛집 3 → 위치 보내기 버튼
+        reply(chat_id, app.near_request(chat_id, text), markup=LOCATION_KEYBOARD)
         return
     progress = None
     if instagram.find_urls(text) or text.strip().startswith("/retry"):
@@ -111,9 +132,9 @@ def run(app):
     allowed = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     notified = set()
 
-    def reply(chat_id, text):
+    def reply(chat_id, text, markup=None):
         try:
-            send(token, chat_id, text)
+            send(token, chat_id, text, markup)
         except (requests.RequestException, RuntimeError) as e:
             log(f"[bot] 답장 실패: {e}")
 
