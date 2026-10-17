@@ -104,8 +104,19 @@ class RegionTest(unittest.TestCase):
             self.assertEqual(region.from_address(address, CONFIG), expected, address)
 
     def test_list_name(self):
-        self.assertEqual(region.list_name("서울", "성수", CONFIG), "📍서울 성수")
+        self.assertEqual(region.list_name("서울", "성수", CONFIG), "📍서울")
         self.assertEqual(region.list_name("", "", CONFIG), "📍기타")
+        grouped = {"gmaps": {"list_prefix": "📍", "list_groups": {"인천": "서울·경기"}}}
+        self.assertEqual(region.list_name("인천", "영흥도", grouped), "📍서울·경기")
+        self.assertEqual(region.list_name("일본", "도쿄", grouped), "📍일본")
+        by_area = {"gmaps": {"list_prefix": "📍", "list_unit": "area"}}
+        self.assertEqual(region.list_name("서울", "성수", by_area), "📍서울 성수")
+
+    def test_gmaps_query_adds_region_without_address(self):
+        place = geocode.Place(name="미소식", category="식당", sido="경남", area="거제")
+        self.assertEqual(place.gmaps_query, "미소식 경남 거제")
+        dup = geocode.Place(name="스타벅스 강릉강문해변", category="카페", sido="강원", area="강문해변")
+        self.assertEqual(dup.gmaps_query, "스타벅스 강릉강문해변 강원")
 
 
 class ExtractTest(unittest.TestCase):
@@ -231,7 +242,7 @@ class AppTest(unittest.TestCase):
         [reply] = self.app.handle("https://www.instagram.com/p/AAA/?utm_source=x")
         self.assertIn("📍 1곳 저장", reply)
         self.assertIn("✅지도", reply)
-        self.assertEqual(self.gmaps.calls, [("어니언 성수 서울 성동구 아차산로9길 8", "📍서울 성수")])
+        self.assertEqual(self.gmaps.calls, [("어니언 성수 서울 성동구 아차산로9길 8", "📍서울")])
         note = (self.vault / "서울" / "성수" / "어니언 성수.md").read_text(encoding="utf-8")
         self.assertIn("location: [37.5446, 127.0581]", note)
         self.assertIn("gmaps_saved: true", note)
@@ -306,7 +317,7 @@ class AppTest(unittest.TestCase):
         self.assertIn("📍 1곳 저장", reply)
         self.assertNotIn("위치 확인 필요", reply)
         self.assertIn("카카오 키가 없어", reply)
-        self.assertEqual(self.gmaps.calls, [("어니언 성수", "📍서울 성수")])
+        self.assertEqual(self.gmaps.calls, [("어니언 서울 성수", "📍서울")])
         self.assertTrue((self.vault / "서울" / "성수" / "어니언.md").exists())
 
     def test_kakao_miss_warns_per_place(self):

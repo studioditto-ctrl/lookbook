@@ -43,7 +43,13 @@ class Place:
 
     @property
     def gmaps_query(self):
-        return " ".join(p for p in (self.name, self.address or self.area) if p)
+        if self.address:
+            return f"{self.name} {self.address}"
+        # 주소가 없으면 지역을 붙인다. 이름만으로는 다른 도시의 동명 가게가 열린다.
+        # 이름에 이미 든 지역은 빼고 ('스타벅스 강릉강문해변' + '강문해변' 중복 방지)
+        name = self.name.replace(" ", "")
+        extra = [p for p in (self.sido, self.area) if p and p.replace(" ", "") not in name]
+        return " ".join([self.name, *extra])
 
     @property
     def gmaps_url(self):

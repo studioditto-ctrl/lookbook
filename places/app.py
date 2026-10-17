@@ -56,7 +56,7 @@ class App:
                 post = instagram.Post(code, url, caption=extra, source="user")
             else:
                 post = self.fetch(code, url)
-            if not post.caption:
+            if not post.caption and not post.images:
                 self.pending[code] = url
                 replies.append(
                     f"⚠️ 캡션을 가져오지 못했어요: {esc(url)}\n"

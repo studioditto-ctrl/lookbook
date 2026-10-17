@@ -12,7 +12,13 @@ obsidian:
 # 구글 지도 저장 목록 자동 저장 (Playwright 브라우저 자동화, 실험 기능)
 gmaps:
   enabled: true
-  list_prefix: "📍"           # 목록 이름: 📍서울 성수
+  list_prefix: "📍"           # 목록 이름: 📍서울·경기
+  # region: 시도·국가 단위 (기존 목록 📍서울·경기 📍제주 📍일본 에 맞춤) / area: 📍서울 성수 처럼 동네까지
+  list_unit: "region"
+  list_groups:                # 같은 목록으로 합칠 시도. 없는 시도는 그대로 (📍강원, 📍경남, 📍일본)
+    서울: 서울·경기
+    경기: 서울·경기
+    인천: 서울·경기
   headless: false             # 구글이 헤드리스 브라우저를 막는 경우가 많아 기본은 창을 띄운다
   browser_channel: "chrome"   # 설치된 크롬 사용. 없으면 "" 로 두면 Playwright 크로미움
 

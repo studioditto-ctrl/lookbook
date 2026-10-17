@@ -56,6 +56,15 @@ def from_address(address, config):
 
 
 def list_name(sido, area, config):
-    prefix = (config.get("gmaps") or {}).get("list_prefix", "")
-    label = " ".join(p for p in (sido, area) if p) or "기타"
-    return f"{prefix}{label}"
+    """구글 지도 저장 목록 이름.
+
+    list_unit 이 region(기본)이면 시도·국가 단위로 묶고 list_groups 로 합친다
+    (서울·경기·인천 → '서울·경기'). area 면 '서울 성수' 처럼 동네까지.
+    """
+    settings = config.get("gmaps") or {}
+    prefix = settings.get("list_prefix", "")
+    if settings.get("list_unit", "region") == "area":
+        label = " ".join(p for p in (sido, area) if p)
+    else:
+        label = (settings.get("list_groups") or {}).get(sido, sido)
+    return f"{prefix}{label or '기타'}"

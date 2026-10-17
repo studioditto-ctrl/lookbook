@@ -108,7 +108,8 @@ class GMaps:
         page = self.page
         items = page.locator('[role^="menuitem"]')
         items.first.wait_for(timeout=UI_TIMEOUT)
-        target = items.filter(has_text=list_name)
+        # 이름이 정확히 같은 목록만 ('📍제주' 가 '📍제주 애월' 에 걸리지 않게)
+        target = items.filter(has=page.get_by_text(list_name, exact=True))
         if target.count() > 0:
             if (target.first.get_attribute("aria-checked") or "") == "true":
                 page.keyboard.press("Escape")
@@ -117,9 +118,12 @@ class GMaps:
             page.wait_for_timeout(1500)
             return True, "저장"
 
-        items.filter(has_text=NEW_LIST).first.click()
-        box = page.locator('div[role="dialog"] input, input[aria-label*="목록"], input[aria-label*="List"]')
-        box.first.fill(list_name)
+        # '새 목록' 은 메뉴 항목이 아니라 메뉴 아래쪽 버튼이다 (2026-10 화면)
+        page.get_by_role("button", name=NEW_LIST).first.click()
+        # 대화상자가 뜨면 이름 칸에 '제목 없는 목록' 이 선택된 채로 포커스가 가 있다
+        box = page.locator('input[type="text"]:focus')
+        box.wait_for(timeout=UI_TIMEOUT)
+        box.fill(list_name)
         page.get_by_role("button", name=CREATE).first.click()
         page.wait_for_timeout(2000)
         return True, "새 목록에 저장"
