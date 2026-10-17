@@ -3,6 +3,7 @@
   python -m places check            설정·키·vault 경로 점검
   python -m places login            구글 로그인 (최초 1회, 창이 뜬다)
   python -m places iglogin          인스타 로그인 (카드뉴스 슬라이드 읽기용, 최초 1회)
+  python -m places reorg [--apply]  구글 지도 저장 목록을 시 단위로 재정리 + 옵시디언 노트 (reorg.py)
   python -m places try URL [URL..]  저장 없이 분석만 해 보기 (--save 로 실제 저장)
   python -m places run [--log FILE] 텔레그램 봇 실행 (--log 면 출력을 UTF-8 파일에 덧붙인다)
 """
@@ -97,6 +98,10 @@ def main(argv=None):
     sub.add_parser("check")
     sub.add_parser("login")
     sub.add_parser("iglogin")
+    p_reorg = sub.add_parser("reorg")
+    p_reorg.add_argument("--apply", action="store_true", help="실제로 새 목록에 추가하고 노트를 쓴다")
+    p_reorg.add_argument("--sample", type=int, default=0, help="목록마다 앞 N곳만 (미리보기용)")
+    p_reorg.add_argument("--retry", action="store_true", help="--apply 중 실패한 곳만 다시")
     p_try = sub.add_parser("try")
     p_try.add_argument("urls", nargs="+")
     p_try.add_argument("--save", action="store_true")
@@ -122,6 +127,11 @@ def main(argv=None):
         ok = GMaps(config, config["data_dir"]).login()
         print("로그인 확인됨" if ok else "로그인을 확인하지 못했습니다. 다시 시도하세요.")
         return 0 if ok else 1
+    if args.cmd == "reorg":
+        from .reorg import Reorg
+        r = Reorg(config, log=lambda m: print(m, flush=True))
+        r.retry_failed() if args.retry else r.run(apply=args.apply, sample=args.sample)
+        return 0
     if args.cmd == "iglogin":
         from .instagram_session import InstagramSession
         ok = InstagramSession(config, config["data_dir"]).login()

@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 NAV_TIMEOUT = 30_000
 UI_TIMEOUT = 10_000
+MENU_SCROLLS = 6
 # 이미 저장한 장소는 '저장됨'/'Saved' 로 바뀐다. 누르면 같은 목록 메뉴가 열린다
 SAVE_BUTTON = re.compile(r"^(저장됨|저장|Saved|Save)(?!\w)")
 NO_SAVE = "저장 버튼 없음"  # 공유숙박 등 구글 지도에 저장 기능이 없는 장소
@@ -31,6 +32,8 @@ class GMaps:
         self.data_dir = Path(data_dir)
         self.profile = self.data_dir / "gmaps-profile"
         self._pw = self._ctx = self.page = None
+        self.created = set()  # 이 실행에서 만든 목록 (메뉴에 늦게 떠도 다시 만들지 않게)
+        self.last = {}
 
     # --- 수명 ---
     def start(self):
@@ -73,14 +76,16 @@ class GMaps:
 
     # --- 저장 ---
     def save(self, query, list_name):
-        """(성공 여부, 사유)."""
+        """(성공 여부, 사유). list_name 이 함수면 연 장소의 정보(place_info)로 목록 이름을 정한다.
+        연 장소의 정보와 실제로 쓴 목록 이름은 self.last 에 남는다."""
+        self.last = {}
         try:
             self.start()
             self._open_place(query)
-            if not self._click_save():
+            ok, reason = self.save_current(list_name)
+            if reason == NO_SAVE:
                 print(f"[gmaps] '{query}' 에는 저장 버튼이 없습니다 (공유숙박 등)")
-                return False, NO_SAVE
-            return self._choose_list(list_name)
+            return ok, reason
         except Exception as e:  # noqa: BLE001 — 화면 변경 등 무엇이든 링크 안내로 대체
             shot = self.data_dir / f"gmaps_fail_{int(time.time())}.png"
             try:
@@ -100,23 +105,79 @@ class GMaps:
             results.first.click()  # 검색 결과가 여러 개면 첫 번째
         title.first.wait_for(timeout=UI_TIMEOUT)
 
+    def place_info(self):
+        """지금 열린 장소 패널의 이름·주소·분류·고유 ID·링크."""
+        page = self.page
+
+        def first_text(selector, attr=None):
+            loc = page.locator(selector).first
+            if not loc.count():
+                return ""
+            return (loc.get_attribute(attr) if attr else loc.inner_text()) or ""
+
+        address = re.sub(r"^주소:\s*", "", first_text('button[data-item-id="address"]', "aria-label")).strip()
+        m = re.search(r"!1s(0x[0-9a-f]+:0x[0-9a-f]+)", page.url)
+        pid = m.group(1) if m else ""
+        return {
+            "name": first_text("h1.DUwDvf").strip(),
+            "address": address,
+            "category": first_text("button.DkEaL").strip(),
+            "id": pid,
+            # cid 링크는 장소 이름·검색어가 바뀌어도 같은 곳을 연다
+            "url": f"https://maps.google.com/?cid={int(pid.split(':')[1], 16)}" if pid else "",
+        }
+
+    def save_current(self, list_name):
+        """열려 있는 장소를 목록에 저장. (성공 여부, 사유)."""
+        info = self.place_info()
+        name = list_name(info) if callable(list_name) else list_name
+        self.last = dict(info, list=name)
+        if not self._click_save():
+            return False, NO_SAVE
+        return self._choose_list(name)
+
     def _click_save(self):
         page = self.page
-        button = page.get_by_role("button", name=SAVE_BUTTON)
+        # 장소 패널 안에서만 찾는다. 왼쪽 메뉴의 '저장됨' 탭도 이름이 같다
+        panel = page.locator('div[role="main"]', has=page.locator("h1.DUwDvf")).last
+        button = panel.get_by_role("button", name=SAVE_BUTTON)
         if button.count() == 0:
-            button = page.locator('button[data-value="저장"], button[data-value="Save"]')
+            button = panel.locator('button[data-value="저장"], button[data-value="Save"]')
         if button.count() == 0:
             return False
         button.first.click()
         page.wait_for_timeout(1200)
         return True
 
-    def _choose_list(self, list_name):
+    def _find_list(self, list_name):
+        """저장 메뉴에서 이름이 정확히 같은 목록 ('📍제주' 가 '📍제주 제주시' 에 걸리지 않게).
+        목록이 많으면 메뉴를 내려 가며 찾는다."""
         page = self.page
-        items = page.locator('[role^="menuitem"]')
+        # 보이는 항목만. 지도 레이어 메뉴(대중교통·지형 …)도 menuitem 이라 숨은 채로 섞여 있다
+        items = page.locator('[role^="menuitem"]').locator("visible=true")
         items.first.wait_for(timeout=UI_TIMEOUT)
-        # 이름이 정확히 같은 목록만 ('📍제주' 가 '📍제주 애월' 에 걸리지 않게)
         target = items.filter(has=page.get_by_text(list_name, exact=True))
+        for _ in range(MENU_SCROLLS):
+            if target.count() > 0:
+                break
+            items.last.scroll_into_view_if_needed()
+            page.wait_for_timeout(400)
+        return target
+
+    def _choose_list(self, list_name, retry=True):
+        page = self.page
+        target = self._find_list(list_name)
+        if target.count() == 0 and list_name in self.created:
+            # 방금 만든 목록은 메뉴에 바로 안 뜬다. 같은 이름 목록을 또 만들지 않게 새로고침 후 다시 본다
+            # (2026-10-17 '📍경남' 이 세 개 생긴 원인)
+            if not retry:
+                raise RuntimeError(f"방금 만든 목록 '{list_name}' 이 저장 메뉴에 보이지 않습니다")
+            page.keyboard.press("Escape")
+            page.reload(timeout=NAV_TIMEOUT)
+            page.locator("h1.DUwDvf").first.wait_for(timeout=UI_TIMEOUT)
+            page.wait_for_timeout(1500)
+            self._click_save()
+            return self._choose_list(list_name, retry=False)
         if target.count() > 0:
             if (target.first.get_attribute("aria-checked") or "") == "true":
                 page.keyboard.press("Escape")
@@ -132,5 +193,6 @@ class GMaps:
         box.wait_for(timeout=UI_TIMEOUT)
         box.fill(list_name)
         page.get_by_role("button", name=CREATE).first.click()
+        self.created.add(list_name)
         page.wait_for_timeout(2000)
         return True, "새 목록에 저장"

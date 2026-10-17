@@ -12,10 +12,11 @@ obsidian:
 # 구글 지도 저장 목록 자동 저장 (Playwright 브라우저 자동화, 실험 기능)
 gmaps:
   enabled: true
-  list_prefix: "📍"           # 목록 이름: 📍서울·경기
-  # region: 시도·국가 단위 (기존 목록 📍서울·경기 📍제주 📍일본 에 맞춤) / area: 📍서울 성수 처럼 동네까지
-  list_unit: "region"
-  list_groups:                # 같은 목록으로 합칠 시도. 없는 시도는 그대로 (📍강원, 📍경남, 📍일본)
+  list_prefix: "📍"
+  # city: 시 단위 (구글 지도 주소 기준) — 📍경기 성남시 · 군이면 📍강원 · 특별·광역시는 📍서울 · 해외는 📍일본
+  # region: 시도 단위 + list_groups 로 합치기 / area: 📍서울 성수 처럼 동네까지
+  list_unit: "city"
+  list_groups:                # list_unit: region 일 때만. 같은 목록으로 합칠 시도
     서울: 서울·경기
     경기: 서울·경기
     인천: 서울·경기

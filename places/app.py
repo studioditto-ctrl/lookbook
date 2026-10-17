@@ -86,14 +86,14 @@ class App:
         lines, keys, new_keys, unchecked = [], [], [], False
         for i, cand in enumerate(result.places, 1):
             place = self.resolver(cand)
-            list_name = region.list_name(place.sido, place.area, self.config)
+            list_name = region.list_name(place.sido, place.area, self.config, place.address)
             if save:
                 is_new = self.store.upsert(place, post.url)
                 entry = self.store.get(place.key)
                 keys.append(place.key)
                 if is_new:
                     new_keys.append(place.key)
-                gm = self._save_gmaps(place, entry, list_name)
+                gm, list_name = self._save_gmaps(place, entry, list_name)
                 obsidian.write_place(entry, list_name, result.summary, self.config)
             else:
                 gm = "(미리보기)"
@@ -115,18 +115,30 @@ class App:
         return f"{head}\n<i>{esc(result.summary)}</i>\n\n" + "\n".join(lines) + tail
 
     def _save_gmaps(self, place, entry, list_name):
+        """(답장 표시, 실제 목록 이름). 목록은 구글 지도가 보여주는 주소로 정한다
+        (카카오 키가 없으면 우리 쪽엔 시·군을 알 주소가 없다). 주소는 노트에도 남긴다."""
         if entry.get("gmaps_saved"):
-            return "✅지도"
+            return "✅지도", entry.get("gmaps_list") or list_name
         link = f'<a href="{esc(place.gmaps_url)}">지도에서 저장</a>'
         if not self.gmaps:
-            return link
-        ok, reason = self.gmaps.save(place.gmaps_query, list_name)
+            return link, list_name
+
+        def pick(info):
+            return region.list_name(place.sido, place.area, self.config,
+                                    info.get("address") or place.address)
+
+        ok, reason = self.gmaps.save(place.gmaps_query, pick)
+        info = getattr(self.gmaps, "last", None) or {}
+        if info.get("address") and not entry.get("address"):
+            entry["address"] = info["address"]
+        list_name = info.get("list") or list_name
         if ok:
             self.store.mark_gmaps(place.key)
-            return "✅지도"
+            entry["gmaps_list"] = list_name
+            return "✅지도", list_name
         if reason == NO_SAVE:
-            return f'ℹ️구글 지도에 저장 기능이 없는 장소 (<a href="{esc(place.gmaps_url)}">지도 보기</a>)'
-        return f"⚠️자동저장 실패 · {link}"
+            return f'ℹ️구글 지도에 저장 기능이 없는 장소 (<a href="{esc(place.gmaps_url)}">지도 보기</a>)', list_name
+        return f"⚠️자동저장 실패 · {link}", list_name
 
     # --- 명령 ---
     def command(self, cmd):
@@ -168,7 +180,8 @@ class App:
         for entry in removed:
             obsidian.remove_place(entry, self.config)
         for entry in kept:  # frontmatter 의 sources 를 맞춘다 (본문 메모는 그대로)
-            list_name = region.list_name(entry["sido"], entry["area"], self.config)
+            list_name = entry.get("gmaps_list") or region.list_name(
+                entry["sido"], entry["area"], self.config, entry.get("address", ""))
             obsidian.write_place(entry, list_name, "", self.config)
         obsidian.write_index(self.store.all_places(), self.config)
         self.store.save()

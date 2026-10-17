@@ -106,11 +106,42 @@ class RegionTest(unittest.TestCase):
     def test_list_name(self):
         self.assertEqual(region.list_name("서울", "성수", CONFIG), "📍서울")
         self.assertEqual(region.list_name("", "", CONFIG), "📍기타")
-        grouped = {"gmaps": {"list_prefix": "📍", "list_groups": {"인천": "서울·경기"}}}
+        city = {"gmaps": {"list_prefix": "📍"}}  # 기본은 시 단위
+        cases = {
+            "경기도 성남시 분당구 판교로 255번길 9-22": "📍경기 성남시",
+            "경기 성남시 분당구 삼평동 647": "📍경기 성남시",  # 카카오 표기
+            "강원특별자치도 평창군 대관령면": "📍강원",
+            "서울특별시 성동구 아차산로9길 8": "📍서울",
+            "인천광역시 옹진군 영흥면": "📍인천",
+            "제주특별자치도 서귀포시 안덕면": "📍제주 서귀포시",
+            "Jl. Raya Ubud, Ubud, Kabupaten Gianyar, Bali 80571 인도네시아": "📍인도네시아",
+            "日本、〒604-8005 京都府京都市": "📍일본",
+            "2F, 13 한남대로27가길 용산구 서울특별시": "📍서울",  # 거꾸로 적힌 주소
+            "1층 장승포동 거제시 경상남도": "📍경남 거제시",
+            "서귀포시 남원읍 서성로652번길 199": "📍제주 서귀포시",  # 도가 빠진 주소
+            "광주시 오포읍 문형산길 1": "📍경기 광주시",
+        }
+        for address, expected in cases.items():
+            self.assertEqual(region.list_name("", "", city, address), expected, address)
+        self.assertEqual(region.list_name("경남", "거제", city), "📍경남")  # 주소가 없으면 시도
+        grouped = {"gmaps": {"list_prefix": "📍", "list_unit": "region",
+                             "list_groups": {"인천": "서울·경기"}}}
         self.assertEqual(region.list_name("인천", "영흥도", grouped), "📍서울·경기")
         self.assertEqual(region.list_name("일본", "도쿄", grouped), "📍일본")
         by_area = {"gmaps": {"list_prefix": "📍", "list_unit": "area"}}
         self.assertEqual(region.list_name("서울", "성수", by_area), "📍서울 성수")
+
+    def test_split_address_for_note_folders(self):
+        cfg = dict(CONFIG, metro=["서울", "부산", "인천"])
+        cases = {
+            "경기도 성남시 분당구 서현로494번길 9": ("경기", "성남"),
+            "2F, 13 한남대로27가길 용산구 서울특별시": ("서울", ""),
+            "성남시": ("경기", "성남"),
+            "서귀포시 남원읍 서성로652번길 199": ("제주", "서귀포"),
+            "일본 〒606-8406 Kyoto": ("일본", ""),
+        }
+        for address, expected in cases.items():
+            self.assertEqual(region.split_address(address, cfg), expected, address)
 
     def test_gmaps_query_adds_region_without_address(self):
         place = geocode.Place(name="미소식", category="식당", sido="경남", area="거제")
@@ -210,7 +241,10 @@ class FakeGMaps:
     def __init__(self, ok=True, reason=""):
         self.ok, self.reason, self.calls = ok, reason, []
 
-    def save(self, query, list_name):
+    def save(self, query, list_name, address=""):
+        if callable(list_name):  # 실제 GMaps 처럼 연 장소의 주소로 목록을 정한다
+            list_name = list_name({"address": address})
+        self.last = {"address": address, "list": list_name}
         self.calls.append((query, list_name))
         return self.ok, self.reason
 
