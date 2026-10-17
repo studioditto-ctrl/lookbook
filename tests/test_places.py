@@ -119,6 +119,26 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(result.places[0].query, "어니언 성수")
         self.assertTrue(result.places[0].domestic)
 
+    def test_gemini_is_default(self):
+        seen = {}
+
+        def ask(system, content, schema, **kw):
+            seen.update(schema=schema, content=content)
+            return {"summary": "요약", "places": [{"name": "어니언", "category": "카페"}]}
+
+        result = extract.extract("캡션", {}, ask=ask)
+        self.assertEqual(seen["schema"], extract.SCHEMA)
+        self.assertIn("캡션", seen["content"])
+        self.assertEqual(result.places[0].name, "어니언")
+
+    def test_secret_key_follows_provider(self):
+        from places import config as cfg
+        with unittest.mock.patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_CHAT_ID": "1"},
+                                      clear=True):
+            self.assertEqual(cfg.missing_secrets({}), ["GEMINI_API_KEY"])
+            self.assertEqual(cfg.missing_secrets({"extract": {"provider": "claude"}}),
+                             ["ANTHROPIC_API_KEY"])
+
     def test_refusal_raises(self):
         client = SimpleNamespace(messages=SimpleNamespace(
             create=lambda **kw: SimpleNamespace(stop_reason="refusal", content=[])))

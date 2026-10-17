@@ -16,7 +16,7 @@
 | 게시물 형태 | **사진 게시물** 위주 | 캡션 기반 추출 (영상 분석은 범위 밖) |
 | 유료 서비스 | **사용 안 함** | 인스타 공개 페이지만, 구글 Places API 대신 카카오 로컬(무료) |
 | 카카오 키 | **선택 사항** (키 없이 시작) | 없으면 캡션 기준 위치로 저장, 키를 넣으면 이후 저장분부터 검증 |
-| LLM | **Claude** | `claude-opus-5-5`, effort low, 구조화 출력 |
+| LLM | **Gemini** (2026-10-17 Claude 에서 변경) | 러닝 다이제스트의 `src/gemini_client.py` 재사용, 구조화 출력. `extract.provider: claude` 로 되돌릴 수 있음 |
 
 설치·사용법은 [places/README.md](places/README.md).
 

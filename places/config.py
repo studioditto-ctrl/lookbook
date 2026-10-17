@@ -18,8 +18,7 @@ CONFIG_PATH = REPO / "places.yaml"
 SECRET_KEYS = (
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_CHAT_ID",
-    "ANTHROPIC_API_KEY",
-)
+)  # + 장소 추출 모델 키 (extract.provider 에 따라 GEMINI_API_KEY 또는 ANTHROPIC_API_KEY)
 # 없어도 돈다. 넣으면 국내 장소의 주소·좌표·동네 상권이 정확해진다.
 OPTIONAL_KEYS = ("KAKAO_REST_API_KEY",)
 
@@ -59,5 +58,7 @@ def load_config(path=CONFIG_PATH, local_path=LOCAL_CONFIG_PATH):
     return config
 
 
-def missing_secrets():
-    return [k for k in SECRET_KEYS if not os.environ.get(k)]
+def missing_secrets(config=None):
+    from .extract import KEYS, provider
+    keys = SECRET_KEYS + (KEYS[provider(config or {})],)
+    return [k for k in keys if not os.environ.get(k)]

@@ -32,7 +32,7 @@ def _vault_ok(config):
 def cmd_check(config):
     ok = True
     print(f"비밀값 파일: {ENV_PATH} {'(있음)' if ENV_PATH.exists() else '(없음)'}")
-    for key in missing_secrets():
+    for key in missing_secrets(config):
         print(f"  ✗ {key} 없음")
         ok = False
     for key in OPTIONAL_KEYS:
@@ -70,7 +70,7 @@ def cmd_try(config, urls, save):
 def cmd_run(config):
     from . import telegram_bot
     from .app import App
-    missing = [k for k in missing_secrets() if k != "TELEGRAM_CHAT_ID"]
+    missing = [k for k in missing_secrets(config) if k != "TELEGRAM_CHAT_ID"]
     if missing:
         print("필요한 값이 없습니다: " + ", ".join(missing))
         return 1

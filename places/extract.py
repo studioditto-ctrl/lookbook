@@ -1,4 +1,4 @@
-"""캡션에서 장소 목록 추출 (Claude, 구조화 출력)."""
+"""캡션에서 장소 목록 추출 (Gemini 또는 Claude, 구조화 출력)."""
 
 import json
 from dataclasses import dataclass, field
@@ -79,6 +79,14 @@ class Extraction:
     places: list = field(default_factory=list)
 
 
+KEYS = {"gemini": "GEMINI_API_KEY", "claude": "ANTHROPIC_API_KEY"}
+
+
+def provider(config):
+    name = ((config.get("extract") or {}).get("provider") or "gemini").lower()
+    return name if name in KEYS else "gemini"
+
+
 def parse(data):
     places = []
     for p in data.get("places") or []:
@@ -89,9 +97,18 @@ def parse(data):
     return Extraction(summary=(data.get("summary") or "").strip(), places=places)
 
 
-def extract(caption, config, client=None):
-    """캡션 → Extraction. 실패하면 예외를 올린다 (봇이 사용자에게 알린다)."""
+def extract(caption, config, client=None, ask=None):
+    """캡션 → Extraction. 실패하면 예외를 올린다 (봇이 사용자에게 알린다).
+
+    extract.provider 가 gemini(기본)면 러닝 다이제스트와 같은 Gemini 클라이언트,
+    claude 면 Claude. client 를 넘기면 Claude 로 본다 (테스트용).
+    """
     settings = config.get("extract") or {}
+    content = f"<caption>\n{caption}\n</caption>"
+    if client is None and provider(config) == "gemini":
+        if ask is None:
+            from src.gemini_client import ask_gemini as ask
+        return parse(ask(SYSTEM, content, SCHEMA, max_tokens=MAX_TOKENS, log_prefix="places"))
     if client is None:
         import anthropic
         client = anthropic.Anthropic()
@@ -104,7 +121,7 @@ def extract(caption, config, client=None):
             "effort": settings.get("effort", "low"),
             "format": {"type": "json_schema", "schema": SCHEMA},
         },
-        messages=[{"role": "user", "content": f"<caption>\n{caption}\n</caption>"}],
+        messages=[{"role": "user", "content": content}],
     )
     if response.stop_reason == "refusal":
         raise RuntimeError("모델이 요청을 거부했습니다")

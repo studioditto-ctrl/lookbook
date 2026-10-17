@@ -71,6 +71,8 @@ class App:
             if "credit balance" in str(e):
                 return ("⚠️ Claude API 크레딧이 부족해 분석하지 못했어요. "
                         "console.anthropic.com → Plans &amp; Billing 에서 충전한 뒤 URL 을 다시 보내주세요.")
+            if "요청 한도 초과" in str(e):
+                return "⚠️ Gemini 무료 사용 한도를 넘었어요. 잠시 뒤(또는 내일) URL 을 다시 보내주세요."
             return f"⚠️ 장소 분석에 실패했어요 ({esc(type(e).__name__)}). 잠시 후 URL 을 다시 보내주세요."
         if not result.places:
             return f"🤔 장소를 찾지 못했어요.\n{esc(result.summary)}\n{esc(post.url)}"

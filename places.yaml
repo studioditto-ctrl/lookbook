@@ -16,8 +16,11 @@ gmaps:
   headless: false             # 구글이 헤드리스 브라우저를 막는 경우가 많아 기본은 창을 띄운다
   browser_channel: "chrome"   # 설치된 크롬 사용. 없으면 "" 로 두면 Playwright 크로미움
 
-# 장소 추출 (Claude)
+# 장소 추출. provider: gemini (기본, GEMINI_API_KEY) 또는 claude (ANTHROPIC_API_KEY)
+# Gemini 모델은 러닝 다이제스트와 같은 src/gemini_client.py 기본값을 쓰고,
+# 막히면 사용 가능한 모델로 알아서 바꾼다. 아래 model·effort 는 claude 일 때만 쓴다.
 extract:
+  provider: "gemini"
   model: "claude-opus-5-5"
   effort: "low"
 

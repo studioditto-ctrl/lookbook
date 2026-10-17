@@ -5,7 +5,7 @@
 집 Windows PC 에서 상시 실행한다. 설계와 결정 배경은 [PLAN_PLACE_ARCHIVE.md](../PLAN_PLACE_ARCHIVE.md).
 
 ```
-URL → 캡션 수집 → Claude 로 장소 추출 → 카카오 로컬로 주소·좌표 확인
+URL → 캡션 수집 → Gemini 로 장소 추출 → 카카오 로컬로 주소·좌표 확인
     → 구글 지도 '저장' 자동 클릭 → 옵시디언 노트 + 지역별 목록 노트 → 텔레그램 답장
 ```
 
@@ -17,7 +17,7 @@ URL → 캡션 수집 → Claude 로 장소 추출 → 카카오 로컬로 주�
 | 키 | 받는 곳 |
 |---|---|
 | 텔레그램 봇 토큰 | 텔레그램 `@BotFather` → `/newbot` → 이름 지정 → `123456:ABC...` 형태 토큰. 러닝 다이제스트 봇과 **다른 새 봇**을 만든다 |
-| Claude API 키 | console.anthropic.com → API Keys (러닝 다이제스트 키 재사용 가능) |
+| Gemini API 키 | aistudio.google.com → Get API key (러닝 다이제스트의 `GEMINI_API_KEY` 재사용 가능). Claude 를 쓰려면 `places.yaml` 의 `extract.provider: claude` + `ANTHROPIC_API_KEY` |
 | 카카오 REST API 키 (선택) | developers.kakao.com → 내 애플리케이션 → 애플리케이션 추가 → 앱 키의 **REST API 키**. 앱 설정에 '카카오맵' 사용 설정이 있으면 켠다 |
 
 카카오 키가 없어도 봇은 돈다. 대신 국내 장소의 위치를 캡션만 보고 정하므로

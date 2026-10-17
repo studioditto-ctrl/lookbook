@@ -93,12 +93,13 @@ if (-not (Test-Path $EnvPath)){
     Write-Host ""
     Write-Host "비밀값을 입력합니다. 화면에 표시되지 않고 이 PC 에만 저장됩니다."
     $tg  = Read-Secret "텔레그램 봇 토큰 (BotFather 에서 받은 값)"
-    $ant = Read-Secret "Claude API 키 (sk-ant-...)"
+    $gem = Read-Secret "Gemini API 키 (aistudio.google.com 에서 받은 값)"
     $kko = Read-Secret "카카오 REST API 키 (선택 — 없으면 그냥 Enter)"
     @(
         "TELEGRAM_BOT_TOKEN=$tg",
         "TELEGRAM_CHAT_ID=",
-        "ANTHROPIC_API_KEY=$ant",
+        "GEMINI_API_KEY=$gem",
+        "ANTHROPIC_API_KEY=",
         "KAKAO_REST_API_KEY=$kko"
     ) | Set-Content -Path $EnvPath -Encoding UTF8
     icacls $EnvPath /inheritance:r /grant:r "$($env:USERNAME):(R,W)" | Out-Null
@@ -106,6 +107,14 @@ if (-not (Test-Path $EnvPath)){
 } else {
     Write-Host "이미 있는 비밀값 파일을 씁니다: $EnvPath"
     Write-Host "(카카오 키를 나중에 넣으려면 그 파일의 KAKAO_REST_API_KEY= 뒤에 적고 이 스크립트를 다시 실행)"
+    # 장소 추출이 Claude → Gemini 로 바뀌기 전에 만든 파일이면 Gemini 키만 더 묻는다
+    $lines = @(Get-Content $EnvPath -Encoding UTF8)
+    if (-not ($lines | Where-Object { $_ -match '^GEMINI_API_KEY=.+' })){
+        $gem = Read-Secret "Gemini API 키 (aistudio.google.com 에서 받은 값)"
+        $lines = @($lines | Where-Object { $_ -notmatch '^GEMINI_API_KEY=' }) + "GEMINI_API_KEY=$gem"
+        $lines | Set-Content -Path $EnvPath -Encoding UTF8
+        Write-Host "Gemini 키를 추가했습니다."
+    }
 }
 
 # --- 3. vault 경로 ---
