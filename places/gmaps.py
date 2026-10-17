@@ -16,7 +16,9 @@ from urllib.parse import quote
 
 NAV_TIMEOUT = 30_000
 UI_TIMEOUT = 10_000
-SAVE_BUTTON = re.compile(r"^(저장|Save)\b")
+# 이미 저장한 장소는 '저장됨'/'Saved' 로 바뀐다. 누르면 같은 목록 메뉴가 열린다
+SAVE_BUTTON = re.compile(r"^(저장됨|저장|Saved|Save)(?!\w)")
+NO_SAVE = "저장 버튼 없음"  # 공유숙박 등 구글 지도에 저장 기능이 없는 장소
 NEW_LIST = re.compile(r"(새 목록|New list)")
 CREATE = re.compile(r"^(만들기|Create)$")
 
@@ -75,7 +77,9 @@ class GMaps:
         try:
             self.start()
             self._open_place(query)
-            self._click_save()
+            if not self._click_save():
+                print(f"[gmaps] '{query}' 에는 저장 버튼이 없습니다 (공유숙박 등)")
+                return False, NO_SAVE
             return self._choose_list(list_name)
         except Exception as e:  # noqa: BLE001 — 화면 변경 등 무엇이든 링크 안내로 대체
             shot = self.data_dir / f"gmaps_fail_{int(time.time())}.png"
@@ -101,8 +105,11 @@ class GMaps:
         button = page.get_by_role("button", name=SAVE_BUTTON)
         if button.count() == 0:
             button = page.locator('button[data-value="저장"], button[data-value="Save"]')
+        if button.count() == 0:
+            return False
         button.first.click()
         page.wait_for_timeout(1200)
+        return True
 
     def _choose_list(self, list_name):
         page = self.page

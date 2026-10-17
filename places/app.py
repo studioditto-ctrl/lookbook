@@ -4,6 +4,7 @@ import html
 
 from . import extract as extract_mod
 from . import geocode, instagram, obsidian, region
+from .gmaps import NO_SAVE
 from .store import Store
 
 HELP = (
@@ -119,10 +120,12 @@ class App:
         link = f'<a href="{esc(place.gmaps_url)}">지도에서 저장</a>'
         if not self.gmaps:
             return link
-        ok, _ = self.gmaps.save(place.gmaps_query, list_name)
+        ok, reason = self.gmaps.save(place.gmaps_query, list_name)
         if ok:
             self.store.mark_gmaps(place.key)
             return "✅지도"
+        if reason == NO_SAVE:
+            return f'ℹ️구글 지도에 저장 기능이 없는 장소 (<a href="{esc(place.gmaps_url)}">지도 보기</a>)'
         return f"⚠️자동저장 실패 · {link}"
 
     # --- 명령 ---

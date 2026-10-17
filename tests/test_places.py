@@ -207,12 +207,20 @@ class GeocodeTest(unittest.TestCase):
 
 
 class FakeGMaps:
-    def __init__(self, ok=True):
-        self.ok, self.calls = ok, []
+    def __init__(self, ok=True, reason=""):
+        self.ok, self.reason, self.calls = ok, reason, []
 
     def save(self, query, list_name):
         self.calls.append((query, list_name))
-        return self.ok, ""
+        return self.ok, self.reason
+
+
+class GMapsButtonTest(unittest.TestCase):
+    def test_saved_label_still_matches(self):
+        from places.gmaps import SAVE_BUTTON
+        for label in ("저장", "저장됨", "Save", "Saved"):
+            self.assertTrue(SAVE_BUTTON.search(label), label)
+        self.assertFalse(SAVE_BUTTON.search("저장소"))
 
 
 def _candidates(*names):
@@ -237,6 +245,13 @@ class AppTest(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_place_without_save_button_is_explained(self):
+        from places.gmaps import NO_SAVE
+        self.app.gmaps = FakeGMaps(ok=False, reason=NO_SAVE)
+        [reply] = self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertIn("저장 기능이 없는 장소", reply)
+        self.assertNotIn("자동저장 실패", reply)
 
     def test_url_saves_everywhere(self):
         [reply] = self.app.handle("https://www.instagram.com/p/AAA/?utm_source=x")
