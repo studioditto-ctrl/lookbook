@@ -24,9 +24,27 @@ def call(token, method, **params):
     return data["result"]
 
 
+def chunks(text, limit=MAX_LEN):
+    """줄 단위로 나눈다. 글자 수로 자르면 HTML 태그가 잘려 텔레그램이 400 을 준다
+    (32곳 결과 답장이 안 간 원인, 2026-10-17)."""
+    out, cur = [], ""
+    for line in text.split("\n"):
+        while len(line) > limit:  # 한 줄이 한도보다 길면 어쩔 수 없이 자른다
+            out.append(line[:limit])
+            line = line[limit:]
+        if cur and len(cur) + 1 + len(line) > limit:
+            out.append(cur)
+            cur = line
+        else:
+            cur = f"{cur}\n{line}" if cur else line
+    if cur:
+        out.append(cur)
+    return out
+
+
 def send(token, chat_id, text):
-    for start in range(0, len(text), MAX_LEN):
-        call(token, "sendMessage", chat_id=chat_id, text=text[start:start + MAX_LEN],
+    for part in chunks(text):
+        call(token, "sendMessage", chat_id=chat_id, text=part,
              parse_mode="HTML", link_preview_options={"is_disabled": True})
 
 
@@ -71,7 +89,7 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
             reply(chat_id, f"이 봇은 다른 채팅방 전용입니다. 이 채팅방 ID: <code>{chat_id}</code>")
         return
     progress = None
-    if instagram.find_urls(text):
+    if instagram.find_urls(text) or text.strip().startswith("/retry"):
         progress = progress_for(chat_id) if progress_for else None
         if progress is None:
             reply(chat_id, "🔎 분석 중… (1분 정도 걸릴 수 있어요)")

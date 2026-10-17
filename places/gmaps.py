@@ -37,8 +37,16 @@ class GMaps:
 
     # --- 수명 ---
     def start(self):
-        if self.page:
+        if self.page and not self.page.is_closed():
             return
+        if self.page:
+            # 저장할 때 뜨는 크롬 창을 닫으면 이후 저장이 모두 실패했다 (2026-10-17). 다시 연다
+            print("[gmaps] 크롬 창이 닫혀 있어 다시 엽니다")
+            try:
+                self._ctx.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._ctx = self.page = None
         from .browser import playwright
         self._pw = playwright()
         self._ctx = self._pw.chromium.launch_persistent_context(
@@ -79,21 +87,27 @@ class GMaps:
         """(성공 여부, 사유). list_name 이 함수면 연 장소의 정보(place_info)로 목록 이름을 정한다.
         연 장소의 정보와 실제로 쓴 목록 이름은 self.last 에 남는다."""
         self.last = {}
-        try:
-            self.start()
-            self._open_place(query)
-            ok, reason = self.save_current(list_name)
-            if reason == NO_SAVE:
-                print(f"[gmaps] '{query}' 에는 저장 버튼이 없습니다 (공유숙박 등)")
-            return ok, reason
-        except Exception as e:  # noqa: BLE001 — 화면 변경 등 무엇이든 링크 안내로 대체
-            shot = self.data_dir / f"gmaps_fail_{int(time.time())}.png"
+        for attempt in (1, 2):
             try:
-                self.page.screenshot(path=str(shot))
-            except Exception:  # noqa: BLE001
-                shot = None
-            print(f"[gmaps] '{query}' 저장 실패: {e} (스크린샷: {shot})")
-            return False, f"{type(e).__name__}"
+                self.start()
+                self._open_place(query)
+                ok, reason = self.save_current(list_name)
+                if reason == NO_SAVE:
+                    print(f"[gmaps] '{query}' 에는 저장 버튼이 없습니다 (공유숙박 등)")
+                return ok, reason
+            except Exception as e:  # noqa: BLE001 — 화면 변경 등 무엇이든 링크 안내로 대체
+                if attempt == 1 and "has been closed" in str(e):
+                    continue  # 다음 start() 가 닫힌 창을 보고 다시 연다
+                return self._fail(query, e)
+
+    def _fail(self, query, e):
+        shot = self.data_dir / f"gmaps_fail_{int(time.time())}.png"
+        try:
+            self.page.screenshot(path=str(shot))
+        except Exception:  # noqa: BLE001 — 창이 닫혔으면 스크린샷도 없다
+            shot = None
+        print(f"[gmaps] '{query}' 저장 실패: {e} (스크린샷: {shot})")
+        return False, f"{type(e).__name__}"
 
     def _open_place(self, query):
         page = self.page

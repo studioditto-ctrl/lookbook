@@ -143,6 +143,19 @@ class RegionTest(unittest.TestCase):
         for address, expected in cases.items():
             self.assertEqual(region.split_address(address, cfg), expected, address)
 
+    def test_gmaps_query_completes_partial_address(self):
+        place = geocode.Place(name="카페굿웨더", category="카페", sido="경기", area="분당",
+                              address="황새울로342번길 19")
+        self.assertEqual(place.gmaps_query, "카페굿웨더 경기 분당 황새울로342번길 19")
+
+    def test_long_reply_splits_on_lines(self):
+        from places.telegram_bot import chunks
+        text = "\n".join(f"{i}. <b>가게{i}</b> · 카페" for i in range(400))
+        parts = chunks(text, 1000)
+        self.assertTrue(all(len(p) <= 1000 for p in parts))
+        self.assertTrue(all(p.count("<b>") == p.count("</b>") for p in parts))
+        self.assertEqual("\n".join(parts), text)
+
     def test_gmaps_query_adds_region_without_address(self):
         place = geocode.Place(name="미소식", category="식당", sido="경남", area="거제")
         self.assertEqual(place.gmaps_query, "미소식 경남 거제")
@@ -238,13 +251,13 @@ class GeocodeTest(unittest.TestCase):
 
 
 class FakeGMaps:
-    def __init__(self, ok=True, reason=""):
-        self.ok, self.reason, self.calls = ok, reason, []
+    def __init__(self, ok=True, reason="", address=""):
+        self.ok, self.reason, self.address, self.calls = ok, reason, address, []
 
-    def save(self, query, list_name, address=""):
+    def save(self, query, list_name):
         if callable(list_name):  # 실제 GMaps 처럼 연 장소의 주소로 목록을 정한다
-            list_name = list_name({"address": address})
-        self.last = {"address": address, "list": list_name}
+            list_name = list_name({"address": self.address})
+        self.last = {"address": self.address, "list": list_name}
         self.calls.append((query, list_name))
         return self.ok, self.reason
 
@@ -279,6 +292,17 @@ class AppTest(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_retry_saves_unsaved_places(self):
+        self.app.gmaps = FakeGMaps(ok=False)
+        self.app.handle("https://www.instagram.com/p/AAA/")
+        self.assertFalse(Store(self.config["data_dir"]).all_places()[0]["gmaps_saved"])
+        self.app.gmaps = FakeGMaps(ok=True, address="서울특별시 성동구 아차산로9길 8")
+        [reply] = self.app.handle("/retry")
+        self.assertIn("1/1곳 완료", reply)
+        entry = Store(self.config["data_dir"]).all_places()[0]
+        self.assertTrue(entry["gmaps_saved"])
+        self.assertIn("✅ 지도에 저장 안 된", self.app.handle("/retry")[0])
 
     def test_place_without_save_button_is_explained(self):
         from places.gmaps import NO_SAVE

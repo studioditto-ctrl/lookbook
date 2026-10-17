@@ -111,7 +111,8 @@ def write_index(entries, config):
             for e in items:
                 rel = note_path(e, config).relative_to(Path(settings["vault_path"]))
                 link = rel.with_suffix("").as_posix()
-                mark = "" if e.get("gmaps_saved") else " ⚠️지도 미저장"
+                mark = ("" if e.get("gmaps_saved")
+                        else " ℹ️지도 저장 불가" if e.get("gmaps_no_save") else " ⚠️지도 미저장")
                 lines.append(f"- [[{link}|{e['name']}]] · {e['category']}{mark}")
             lines.append("")
     path = root / f"{_safe(settings.get('index_note', '장소 목록'))}.md"
