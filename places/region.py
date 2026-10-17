@@ -80,6 +80,8 @@ COUNTRIES = {
     "괌": ("괌", "Guam"),
 }
 METRO = {"서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종"}
+# 구글 주소 앞에 붙는 '주소:' · '대한민국' · 'KR' ('KR 서울특별시 강남구 …')
+COUNTRY_PREFIX = r"^\s*(주소:\s*)?((대한민국|KR|South Korea)[,\s]+)?"
 # 도를 빼고 '서귀포시 남원읍 …' 처럼 시부터 적힌 주소용 (광주시는 경기 광주시)
 CITY_SIDO = {city + "시": sido for sido, cities in {
     "경기": "수원 성남 의정부 안양 부천 광명 평택 동두천 안산 고양 과천 구리 남양주 오산 시흥 군포 "
@@ -103,7 +105,7 @@ def parse_address(address):
     '서울특별시 성동구 …'     → ('대한민국', '서울', '')
     해외면 (나라 또는 '', '', '').
     """
-    text = re.sub(r"^\s*(주소:\s*)?(대한민국\s*)?", "", address or "").strip()
+    text = re.sub(COUNTRY_PREFIX, "", address or "").strip()
     tokens = [t.strip(",") for t in text.split()]
 
     def is_sido(tok):  # 구글은 '경기도', 카카오는 '경기' 처럼 쓴다
@@ -117,6 +119,12 @@ def parse_address(address):
             if sido not in METRO and len(seq) > 1 and seq[1].endswith("시"):
                 city = seq[1]
             return "대한민국", sido, city
+    # 뒤죽박죽 순서('한남동 한남대로20길 21 18 KR 서울특별시 용산구 B동') : 풀네임 시도가 중간에 있다
+    for i, tok in enumerate(tokens):
+        if tok in SIDO_SHORT:
+            sido = SIDO_SHORT[tok]
+            nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
+            return "대한민국", sido, (nxt if sido not in METRO and nxt.endswith("시") else "")
     for seq in (tokens, tokens[::-1]):
         if seq and seq[0] in CITY_SIDO:
             return "대한민국", CITY_SIDO[seq[0]], seq[0]
@@ -135,11 +143,17 @@ def split_address(address, config):
     country, sido, city = parse_address(address)
     if country != "대한민국":
         return country, ""
-    text = re.sub(r"^\s*(주소:\s*)?(대한민국\s*)?", "", address or "").strip()
+    text = re.sub(COUNTRY_PREFIX, "", address or "").strip()
     first = text.split()[0] if text else ""
     if SIDO_SHORT.get(first, first) == sido:
-        return from_address(text, config)
-    return sido, re.sub(r"시$", "", city)
+        short, area = from_address(text, config)
+    else:
+        short, area = sido, re.sub(r"시$", "", city)
+    if not area and sido in METRO:
+        # 구글 주소는 도로명이라 동이 없다. 구 이름으로 ('서울특별시 용산구 …' → 용산)
+        gu = next((t for t in text.split() if t.endswith("구") and len(t) > 1), "")
+        area = gu[:-1] if len(gu) > 2 else gu  # 중구·동구 는 그대로
+    return short, area
 
 
 def city_label(address):

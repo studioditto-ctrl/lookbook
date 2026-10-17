@@ -2,6 +2,7 @@
 
 import base64
 import json
+import time
 from dataclasses import dataclass, field
 
 MAX_TOKENS = 16000
@@ -92,6 +93,22 @@ def provider(config):
     return name if name in KEYS else "gemini"
 
 
+OVERLOAD = ("503", "high demand", "UNAVAILABLE", "overloaded")
+
+
+def _with_retry(call, tries=4, wait=10, sleep=time.sleep):
+    """Gemini 가 몰려서 503('high demand')을 주면 잠시 뒤 다시 한다. 다른 오류는 그대로 올린다.
+    (2026-10-18 아침 링크 하나가 이 오류로 실패했다)"""
+    for attempt in range(1, tries + 1):
+        try:
+            return call()
+        except RuntimeError as e:
+            if attempt == tries or not any(w in str(e) for w in OVERLOAD):
+                raise
+            print(f"[places] Gemini 과부하, {wait * attempt}초 뒤 다시 ({attempt}/{tries - 1})")
+            sleep(wait * attempt)
+
+
 def parse(data):
     places = []
     for p in data.get("places") or []:
@@ -133,7 +150,8 @@ def extract(caption, config, client=None, ask=None, images=()):
             if settings.get("gemini_model") and not os.environ.get("GEMINI_MODEL"):
                 gemini_client.MODEL = settings["gemini_model"]
             ask = gemini_client.ask_gemini
-        return parse(ask(SYSTEM, content, SCHEMA, max_tokens=MAX_TOKENS, log_prefix="places"))
+        return parse(_with_retry(lambda: ask(SYSTEM, content, SCHEMA, max_tokens=MAX_TOKENS,
+                                             log_prefix="places")))
     if client is None:
         import anthropic
         client = anthropic.Anthropic()

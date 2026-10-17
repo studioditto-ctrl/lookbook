@@ -45,8 +45,10 @@ def render_frontmatter(entry, list_name):
         lines.append(f"kakao_map: {_yaml_str(entry['kakao_url'])}")
     lines.append("sources:")
     lines += [f"  - {_yaml_str(s)}" for s in entry["sources"]]
-    tags = ["place", entry["category"].replace("/", "-"), entry["area"] or entry["sido"]]
-    lines.append("tags: [" + ", ".join(_yaml_str(t.replace(" ", "_")) for t in tags if t) + "]")
+    tags = ["place", entry["category"].replace("/", "-"), entry["area"] or entry["sido"],
+            *(entry.get("tags") or [])]  # 목록 가져오기(미쉐린 등)가 붙이는 태그
+    tags = list(dict.fromkeys(t.replace(" ", "_") for t in tags if t))
+    lines.append("tags: [" + ", ".join(_yaml_str(t) for t in tags) + "]")
     lines.append("---")
     return "\n".join(lines)
 

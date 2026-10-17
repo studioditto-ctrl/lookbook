@@ -87,6 +87,16 @@ $py = "$env:USERPROFILE\.lookbook\places-venv\Scripts\python.exe"
 | 특별·광역시 (서울특별시 …) | `📍서울` |
 | 해외 | 나라만, `📍일본` `📍인도네시아` |
 
+미쉐린 가이드 같은 **장소 목록**을 한 번에 넣으려면 (봇을 끈 상태에서):
+
+```powershell
+& $py -m places addlist "$env:USERPROFILE\.lookbook\lists\michelin.json"           # 확인만: 구글 지도가 연 이름·주소를 보여줌
+& $py -m places addlist "$env:USERPROFILE\.lookbook\lists\michelin.json" --apply   # 확인을 통과한 장소를 저장
+```
+
+JSON 형식과 이름이 안 맞을 때 고치는 법(`query`·`alt`)은 `places/addlist.py` 맨 위 설명. 이름·주소의
+시도가 목록과 안 맞으면 저장하지 않고 알려 준다. 목록 파일은 개인 기록이라 레포 밖에 둔다.
+
 기존 목록을 이 규칙으로 다시 정리하려면 (봇을 끈 상태에서, 기존 목록은 지우지 않는다):
 
 ```powershell

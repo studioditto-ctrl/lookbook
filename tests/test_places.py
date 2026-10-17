@@ -135,7 +135,7 @@ class RegionTest(unittest.TestCase):
         cfg = dict(CONFIG, metro=["서울", "부산", "인천"])
         cases = {
             "경기도 성남시 분당구 서현로494번길 9": ("경기", "성남"),
-            "2F, 13 한남대로27가길 용산구 서울특별시": ("서울", ""),
+            "2F, 13 한남대로27가길 용산구 서울특별시": ("서울", "용산"),
             "성남시": ("경기", "성남"),
             "서귀포시 남원읍 서성로652번길 199": ("제주", "서귀포"),
             "일본 〒606-8406 Kyoto": ("일본", ""),
@@ -185,6 +185,27 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(len(result.places), 1)
         self.assertEqual(result.places[0].query, "어니언 성수")
         self.assertTrue(result.places[0].domestic)
+
+    def test_overload_is_retried_but_other_errors_are_not(self):
+        calls = []
+
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise RuntimeError("API 오류 503: This model is currently experiencing high demand.")
+            return "ok"
+
+        self.assertEqual(extract._with_retry(flaky, sleep=lambda s: None), "ok")
+        self.assertEqual(len(calls), 3)
+
+        def broken():
+            calls.append(1)
+            raise RuntimeError("API 오류 400: bad")
+
+        calls.clear()
+        with self.assertRaises(RuntimeError):
+            extract._with_retry(broken, sleep=lambda s: None)
+        self.assertEqual(len(calls), 1)
 
     def test_gemini_is_default(self):
         seen = {}
@@ -414,6 +435,72 @@ class AppTest(unittest.TestCase):
 
 def _update(chat_id, text):
     return {"update_id": 1, "message": {"chat": {"id": int(chat_id)}, "text": text}}
+
+
+class AddListTest(unittest.TestCase):
+    def test_name_match_tolerates_branch_and_english(self):
+        from places.addlist import name_matches
+        self.assertTrue(name_matches("밍글스", "밍글스 Mingles"))
+        self.assertTrue(name_matches("스시 마츠모토", "스시마츠모토"))
+        self.assertTrue(name_matches("가겐 바이 최준호", "가겐"))
+        self.assertFalse(name_matches("소울", "홍대 곱창"))
+        self.assertFalse(name_matches("이스트", ""))
+
+    def test_check_then_apply_writes_list_and_note(self):
+        from places import addlist
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        cfg = dict(CONFIG, data_dir=str(root / "data"),
+                   obsidian={"vault_path": str(root / "vault"), "folder": "장소", "index_note": "장소 목록"})
+        opened = {}
+
+        class Fake:
+            def start(self): pass
+            def close(self): pass
+            def _open_place(self, q): opened["q"] = q
+            def place_info(self):
+                if "레스토랑" not in opened["q"]:  # 이름만 검색하면 엉뚱한 가게가 열린다
+                    return {"name": "홍대 곱창", "address": "서울특별시 마포구 어딘가 1", "category": "곱창", "id": "0x1:0x1", "url": ""}
+                return {"name": "소울 Soul", "address": "서울특별시 용산구 한남대로20길 47", "category": "레스토랑",
+                        "id": "0x2:0x2", "url": "https://maps.google.com/?cid=2"}
+            def save_current(self, target):
+                saved.append(target); return True, "저장"
+
+        saved = []
+        spec = {"source": "https://guide.michelin.com/x", "tags": ["미쉐린"], "category": "식당",
+                "places": [{"name": "소울", "city": "서울", "note": "미쉐린 1스타"}]}
+        dry = addlist.AddList(cfg, spec, log=lambda m: None, gm=Fake())
+        dry.run(apply=False)
+        self.assertEqual(saved, [])  # 확인만 하면 저장하지 않는다
+        self.assertEqual(dry.results[0]["status"], "확인")
+        self.assertIn("레스토랑", opened["q"])  # 첫 검색이 안 맞아 다른 검색어로 다시 열었다
+
+        run = addlist.AddList(cfg, spec, log=lambda m: None, gm=Fake())
+        run.run(apply=True)
+        self.assertEqual(saved, ["📍서울"])
+        note = (root / "vault" / "장소" / "서울" / "용산" / "소울 Soul.md").read_text(encoding="utf-8")
+        self.assertIn('"미쉐린"', note)
+        self.assertIn("미쉐린 1스타", note)
+        self.assertIn("gmaps_saved: true", note)
+
+    def test_scrambled_address_finds_province_anywhere(self):
+        addr = "한남동 한남대로20길 21 18 KR 서울특별시 용산구 B동 지하 1층"
+        self.assertEqual(region.parse_address(addr)[:2], ("대한민국", "서울"))
+        self.assertEqual(region.city_label("1층 장승포동 KR 경상남도 거제시 어딘가"), "경남 거제시")
+        cfg = dict(CONFIG, metro=["서울", "부산"])
+        self.assertEqual(region.split_address(addr, cfg), ("서울", "용산"))
+
+    def test_kr_prefix_in_address(self):
+        cfg = dict(CONFIG, metro=["서울", "부산"])
+        self.assertEqual(region.parse_address("KR 서울특별시 강남구 테헤란로 231 EAST 2층")[:2], ("대한민국", "서울"))
+        self.assertEqual(region.split_address("KR 서울특별시 강남구 테헤란로 231", cfg), ("서울", "강남"))
+
+    def test_seoul_area_falls_back_to_gu(self):
+        cfg = dict(CONFIG, metro=["서울", "부산"])
+        self.assertEqual(region.split_address("서울특별시 용산구 한남대로20길 47", cfg), ("서울", "용산"))
+        self.assertEqual(region.split_address("서울특별시 중구 명동8가길 58", cfg), ("서울", "중구"))
+        self.assertEqual(region.split_address("부산광역시 해운대구 달맞이길 30", cfg), ("부산", "해운대"))
 
 
 class ProgressTest(unittest.TestCase):
