@@ -299,6 +299,13 @@ class BotTest(unittest.TestCase):
         self.reply = lambda chat_id, text: self.sent.append((chat_id, text))
         self.app = SimpleNamespace(handle=lambda text: ["결과"])
 
+    def test_log_hides_token(self):
+        from places import telegram_bot
+        with unittest.mock.patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "123:SECRET"}), \
+                unittest.mock.patch("builtins.print") as out:
+            telegram_bot.log("502 for url: https://api.telegram.org/bot123:SECRET/getUpdates")
+        self.assertNotIn("SECRET", out.call_args.args[0])
+
     def test_no_chat_id_configured_tells_id(self):
         handle_update(self.app, _update("111", "/start"), "", self.reply, set())
         self.assertEqual(len(self.sent), 1)

@@ -30,6 +30,10 @@ def send(token, chat_id, text):
 
 
 def log(message):
+    # requests 오류 메시지에 API 주소(토큰 포함)가 그대로 들어간다
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if token:
+        message = message.replace(token, "<토큰>")
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}", flush=True)
 
 
