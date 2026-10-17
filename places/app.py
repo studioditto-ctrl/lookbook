@@ -5,6 +5,7 @@ import html
 from . import extract as extract_mod
 from . import geocode, instagram, obsidian, region
 from .gmaps import NO_SAVE
+from .progress import Progress
 from .store import Store
 
 HELP = (
@@ -35,8 +36,9 @@ class App:
         self.pending = {}  # 캡션을 못 받은 게시물: shortcode → url
 
     # --- 진입점 ---
-    def handle(self, text):
-        """텍스트 메시지 하나 → 답장 문자열 목록."""
+    def handle(self, text, progress=None):
+        """텍스트 메시지 하나 → 답장 문자열 목록. progress 로 단계·진도를 알린다."""
+        progress = progress or Progress()
         text = (text or "").strip()
         if text.startswith("/"):
             return [self.command(text.split()[0].split("@")[0])]
@@ -44,19 +46,25 @@ class App:
         if not urls:
             if self.pending and len(text) >= MIN_CAPTION:
                 code, url = self.pending.popitem()
-                return [self.process(instagram.Post(code, url, caption=text, source="user"))]
+                progress.start()
+                progress.stage(1)
+                return [self.process(instagram.Post(code, url, caption=text, source="user"),
+                                     progress=progress)]
             return [HELP]
 
         extra = instagram.strip_urls(text)
         replies = []
-        for code, url in urls:
+        for k, (code, url) in enumerate(urls, 1):
             if self.store.seen(code):
                 replies.append(self._already(code))
                 continue
+            progress.start(f"링크 {k}/{len(urls)}" if len(urls) > 1 else "")
+            progress.stage(0)
             if len(urls) == 1 and len(extra) >= MIN_CAPTION:
                 post = instagram.Post(code, url, caption=extra, source="user")
             else:
                 post = self.fetch(code, url)
+            progress.stage(1, f"슬라이드 {len(post.images)}장" if post.images else "")
             if not post.caption and not post.images:
                 self.pending[code] = url
                 replies.append(
@@ -64,11 +72,12 @@ class App:
                     "인스타 앱에서 캡션을 복사해 그대로 보내주시면 이어서 처리할게요."
                 )
                 continue
-            replies.append(self.process(post))
+            replies.append(self.process(post, progress=progress))
         return replies
 
     # --- 처리 ---
-    def process(self, post, save=True):
+    def process(self, post, save=True, progress=None):
+        progress = progress or Progress()
         try:
             result = self.extractor(post.caption, images=post.images)
         except Exception as e:  # noqa: BLE001 — API 오류는 사용자에게 알리고 다음 메시지로
@@ -84,6 +93,7 @@ class App:
             return f"🤔 장소를 찾지 못했어요.\n{esc(result.summary)}\n{esc(post.url)}"
 
         lines, keys, new_keys, unchecked = [], [], [], False
+        progress.stage(2, total=len(result.places))
         for i, cand in enumerate(result.places, 1):
             place = self.resolver(cand)
             list_name = region.list_name(place.sido, place.area, self.config, place.address)
@@ -104,6 +114,7 @@ class App:
                 f"{i}. <b>{esc(place.name)}</b> · {esc(place.category)} · "
                 f"{esc(list_name)} {gm}{flag}\n   {esc(place.address)}"
             )
+            progress.advance(place.name)
 
         if save:
             self.store.record_post(post.shortcode, post.url, result.summary, keys, new_keys)

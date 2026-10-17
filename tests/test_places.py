@@ -385,7 +385,54 @@ def _update(chat_id, text):
     return {"update_id": 1, "message": {"chat": {"id": int(chat_id)}, "text": text}}
 
 
+class ProgressTest(unittest.TestCase):
+    def setUp(self):
+        from places.progress import Progress
+        self.now = [100.0]
+        self.shown = []
+        self.p = Progress(show=self.shown.append, clock=lambda: self.now[0])
+
+    def test_steps_and_spinner_change(self):
+        self.p.stage(0)
+        self.now[0] += 12
+        self.p.stage(1, "슬라이드 9장")
+        text = self.shown[-1]
+        self.assertIn("12초", text)
+        self.assertIn("✅ 게시물 읽기", text)
+        self.assertIn("장소 찾기 · Gemini", text)
+        self.assertIn("▫️ 지도·노트 저장", text)
+        self.assertNotEqual(self.shown[-1][0], self.shown[-2][0])  # ⏳ ↔ ⌛
+
+    def test_save_bar_and_eta(self):
+        self.p.stage(2, total=4)
+        self.assertIn("░░░░░░░░░░ 0/4 · 약 32초 남음", self.shown[-1])  # 기본 1곳 8초
+        self.now[0] += 10
+        self.p.advance("어니언")
+        self.assertIn("▓▓░░░░░░░░ 1/4 · 약 30초 남음 · 어니언", self.shown[-1])
+
+    def test_finish_and_silent_without_show(self):
+        from places.progress import Progress
+        self.now[0] += 52
+        self.p.finish()
+        self.assertEqual(self.shown[-1], "✅ 완료 · 52초")
+        quiet = Progress()
+        quiet.stage(2, total=1)
+        quiet.advance()
+        quiet.finish()  # show 가 없으면 아무 일도 없다
+
+
 class BotTest(unittest.TestCase):
+    def test_progress_message_wraps_url_processing(self):
+        calls = []
+        progress = SimpleNamespace(finish=lambda text=None: calls.append(("finish", text)),
+                                   elapsed=lambda: 3)
+        app = SimpleNamespace(handle=lambda text, progress=None: calls.append(("handle", progress)) or ["결과"])
+        update = {"message": {"chat": {"id": 7}, "text": "https://www.instagram.com/p/AAA/"}}
+        sent = []
+        handle_update(app, update, "7", lambda c, t: sent.append(t), set(), lambda chat: progress)
+        self.assertEqual(calls, [("handle", progress), ("finish", None)])
+        self.assertEqual(sent, ["결과"])  # '분석 중' 별도 메시지 대신 진행 메시지를 고쳐 쓴다
+
     def setUp(self):
         self.sent = []
         self.reply = lambda chat_id, text: self.sent.append((chat_id, text))
