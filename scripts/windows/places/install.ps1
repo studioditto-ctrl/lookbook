@@ -66,6 +66,10 @@ if (-not (Test-Path $VPy)){
 Write-Host "패키지를 설치합니다..."
 & $VPy -m pip install --quiet --upgrade pip
 & $VPy -m pip install --quiet -r (Join-Path $Repo "places\requirements.txt")
+if ($LASTEXITCODE -ne 0){
+    Write-Host "패키지 설치에 실패했습니다. 위 오류를 확인하세요." -ForegroundColor Red
+    exit 1
+}
 
 $chrome = @(
     "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
