@@ -107,7 +107,13 @@ def extract(caption, config, client=None, ask=None):
     content = f"<caption>\n{caption}\n</caption>"
     if client is None and provider(config) == "gemini":
         if ask is None:
-            from src.gemini_client import ask_gemini as ask
+            import os
+
+            from src import gemini_client
+            # 코드 기본 모델이 막혀 매번 404 → 대체 모델로 도는 시간을 줄인다. GEMINI_MODEL 환경변수가 우선
+            if settings.get("gemini_model") and not os.environ.get("GEMINI_MODEL"):
+                gemini_client.MODEL = settings["gemini_model"]
+            ask = gemini_client.ask_gemini
         return parse(ask(SYSTEM, content, SCHEMA, max_tokens=MAX_TOKENS, log_prefix="places"))
     if client is None:
         import anthropic

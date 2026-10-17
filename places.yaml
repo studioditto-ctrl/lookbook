@@ -21,6 +21,7 @@ gmaps:
 # 막히면 사용 가능한 모델로 알아서 바꾼다. 아래 model·effort 는 claude 일 때만 쓴다.
 extract:
   provider: "gemini"
+  gemini_model: "gemini-3.8-flash"          # 2026-10-17 이 계정에서 실제로 되는 모델. 막히면 자동 전환
   model: "claude-opus-5-5"
   effort: "low"
 
