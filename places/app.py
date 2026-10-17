@@ -2,6 +2,7 @@
 
 import dataclasses
 import html
+import time
 
 from . import extract as extract_mod
 from . import geocode, instagram, obsidian, region
@@ -11,7 +12,7 @@ from .store import Store
 
 HELP = (
     "인스타그램 게시물 URL 을 보내면 장소를 찾아 구글 지도 목록과 옵시디언에 저장합니다.\n"
-    "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장"
+    "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장 · /status 작동 확인"
 )
 MIN_CAPTION = 20  # URL 과 함께 온 텍스트가 이보다 길면 캡션으로 본다
 
@@ -35,6 +36,8 @@ class App:
             lambda caption, images=(): extract_mod.extract(caption, config, images=images))
         self.resolver = resolver or (lambda c: geocode.resolve(c, config))
         self.pending = {}  # 캡션을 못 받은 게시물: shortcode → url
+        self.started = time.time()
+        self.last_done = ""  # /status 용: 마지막으로 처리한 게시물
 
     # --- 진입점 ---
     def handle(self, text, progress=None):
@@ -124,6 +127,7 @@ class App:
             self.store.record_post(post.shortcode, post.url, result.summary, keys, new_keys)
             obsidian.write_index(self.store.all_places(), self.config)
             self.store.save()
+        self.last_done = f"{time.strftime('%m-%d %H:%M')} · {len(result.places)}곳 · {post.url}"
         head = f"📍 {len(result.places)}곳 {'저장' if save else '찾음'}"
         tail = ("\n\n<i>카카오 키가 없어 위치는 캡션 기준이에요 (지점·동네가 다를 수 있음)</i>"
                 if unchecked else "")
@@ -168,7 +172,20 @@ class App:
             return self._undo()
         if cmd == "/retry":
             return self.retry_gmaps()
+        if cmd == "/status":
+            return self._status()
         return HELP
+
+    def _status(self):
+        """밖에서도 봇이 도는지 확인용."""
+        up = int(time.time() - self.started)
+        places = self.store.all_places()
+        unsaved = sum(1 for e in places if not e.get("gmaps_saved") and not e.get("gmaps_no_save"))
+        return "\n".join([
+            f"🟢 작동 중 · 켜진 지 {up // 3600}시간 {up % 3600 // 60}분 ({time.strftime('%m-%d %H:%M', time.localtime(self.started))})",
+            f"저장 장소 {len(places)}곳 · 지도 미저장 {unsaved}곳" + (" → /retry" if unsaved else ""),
+            f"마지막 처리: {esc(self.last_done) or '이번 실행에서는 아직 없음'}",
+        ])
 
     def retry_gmaps(self, progress=None):
         """지도에 저장 못 한 장소를 다시 저장한다 (저장 버튼이 없는 장소는 건너뛴다)."""

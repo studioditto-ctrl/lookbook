@@ -126,6 +126,13 @@ def run(app):
         return Progress(show=lambda text: edit(token, chat_id, message_id, text))
 
     me = call(token, "getMe")
+    # 하루 첫 시작(아침 7:20 부팅)에만 알린다. 밖에서도 봇이 켜졌는지 알 수 있게
+    today = time.strftime("%Y-%m-%d")
+    if allowed and app.store.data.get("last_hello") != today:
+        app.store.data["last_hello"] = today
+        app.store.save()
+        reply(allowed, f"🟢 장소 봇이 켜졌어요 ({time.strftime('%H:%M')}). "
+                       "링크를 보내면 바로 처리해요 · /status 작동 확인")
     log(f"[bot] 시작: @{me.get('username')} · 허용 채팅 {allowed or '(미설정)'}. Ctrl+C 로 종료.")
     while True:
         try:

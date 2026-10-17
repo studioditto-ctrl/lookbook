@@ -293,6 +293,13 @@ class AppTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_status_reports_counts(self):
+        self.app.handle("https://www.instagram.com/p/AAA/")
+        [reply] = self.app.handle("/status")
+        self.assertIn("🟢 작동 중", reply)
+        self.assertIn("저장 장소 1곳 · 지도 미저장 0곳", reply)
+        self.assertIn("instagram.com/p/AAA", reply)
+
     def test_retry_saves_unsaved_places(self):
         self.app.gmaps = FakeGMaps(ok=False)
         self.app.handle("https://www.instagram.com/p/AAA/")
