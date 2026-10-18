@@ -6,7 +6,13 @@
 LIST.json (레포 밖 %USERPROFILE%\\.lookbook\\lists\\ 에 둔다):
   {"source": "https://…", "tags": ["미쉐린"], "category": "식당",
    "places": [{"name": "밍글스", "city": "서울", "note": "미쉐린 3스타",
-               "query": "(선택) 검색어", "alt": ["(선택) 구글이 보여 주는 다른 이름"]}]}
+               "query": "(선택) 검색어", "alt": ["(선택) 구글이 보여 주는 다른 이름"],
+               "title": "(선택) 노트에 쓸 가게 이름", "fix_location": true}]}
+
+가오픈·신규 가게처럼 구글 지도에 아직 없으면 주소 핀으로 저장한다:
+   {"name": "홉하우스", "city": "서울", "query": "서울 마포구 성미산로 183", "pin": true,
+    "addr": "서울 마포구 성미산로 183", "title": "홉하우스", "note": "…"}
+(fix_location: 이미 있는 기록의 주소·좌표를 새로 연 장소의 것으로 바꾼다.)
 
 같은 이름으로 다른 가게가 열리는 일을 막으려고 구글 지도가 연 장소의 이름과 주소의 시·도를
 목록의 값과 견준다. 맞지 않으면 다른 검색어로 다시 열어 보고, 그래도 안 맞으면 저장하지 않고
@@ -18,7 +24,7 @@ from pathlib import Path
 
 from . import obsidian, region
 from .gmaps import NO_SAVE, GMaps
-from .namematch import name_matches  # noqa: F401 — 다른 모듈·테스트가 여기서 가져다 쓴다
+from .namematch import address_match, name_matches  # noqa: F401 — 다른 모듈·테스트가 여기서 가져다 쓴다
 from .namematch import norm as _norm
 from .store import Store
 
@@ -48,8 +54,16 @@ class AddList:
                 continue
             info = self.gm.place_info()
             last = info
-            # 구글이 영문(Restaurant Allen)으로 보여 주는 가게는 alt 에 그 이름을 적는다
-            ok_name = any(name_matches(n, info["name"]) for n in [item["name"], *item.get("alt", [])])
+            if item.get("pin"):
+                # 가오픈·신규 가게는 구글 지도에 아직 없어서 글의 주소 위치(주소 핀)로 저장한다.
+                # 열린 곳의 이름이 곧 주소이므로 글의 주소(addr)와 맞는지로 확인한다
+                if not info["address"] and address_match(item.get("addr", ""), info["name"]):
+                    info = dict(info, address=info["name"])
+                    last = info
+                ok_name = address_match(item.get("addr", ""), info["address"])
+            else:
+                # 구글이 영문(Restaurant Allen)으로 보여 주는 가게는 alt 에 그 이름을 적는다
+                ok_name = any(name_matches(n, info["name"]) for n in [item["name"], *item.get("alt", [])])
             want_city = item.get("city")
             ok_city = not want_city or region.parse_address(info["address"] or "")[1] == want_city
             if ok_name and ok_city:
@@ -100,22 +114,29 @@ class AddList:
                 continue
             info, item = r["info"], r
             saved = r["status"] == "저장"
-            entry = store.data["places"].get(f"gmaps:{info['id']}") or existing.get(_norm(info["name"]))
+            title = item.get("title") or info["name"]  # 노트 이름 (주소 핀·영문 표기는 가게 이름으로)
+            entry = ((info["id"] and store.data["places"].get(f"gmaps:{info['id']}"))
+                     or existing.get(_norm(title)) or existing.get(_norm(info["name"])))
             tags = list(self.spec.get("tags") or []) + list(item.get("tags") or [])
             if entry:
                 if source and source not in entry["sources"]:
                     entry["sources"].append(source)
                 entry["gmaps_saved"] = entry.get("gmaps_saved") or saved
+                entry.pop("gmaps_mismatch", None)  # 엉뚱한 가게가 저장됐던 기록을 바로잡는다
                 entry["gmaps_list"] = r["target"]
-                if entry.get("lat") is None and info.get("lat") is not None:
+                if info.get("address") and (not entry.get("address") or item.get("pin")
+                                            or item.get("fix_location")):
+                    entry["address"] = info["address"]
+                if info.get("lat") is not None and (entry.get("lat") is None or item.get("fix_location")):
                     entry["lat"], entry["lng"] = info["lat"], info["lng"]
                 entry["tags"] = list(dict.fromkeys((entry.get("tags") or []) + tags))
-                obsidian.write_place(entry, r["target"], item.get("note", ""), self.config)
+                path = obsidian.write_place(entry, r["target"], item.get("note", ""), self.config)
+                add_note_line(path, item.get("note", ""))  # 이미 있는 노트에는 출처 줄이 안 붙을 수 있다
                 updated += 1
                 continue
             sido, area = region.split_address(info["address"], self.config)
             entry = {
-                "name": info["name"], "category": item.get("category") or self.spec.get("category", "식당"),
+                "name": title, "category": item.get("category") or self.spec.get("category", "식당"),
                 "sido": sido, "area": area, "address": info["address"],
                 "lat": info.get("lat"), "lng": info.get("lng"),
                 "kakao_id": "", "kakao_url": "", "phone": "",
@@ -124,8 +145,8 @@ class AddList:
                 "gmaps_saved": saved, "gmaps_no_save": not saved, "gmaps_list": r["target"],
                 "tags": tags,
             }
-            store.data["places"][f"gmaps:{info['id'] or _norm(info['name'])}"] = entry
-            existing[_norm(info["name"])] = entry
+            store.data["places"][f"gmaps:{info['id'] or _norm(title)}"] = entry
+            existing[_norm(title)] = entry
             obsidian.write_place(entry, r["target"], item.get("note", ""), self.config)
             made += 1
         obsidian.write_index(store.all_places(), self.config)
@@ -142,6 +163,24 @@ class AddList:
             text += "\n확인 필요: " + ", ".join(bad)
         self.log(text)
         return text
+
+
+def add_note_line(path, text, today=None):
+    """노트의 '출처' 목록 끝(## 메모 앞)에 한 줄을 더한다. 이미 있으면 그대로. 메모 칸은 건드리지 않는다."""
+    from datetime import date
+    path = Path(path)
+    body = path.read_text(encoding="utf-8")
+    if not text or text in body:
+        return False
+    line = f"- {today or date.today().isoformat()} {text}"
+    marker = "\n## 메모"
+    if marker in body:
+        head, tail = body.split(marker, 1)
+        body = head.rstrip() + "\n" + line + "\n" + marker + tail
+    else:
+        body = body.rstrip() + "\n" + line + "\n"
+    path.write_text(body, encoding="utf-8")
+    return True
 
 
 def load(path):
