@@ -16,6 +16,8 @@ from . import coords
 
 DEFAULT_N = 20
 MAX_N = 50
+PRIOR_RATING, PRIOR_REVIEWS = 4.3, 20
+POOL_FACTOR = 3  # 평점순은 가까운 n×3곳 중에서 고른다
 FAR_M = 30_000  # 이보다 멀면 '근처에는 없어요' 라고 알린다
 
 NEAR_WORDS = ("/near", "근처", "주변", "가까운", "nearby")
@@ -92,20 +94,30 @@ def candidates(store_places, sidecar):
             if key not in sidecar:  # coords.json 에 null 로 적힌 곳은 '알 수 없다고 확인한' 곳이라 세지 않는다
                 missing += 1
             continue
-        out.append(dict(e, lat=ll[0], lng=ll[1], _order=len(out)))  # places.json 은 저장한 순서라 _order 가 클수록 최근
+        out.append(dict(e, lat=ll[0], lng=ll[1]))
     return out, missing
 
 
-def nearest(places, lat, lng, terms=(), n=DEFAULT_N, recent=False):
-    """[(거리 m, 장소)] 가까운 순. terms 는 모두 맞아야 한다.
-    recent 면 가까운 n곳을 뽑은 뒤 최근 저장한 것부터 보여 준다 (저장일이 있으면 그 날짜, 없으면 저장한 순서)."""
+def nearest(places, lat, lng, terms=(), n=DEFAULT_N):
+    """[(거리 m, 장소)] 가까운 순. terms 는 모두 맞아야 한다."""
     hits = [(distance_m(lat, lng, p["lat"], p["lng"]), p) for p in places
             if all(_matches(p, t) for t in terms)]
     hits.sort(key=lambda h: h[0])
-    hits = hits[:n]
-    if recent:
-        hits.sort(key=lambda h: h[1].get("_order", 0), reverse=True)
-    return hits
+    return hits[:n]
+
+
+def score(p):
+    """평점을 댓글 수로 보정한 점수. 5.0(1개) 보다 4.7(1,000개) 이 위에 오게 한다 (평균 4.3 의 가짜 댓글 20개를 더해 평균)."""
+    v = p.get("reviews") or 0
+    return (v * p["rating"] + PRIOR_REVIEWS * PRIOR_RATING) / (v + PRIOR_REVIEWS)
+
+
+def top_rated(places, lat, lng, terms=(), n=DEFAULT_N):
+    """가까운 POOL_FACTOR*n 곳 중 평점 높은 n곳. (목록, 후보 수, 평점 모르는 수). 평점은 /sync 가 목록에서 읽어 둔다."""
+    pool = nearest(places, lat, lng, terms, n * POOL_FACTOR)
+    rated = [h for h in pool if h[1].get("rating")]
+    rated.sort(key=lambda h: score(h[1]), reverse=True)
+    return rated[:n], len(pool), len(pool) - len(rated)
 
 
 def _place_link(p):
@@ -120,7 +132,19 @@ def _directions(p):
     return f"https://www.google.com/maps/dir/?api=1&destination={p['lat']},{p['lng']}&travelmode=walking"
 
 
-def render(hits, terms, missing=0, recent=False):
+def _line(i, m, p, rated=False):
+    star = " ⭐미쉐린" if "미쉐린" in (p.get("tags") or []) else ""
+    review = (f" · ★{p['rating']} (댓글 {p['reviews']:,})" if p.get("reviews") is not None
+              else f" · ★{p['rating']}") if rated else ""
+    return (f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))}{review} · "
+            f"{fmt_distance(m)}{star}\n"
+            f"   {html.escape(p.get('gmaps_list') or '')} · "
+            f"<a href=\"{html.escape(_directions(p))}\">길찾기</a> · "
+            f"<a href=\"{html.escape(_place_link(p))}\">지도</a>")
+
+
+def render(hits, terms, missing=0, rated=None):
+    """hits: 거리순. rated: top_rated 의 결과 (목록, 후보 수, 평점 모르는 수) — 주면 평점순 구간을 덧붙인다."""
     label = " ".join(terms)
     if not hits:
         what = f"'{html.escape(label)}'에 맞는 " if terms else ""
@@ -129,15 +153,19 @@ def render(hits, terms, missing=0, recent=False):
     if hits[0][0] > FAR_M:
         head += f"\n근처 {FAR_M // 1000}km 안에는 없어요. 가장 가까운 곳이에요."
     lines = [head, ""]
-    for i, (m, p) in enumerate(hits, 1):
-        star = " ⭐미쉐린" if "미쉐린" in (p.get("tags") or []) else ""
-        lines.append(f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))} · "
-                     f"{fmt_distance(m)}{star}")
-        saved = f" · {p['saved_at'][5:]} 저장" if recent and p.get("saved_at") else ""
-        lines.append(f"   {html.escape(p.get('gmaps_list') or '')}{saved} · "
-                     f"<a href=\"{html.escape(_directions(p))}\">길찾기</a> · "
-                     f"<a href=\"{html.escape(_place_link(p))}\">지도</a>")
-    foot = f"가까운 {len(hits)}곳 · 최근 저장한 순 · 직선거리 기준" if recent else "직선거리 기준"
+    if rated is not None:
+        lines += [f"① 가까운 순 ({len(hits)}곳)", ""]
+    lines += [_line(i, m, p) for i, (m, p) in enumerate(hits, 1)]
+    foot = "직선거리 기준"
+    if rated is not None:
+        top, pool, unrated = rated
+        lines += ["", f"② 평점 높은 순 (가까운 {pool}곳 중 · 댓글 수 보정)", ""]
+        if top:
+            lines += [_line(i, m, p, rated=True) for i, (m, p) in enumerate(top, 1)]
+        else:
+            lines.append("평점 정보가 아직 없어요. /sync 를 한 번 보내면 채워져요.")
+        if top and unrated:
+            foot += f" · 평점을 모르는 {unrated}곳은 ②에서 빠졌어요 (/sync)"
     if missing:
         foot += f" · 좌표를 아직 모르는 {missing}곳은 빠졌어요"
     lines += ["", f"<i>{foot}</i>"]

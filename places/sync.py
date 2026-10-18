@@ -40,6 +40,13 @@ def parse_item(text):
     return parts[0], (float(m.group(1)) if m else None)
 
 
+def parse_reviews(text):
+    """장소 줄 → (평점, 댓글(리뷰) 수). 없으면 (None, None). '4.5(1,234)' → (4.5, 1234)."""
+    parts = [p.strip() for p in (text or "").split("\n") if p.strip()]
+    m = RATING.match(parts[1]) if len(parts) > 1 else None
+    return (float(m.group(1)), int(m.group(2).replace(",", ""))) if m else (None, None)
+
+
 def answer_of(word):
     """'/sync 예' 의 예·아니오 → True/False, 그 밖이면 None."""
     w = (word or "").strip().lower()
@@ -150,7 +157,7 @@ class Sync:
         """목록을 읽어 새 장소를 가져온다. city: 시 목록에도 넣을지 (None 이면 기억한 답)."""
         if city is not None:
             self.set_city(city)
-        result = {"lists": 0, "lines": 0, "new": [], "linked": 0, "failed": [], "bad_lists": [],
+        result = {"lists": 0, "lines": 0, "rated": 0, "new": [], "linked": 0, "failed": [], "bad_lists": [],
                   "city_saved": [], "city_failed": [], "ask_city": False}
         self.progress.start("구글 지도 동기화")
         self.progress.stage(0)
@@ -158,6 +165,7 @@ class Sync:
         lists = [lst for lst in self.source.read_lists() if lst["count"] > 0]
         result["lists"] = len(lists)
         found = self._scan(lists, result)
+        result["rated"] = self._update_ratings(found)
         known = self.known_names()
         todo = {n: f for n, f in found.items() if n not in known}
         self.log(f"장소 줄 {result['lines']}개 → 모르는 이름 {len(todo)}개")
@@ -189,10 +197,23 @@ class Sync:
                     continue
                 result["lines"] += 1
                 f = found.setdefault(norm(name), {"name": name, "rating": rating, "lists": [],
-                                                  "pos": (li, idx)})
+                                                  "reviews": parse_reviews(text)[1], "pos": (li, idx)})
                 if lst["name"] not in f["lists"]:
                     f["lists"].append(lst["name"])
         return found
+
+    def _update_ratings(self, found):
+        """목록 줄의 평점·댓글 수를 이미 아는 장소에 적는다 ('내 주변' 의 평점순용). 갱신한 수."""
+        places = self.store.data["places"]
+        by_name = {norm(e["name"]): k for k, e in places.items()}
+        n = 0
+        for name, f in found.items():
+            key = by_name.get(name) or self.state["alias"].get(name)
+            entry = places.get(key) if key else None
+            if entry and f["rating"] is not None:
+                entry["rating"], entry["reviews"] = f["rating"], f["reviews"]
+                n += 1
+        return n
 
     def _resolve_list(self, lst, group, found, result):
         """한 목록에서 모르는 이름들을 열어 기록한다 (이름은 목록 안 순서로 연다)."""
@@ -248,9 +269,10 @@ class Sync:
             "lat": info.get("lat"), "lng": info.get("lng"),
             "kakao_id": "", "kakao_url": "", "phone": "",
             "note": note, "confidence": 1.0, "checked": True,
+            "rating": f["rating"], "reviews": f["reviews"],
             "sources": [info["url"] or f"https://www.google.com/maps/search/?api=1&query={info['name']}"],
             "gmaps_saved": True, "gmaps_list": f["lists"][0], "gmaps_origin": list(f["lists"]),
-            "gmaps_synced": time.strftime("%Y-%m-%d"), "saved_at": time.strftime("%Y-%m-%d"),
+            "gmaps_synced": time.strftime("%Y-%m-%d"),
         }
         self.store.data["places"][key] = entry
         self.state["alias"][norm(f["name"])] = key
@@ -357,6 +379,8 @@ def report(result, esc=lambda s: s, limit=12):
                 lines.append(f"… 외 {len(new) - limit}곳")
         else:
             lines.append("✅ 새로 가져올 장소가 없어요.")
+        if result.get("rated"):
+            lines.append(f"⭐ 평점·댓글 수 {result['rated']}곳 갱신")
         if result["linked"]:
             lines.append(f"= 이름만 달랐던 아는 장소 {result['linked']}곳은 연결만 했어요")
         if result["failed"]:

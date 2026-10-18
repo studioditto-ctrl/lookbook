@@ -491,18 +491,31 @@ class NearbyTest(unittest.TestCase):
         star = nearby.nearest(places, 37.5450, 127.0560, ["미쉐린"], 5)
         self.assertEqual([p["name"] for _, p in star], ["모수"])
 
-    def test_recent_ordering_picks_nearest_then_shows_newest_first(self):
+    def test_rated_section_follows_distance_section(self):
         from places import nearby
-        raw = {f"p{i}": {"name": f"집{i}", "category": "카페", "gmaps_saved": True, "sources": [],
-                         "lat": 37.5 + i * 0.001, "lng": 127.0, "saved_at": f"2026-10-{10 + i:02d}"}
-               for i in range(5)}  # 집0 이 가장 가깝고 집4 가 가장 최근에 저장됨
+        raw = {f"p{i}": {"name": f"집{i}", "category": "카페", "gmaps_saved": True, "sources": [], "gmaps_list": "📍서울",
+                         "lat": 37.5 + i * 0.001, "lng": 127.0, "rating": r, "reviews": v}
+               for i, (r, v) in enumerate([(4.0, 500), (5.0, 1), (4.7, 1200), (4.8, 300), (None, None)])}
+        raw["p4"].pop("rating"); raw["p4"].pop("reviews")  # 평점 모름
         places, _ = nearby.candidates(raw, {})
-        near3 = nearby.nearest(places, 37.5, 127.0, [], 3, recent=True)
-        self.assertEqual([p["name"] for _, p in near3], ["집2", "집1", "집0"])  # 먼 집3·4 는 가까운 3곳에 못 든다
-        text = nearby.render(near3, [], 0, recent=True)
-        self.assertIn("10-12 저장", text)
-        self.assertIn("최근 저장한 순", text)
-        self.assertEqual([p["name"] for _, p in nearby.nearest(places, 37.5, 127.0, [], 3)], ["집0", "집1", "집2"])
+        top, pool, unrated = nearby.top_rated(places, 37.5, 127.0, [], 3)
+        # 5.0(댓글 1개)은 댓글이 많은 4.8·4.7 보다 아래 — 댓글 수로 보정한 점수
+        self.assertEqual([p["name"] for _, p in top], ["집3", "집2", "집1"])
+        self.assertEqual((pool, unrated), (5, 1))
+        hits = nearby.nearest(places, 37.5, 127.0, [], 3)
+        text = nearby.render(hits, [], 0, rated=(top, pool, unrated))
+        self.assertLess(text.index("① 가까운 순"), text.index("② 평점 높은 순"))  # 거리순 다음에 평점순
+        self.assertIn("★4.7 (댓글 1,200)", text)  # 평점순에만 댓글 수
+        self.assertNotIn("댓글", text[:text.index("② 평점")])
+        self.assertIn("평점을 모르는 1곳", text)
+        self.assertEqual([p["name"] for _, p in hits], ["집0", "집1", "집2"])
+
+    def test_rated_section_explains_missing_ratings(self):
+        from places import nearby
+        places, _ = nearby.candidates(self.PLACES, {})
+        hits = nearby.nearest(places, 37.5450, 127.0560, [], 5)
+        text = nearby.render(hits, [], 0, rated=nearby.top_rated(places, 37.5450, 127.0560, [], 5))
+        self.assertIn("평점 정보가 아직 없어요. /sync", text)
 
     def test_default_shows_twenty(self):
         from places import nearby
@@ -793,6 +806,16 @@ class SyncTest(unittest.TestCase):
         places, missing = nearby.candidates(saved_places(self.config), coords_load(self.config["data_dir"]))
         self.assertEqual(nearby.nearest(places, 37.4001, 127.1101, [], 1)[0][1]["name"], "새집 소금빵")
 
+    def test_ratings_and_review_counts_are_written_to_known_and_new_places(self):
+        self.assertEqual(self.sync.parse_reviews("어니언 성수\n4.5(1,234)\n₩10,000~20,000\n· 카페"), (4.5, 1234))
+        self.assertEqual(self.sync.parse_reviews("서울 성동구 아차산로 7"), (None, None))
+        result = self.engine().run()
+        places = self.store.data["places"]
+        self.assertEqual((places["k1"]["rating"], places["k1"]["reviews"]), (4.5, 1234))  # 이미 아는 장소
+        new = places["gmaps:0x1:0x65"]
+        self.assertEqual((new["rating"], new["reviews"]), (4.7, 30))  # 새 장소
+        self.assertIn("평점·댓글 수", self.sync.report(result))
+
     def test_same_place_with_other_name_is_linked_not_duplicated(self):
         result = self.engine().run()
         self.assertEqual(result["linked"], 1)  # 블루보틀: 이름이 비슷하고 300m 안이라 같은 장소
@@ -925,7 +948,7 @@ class BotTest(unittest.TestCase):
         self.assertFalse(any(b.get("request_location") for row in MAIN_MENU["keyboard"] for b in row))
         self.assertEqual(len(MAIN_MENU["keyboard"]), 2)  # 2줄
         self.assertEqual([MENU_ACTIONS[b["text"]] for b in MAIN_MENU["keyboard"][0]], ["/근처카페", "/근처맛집", "/근처장소"])
-        self.assertEqual([MENU_ACTIONS[b["text"]] for b in MAIN_MENU["keyboard"][1]], ["/sync", "/recent", "/undo"])
+        self.assertEqual([MENU_ACTIONS[b["text"]] for b in MAIN_MENU["keyboard"][1]], ["/sync", "/undo"])
         self.assertIn("sync", [c for c, _ in COMMANDS])
 
     def test_menu_button_text_runs_the_command(self):
@@ -934,10 +957,10 @@ class BotTest(unittest.TestCase):
                               near_request=lambda chat, text: got.append(text) or "위치를 보내 주세요")
         sent = []
         reply = lambda c, t, markup=None: sent.append(t)  # noqa: E731
-        for label in ("🔄 동기화", "🕘 최근저장", "☕ 근처카페", "↩️ 저장취소"):
+        for label in ("🔄 동기화", "↩️ 저장취소", "☕ 근처카페"):
             handle_update(app, {"message": {"chat": {"id": 7}, "text": label}}, "7", reply, set(),
                           lambda chat: None)
-        self.assertEqual(got, ["/sync", "/recent", "/근처카페", "/undo"])
+        self.assertEqual(got, ["/sync", "/undo", "/근처카페"])
         # '근처 …' 버튼은 위치 버튼 키보드를 띄운다 (쓰면 접히고, 다음 답장에서 메뉴가 돌아온다)
         from places.telegram_bot import LOCATION_KEYBOARD
         shown = []
