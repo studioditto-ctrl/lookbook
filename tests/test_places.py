@@ -903,7 +903,9 @@ class BotTest(unittest.TestCase):
         labels = [b["text"] for row in MAIN_MENU["keyboard"] for b in row]
         self.assertEqual([l for l in labels if l not in MENU_ACTIONS], [])  # 모든 버튼이 글자→명령
         self.assertFalse(any(b.get("request_location") for row in MAIN_MENU["keyboard"] for b in row))
-        self.assertEqual(MENU_ACTIONS[MAIN_MENU["keyboard"][-1][0]["text"]], "/undo")  # 맨 아래 줄
+        self.assertEqual(len(MAIN_MENU["keyboard"]), 2)  # 2줄
+        self.assertEqual([MENU_ACTIONS[b["text"]] for b in MAIN_MENU["keyboard"][0]], ["/근처카페", "/근처맛집", "/근처장소"])
+        self.assertEqual([MENU_ACTIONS[b["text"]] for b in MAIN_MENU["keyboard"][1]], ["/sync", "/recent", "/undo"])
         self.assertIn("sync", [c for c, _ in COMMANDS])
 
     def test_menu_button_text_runs_the_command(self):
@@ -912,14 +914,14 @@ class BotTest(unittest.TestCase):
                               near_request=lambda chat, text: got.append(text) or "위치를 보내 주세요")
         sent = []
         reply = lambda c, t, markup=None: sent.append(t)  # noqa: E731
-        for label in ("🔄 동기화", "📊 통계", "☕ 근처 카페", "↩️ 저장 취소 (/undo)"):
+        for label in ("🔄 동기화", "🕘 최근저장", "☕ 근처카페", "↩️ 저장취소"):
             handle_update(app, {"message": {"chat": {"id": 7}, "text": label}}, "7", reply, set(),
                           lambda chat: None)
-        self.assertEqual(got, ["/sync", "/stats", "/근처카페", "/undo"])
+        self.assertEqual(got, ["/sync", "/recent", "/근처카페", "/undo"])
         # '근처 …' 버튼은 위치 버튼 키보드를 띄운다 (쓰면 접히고, 다음 답장에서 메뉴가 돌아온다)
         from places.telegram_bot import LOCATION_KEYBOARD
         shown = []
-        handle_update(app, {"message": {"chat": {"id": 7}, "text": "🏛 근처 장소"}}, "7",
+        handle_update(app, {"message": {"chat": {"id": 7}, "text": "🏛 근처장소"}}, "7",
                       lambda c, t, markup=None: shown.append(markup), set())
         self.assertEqual(shown, [LOCATION_KEYBOARD])
         self.assertTrue(LOCATION_KEYBOARD["keyboard"][0][0]["request_location"])
