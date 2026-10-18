@@ -473,6 +473,10 @@ class NearbyTest(unittest.TestCase):
         self.assertEqual(nearby.parse_request("/near 맛집 99"), (["식당"], 10))
         self.assertEqual(nearby.parse_request("주변 미슐랭"), (["미쉐린"], 5))
         self.assertEqual(nearby.parse_request("/near"), ([], 5))
+        self.assertEqual(nearby.parse_request("/근처카페"), (["카페"], 5))
+        self.assertEqual(nearby.parse_request("/근처맛집@ditto_bot 3"), (["식당"], 3))
+        self.assertEqual(nearby.parse_request("/근처장소"), (["명소"], 5))
+        self.assertEqual(nearby.parse_request("근처 가볼만한 곳"), (["명소"], 5))
         self.assertTrue(nearby.wants_nearby("근처에 뭐 있어?"))
         self.assertFalse(nearby.wants_nearby("https://www.instagram.com/p/AAA/ 근처 카페"))
 
@@ -486,6 +490,14 @@ class NearbyTest(unittest.TestCase):
         self.assertEqual([p["name"] for _, p in cafes], ["리사르커피 성수", "먼 곳 카페"])  # 설명 글의 '카페' 는 제외
         star = nearby.nearest(places, 37.5450, 127.0560, ["미쉐린"], 5)
         self.assertEqual([p["name"] for _, p in star], ["모수"])
+
+    def test_sights_are_exhibition_and_nature_places(self):
+        from places import nearby
+        places = [dict(self.PLACES["a"], category=c, name=c) for c in ("카페", "식당", "전시/공간", "자연/산책")]
+        for p in places:
+            p.update(lat=37.5446, lng=127.0558)
+        hits = nearby.nearest(places, 37.5446, 127.0558, ["명소"], 5)
+        self.assertEqual(sorted(p["name"] for _, p in hits), ["자연/산책", "전시/공간"])
 
     def test_sidecar_coords_fill_in(self):
         from places import nearby
@@ -889,9 +901,9 @@ class BotTest(unittest.TestCase):
         self.assertTrue(MAIN_MENU["is_persistent"])
         self.assertNotIn("one_time_keyboard", MAIN_MENU)  # 한 번 쓰면 접히는 키보드가 아니다
         labels = [b["text"] for row in MAIN_MENU["keyboard"] for b in row]
-        self.assertEqual([l for l in labels if l not in MENU_ACTIONS], ["📍 내 위치 보내기"])  # 나머지는 모두 글자→명령
-        self.assertTrue(MAIN_MENU["keyboard"][0][0]["request_location"])
-        self.assertNotIn("/undo", MENU_ACTIONS.values())  # 실수로 눌러 저장이 취소되지 않게
+        self.assertEqual([l for l in labels if l not in MENU_ACTIONS], [])  # 모든 버튼이 글자→명령
+        self.assertFalse(any(b.get("request_location") for row in MAIN_MENU["keyboard"] for b in row))
+        self.assertEqual(MENU_ACTIONS[MAIN_MENU["keyboard"][-1][0]["text"]], "/undo")  # 맨 아래 줄
         self.assertIn("sync", [c for c, _ in COMMANDS])
 
     def test_menu_button_text_runs_the_command(self):
@@ -900,10 +912,18 @@ class BotTest(unittest.TestCase):
                               near_request=lambda chat, text: got.append(text) or "위치를 보내 주세요")
         sent = []
         reply = lambda c, t, markup=None: sent.append(t)  # noqa: E731
-        for label in ("🔄 동기화", "📊 통계", "☕ 근처 카페"):
+        for label in ("🔄 동기화", "📊 통계", "☕ 근처 카페", "↩️ 저장 취소 (/undo)"):
             handle_update(app, {"message": {"chat": {"id": 7}, "text": label}}, "7", reply, set(),
                           lambda chat: None)
-        self.assertEqual(got, ["/sync", "/stats", "근처 카페"])
+        self.assertEqual(got, ["/sync", "/stats", "/근처카페", "/undo"])
+        # '근처 …' 버튼은 위치 버튼 키보드를 띄운다 (쓰면 접히고, 다음 답장에서 메뉴가 돌아온다)
+        from places.telegram_bot import LOCATION_KEYBOARD
+        shown = []
+        handle_update(app, {"message": {"chat": {"id": 7}, "text": "🏛 근처 장소"}}, "7",
+                      lambda c, t, markup=None: shown.append(markup), set())
+        self.assertEqual(shown, [LOCATION_KEYBOARD])
+        self.assertTrue(LOCATION_KEYBOARD["keyboard"][0][0]["request_location"])
+        self.assertTrue(LOCATION_KEYBOARD["one_time_keyboard"])
 
     def test_every_reply_carries_the_menu(self):
         from places import telegram_bot
@@ -913,7 +933,7 @@ class BotTest(unittest.TestCase):
         self.assertEqual(calls[0]["reply_markup"], telegram_bot.MAIN_MENU)
 
     def test_near_request_shows_location_button(self):
-        from places.telegram_bot import MAIN_MENU
+        from places.telegram_bot import LOCATION_KEYBOARD as MAIN_MENU
         app = SimpleNamespace(near_request=lambda chat, text: "위치를 보내 주세요")
         update = {"message": {"chat": {"id": 7}, "text": "근처 카페 추천해줘"}}
         sent = []

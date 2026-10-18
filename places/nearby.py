@@ -27,8 +27,11 @@ ALIASES = {
     "커피": "카페", "디저트": "카페", "술": "바", "와인": "바", "술집": "바", "빵": "베이커리",
     "호텔": "숙소", "펜션": "숙소", "전시": "전시/공간", "미술관": "전시/공간", "박물관": "전시/공간",
     "산책": "자연/산책", "자연": "자연/산책", "공원": "자연/산책", "별": "미쉐린", "스타": "미쉐린",
-    "미슐랭": "미쉐린",
+    "미슐랭": "미쉐린", "가볼만한": "명소", "가볼만한곳": "명소", "관광": "명소", "볼거리": "명소",
 }
+# 글자로 보낸 명령 (텔레그램 메뉴 목록에는 한글 명령을 못 올려서 버튼 글자가 이 명령을 보낸다)
+COMMAND_TERMS = {"/근처카페": "카페", "/근처맛집": "식당", "/근처장소": "명소", "/근처명소": "명소"}
+SIGHT_CATEGORIES = {"전시/공간", "자연/산책"}  # '명소' = 가볼 만한 곳
 
 
 def wants_nearby(text):
@@ -39,7 +42,12 @@ def wants_nearby(text):
 def parse_request(text):
     """'근처 카페 3 추천해줘' → (['카페'], 3)."""
     terms, n = [], DEFAULT_N
-    for tok in re.split(r"[\s,]+", (text or "").lower().replace("/near@", "/near ")):
+    for tok in re.split(r"[\s,]+", (text or "").lower()):
+        if tok.startswith("/"):
+            tok = tok.split("@")[0]  # /near@봇이름
+        if tok in COMMAND_TERMS:
+            terms.append(COMMAND_TERMS[tok])
+            continue
         if not tok or tok in STOP:
             continue
         if tok.isdigit():
@@ -63,6 +71,8 @@ def fmt_distance(m):
 
 
 def _matches(entry, term):
+    if term == "명소":
+        return entry.get("category") in SIGHT_CATEGORIES
     if term in CATEGORIES:  # '카페' 가 설명 글에 든 식당까지 걸리지 않게 분류는 정확히
         return entry.get("category") == term
     hay = " ".join([entry.get("name", ""), entry.get("category", ""), entry.get("note", ""),

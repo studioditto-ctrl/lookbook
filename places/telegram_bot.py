@@ -42,17 +42,21 @@ def chunks(text, limit=MAX_LEN):
     return out
 
 
-# 항상 떠 있는 메뉴 키보드 (한 번 보내면 바꾸거나 지울 때까지 남는다). 위치 버튼은 누르면 GPS 를 한 번 보낸다.
-# 지우개 같은 되돌릴 수 없는 명령(/undo)은 실수로 누르기 쉬워서 넣지 않았다.
+# 항상 떠 있는 메뉴 키보드 (한 번 보내면 바꾸거나 지울 때까지 남는다). 글자 버튼이라 누르면 그 글자를 메시지로 보낸다.
 MAIN_MENU = {"keyboard": [
-    [{"text": "📍 내 위치 보내기", "request_location": True}],
-    [{"text": "☕ 근처 카페"}, {"text": "🍽 근처 맛집"}],
+    [{"text": "☕ 근처 카페"}, {"text": "🍽 근처 맛집"}, {"text": "🏛 근처 장소"}],
     [{"text": "🔄 동기화"}, {"text": "🕘 최근 저장"}],
     [{"text": "📊 통계"}, {"text": "🟢 상태"}, {"text": "🔁 재시도"}],
+    [{"text": "↩️ 저장 취소 (/undo)"}],
 ], "resize_keyboard": True, "is_persistent": True}
-# 버튼 글자 → 봇이 알아듣는 말 (버튼은 글자를 메시지로 보낸다)
-MENU_ACTIONS = {"☕ 근처 카페": "근처 카페", "🍽 근처 맛집": "근처 맛집", "🔄 동기화": "/sync",
-                "🕘 최근 저장": "/recent", "📊 통계": "/stats", "🟢 상태": "/status", "🔁 재시도": "/retry"}
+# '근처 …' 를 누르면 이 키보드가 대신 떠서 한 번 누르면 GPS 위치를 보낸다. 쓰면 접히고 위 메뉴가 돌아온다.
+# (텔레그램은 앱이 사용자 대신 위치를 보낼 수 없어, 위치 버튼은 사람이 한 번 눌러야 한다)
+LOCATION_KEYBOARD = {"keyboard": [[{"text": "📍 내 위치 보내기", "request_location": True}]],
+                     "resize_keyboard": True, "one_time_keyboard": True}
+# 버튼 글자 → 봇이 알아듣는 말
+MENU_ACTIONS = {"☕ 근처 카페": "/근처카페", "🍽 근처 맛집": "/근처맛집", "🏛 근처 장소": "/근처장소",
+                "🔄 동기화": "/sync", "🕘 최근 저장": "/recent", "📊 통계": "/stats", "🟢 상태": "/status",
+                "🔁 재시도": "/retry", "↩️ 저장 취소 (/undo)": "/undo"}
 # 입력창 옆 '메뉴' 버튼에 뜨는 명령 목록
 COMMANDS = [("near", "내 주변 저장 장소 (예: /near 카페 3)"), ("sync", "구글 지도 앱에서 저장한 장소 가져오기"),
             ("recent", "최근 저장한 장소"), ("stats", "지역별 저장 개수"), ("status", "봇 작동 확인"),
@@ -120,7 +124,7 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
         reply(chat_id, out)
         return
     if nearby.wants_nearby(text):  # '근처 카페' · /near 맛집 3 → 위치 보내기 버튼
-        reply(chat_id, app.near_request(chat_id, text), markup=MAIN_MENU)
+        reply(chat_id, app.near_request(chat_id, text), markup=LOCATION_KEYBOARD)
         return
     progress = None
     if instagram.find_urls(text) or text.strip().startswith(("/retry", "/sync")):
