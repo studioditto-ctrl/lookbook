@@ -491,6 +491,79 @@ class NearbyTest(unittest.TestCase):
         star = nearby.nearest(places, 37.5450, 127.0560, ["미쉐린"], 5)
         self.assertEqual([p["name"] for _, p in star], ["모수"])
 
+    def test_parse_search_needs_keyword_and_category(self):
+        from places import nearby
+        P = nearby.parse_search
+        self.assertEqual(P("용산 카페 찾아줘"), (["용산", "카페"], 20))
+        self.assertEqual(P("용산에 있는 맛집 추천해줘"), (["용산", "식당"], 20))
+        self.assertEqual(P("성수카페"), (["성수", "카페"], 20))  # 붙여 써도
+        self.assertEqual(P("제주 장소 10곳"), (["제주", "명소"], 10))  # 장소 = 가볼 만한 곳
+        self.assertEqual(P("용산 미쉐린 맛집 3"), (["용산", "미쉐린", "식당"], 3))
+        self.assertIsNone(P("카페"))  # 분류만 — 위치로 찾는 '근처 카페' 쪽
+        self.assertIsNone(P("용산"))
+        self.assertIsNone(P("/near 용산 카페"))
+        self.assertIsNone(P("https://www.instagram.com/p/AAA/ 용산 카페"))
+        self.assertIsNone(P("성수동 새로 생긴 카페 이름이 뭐였는지 기억이 안 나서 캡션을 그대로 붙여 넣어요"))  # 긴 글
+
+    def test_search_lists_rated_first_and_includes_places_without_coords(self):
+        from places import nearby
+        raw = {
+            "a": {"name": "A", "category": "카페", "gmaps_saved": True, "address": "서울특별시 용산구 1", "gmaps_list": "📍서울",
+                  "sources": [], "rating": 4.0, "reviews": 500, "lat": 37.5, "lng": 127.0},
+            "b": {"name": "B", "category": "카페", "gmaps_saved": True, "address": "서울특별시 용산구 2", "gmaps_list": "📍서울",
+                  "sources": [], "rating": 4.8, "reviews": 900},  # 좌표 없음
+            "c": {"name": "C", "category": "카페", "gmaps_saved": True, "area": "용산", "sources": []},  # 평점 없음
+            "d": {"name": "D", "category": "식당", "gmaps_saved": True, "area": "용산", "sources": [], "rating": 5.0, "reviews": 9000},
+            "e": {"name": "E", "category": "카페", "gmaps_saved": True, "area": "성수", "sources": [], "rating": 5.0, "reviews": 9000},
+        }
+        found = nearby.search(raw, {}, ["용산", "카페"])
+        self.assertEqual([p["name"] for p in found], ["A", "B", "C"])  # 식당·성수는 빠지고 좌표 없는 B 도 들어간다
+        self.assertEqual([p["name"] for p in nearby.rank_by_rating(found)], ["B", "A", "C"])  # 평점순, 평점 모르는 곳은 뒤
+        text = nearby.render_search(found, ["용산", "카페"])
+        self.assertIn("★4.8 (댓글 900)", text)
+        self.assertNotIn("길찾기", text.split("<b>B</b>")[1].split("\n")[1])  # 좌표를 모르면 길찾기 링크 없음
+        self.assertIn("위치를 보내면 가까운 순도", text)
+        self.assertIn("평점을 모르는 1곳", text)
+        self.assertIn("맞는 저장 장소가 없어요", nearby.render_search([], ["용산", "카페"]))
+
+    def test_app_search_then_location_gives_both_sections(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        cfg = dict(CONFIG, data_dir=str(Path(tmp.name) / "data"))
+        store = Store(cfg["data_dir"])
+        store.data["places"].update({
+            "a": {"name": "가까운 카페", "category": "카페", "gmaps_saved": True, "area": "용산", "sources": [],
+                  "lat": 37.5300, "lng": 126.9900, "rating": 4.1, "reviews": 200},
+            "b": {"name": "먼 카페", "category": "카페", "gmaps_saved": True, "area": "용산", "sources": [],
+                  "lat": 37.5500, "lng": 127.0200, "rating": 4.9, "reviews": 800},
+            "c": {"name": "성수 카페", "category": "카페", "gmaps_saved": True, "area": "성수", "sources": [],
+                  "lat": 37.5446, "lng": 127.0558, "rating": 5.0, "reviews": 900}})
+        app = App(cfg, store=store)
+        text, has = app.search_request(7, "용산 카페 찾아줘")
+        self.assertTrue(has)
+        self.assertLess(text.index("먼 카페"), text.index("가까운 카페"))  # 위치 없이는 평점순
+        self.assertNotIn("성수 카페", text)
+        reply = app.nearby_reply(7, 37.5301, 126.9901)  # 이어서 위치를 보내면 같은 조건으로
+        self.assertLess(reply.index("① 가까운 순"), reply.index("② 평점 높은 순"))
+        first, second = reply.split("② 평점 높은 순")
+        self.assertLess(first.index("가까운 카페"), first.index("먼 카페"))  # ① 거리순
+        self.assertLess(second.index("먼 카페"), second.index("가까운 카페"))  # ② 평점순
+        self.assertNotIn("성수 카페", reply)
+        self.assertEqual(app.search_request(7, "부산 카페 찾아줘")[1], False)  # 없으면 위치 버튼도 없다
+        self.assertIsNone(app.search_request(7, "안녕"))
+        app.pending["X"] = "https://www.instagram.com/p/X/"  # 캡션을 기다리는 중이면 긴 글은 검색이 아니다
+        self.assertIsNone(app.search_request(7, "용산 카페 " + "가" * 20))
+
+    def test_bot_search_shows_location_button_only_when_found(self):
+        from places.telegram_bot import LOCATION_KEYBOARD
+        calls = []
+        app = SimpleNamespace(search_request=lambda chat, text: calls.append(text) or ("결과", "없음" not in text))
+        sent = []
+        reply = lambda c, t, markup=None: sent.append((t, markup))  # noqa: E731
+        handle_update(app, {"message": {"chat": {"id": 7}, "text": "용산 카페 찾아줘"}}, "7", reply, set())
+        handle_update(app, {"message": {"chat": {"id": 7}, "text": "없음동 카페"}}, "7", reply, set())
+        self.assertEqual(sent, [("결과", LOCATION_KEYBOARD), ("결과", None)])
+
     def test_rated_section_follows_distance_section(self):
         from places import nearby
         raw = {f"p{i}": {"name": f"집{i}", "category": "카페", "gmaps_saved": True, "sources": [], "gmaps_list": "📍서울",

@@ -59,6 +59,54 @@ def parse_request(text):
     return list(dict.fromkeys(terms)), n
 
 
+SEARCH_STOP = {"찾아줘", "찾아", "찾아봐", "찾아주세요", "추천", "추천해줘", "추천해", "추천해주세요", "알려줘", "알려주세요",
+               "보여줘", "검색", "검색해줘", "좀", "있는", "리스트", "목록", "리스트업", "리스트업해줘", "top", "탑",
+               "곳", "어디", "어때", "있어", "해줘", "줘"}
+# 검색어의 분류 말. '장소' 는 가볼 만한 곳(명소). 1글자 별칭(별·스타)은 이름에 너무 흔해서 뺐다
+SEARCH_CATEGORY = {**{k: v for k, v in ALIASES.items() if k not in ("별", "스타")},
+                   **{c: c for c in CATEGORIES if c != "기타"}, "장소": "명소", "명소": "명소", "미쉐린": "미쉐린"}
+SPLIT_WORDS = sorted((w for w in SEARCH_CATEGORY if len(w) >= 2), key=len, reverse=True)  # '용산카페' → 용산 + 카페
+PARTICLES = ("에서", "에는", "쪽", "에", "의")
+MAX_SEARCH_LEN = 40
+COUNT = re.compile(r"^(\d+)(곳|개)?$")
+
+
+def _strip_particle(tok):
+    for p in PARTICLES:
+        if tok.endswith(p) and len(tok) > len(p) + 1:
+            return tok[:-len(p)]
+    return tok
+
+
+def parse_search(text):
+    """'용산 카페 찾아줘' → (['용산', '카페'], 20). 지역·이름 말과 분류 말이 모두 있을 때만 검색으로 본다.
+    (분류만 있으면 None — '근처 카페' 는 위치로 찾는다.) 명령·링크·긴 글(캡션)은 None."""
+    t = (text or "").strip().lower()
+    if not t or len(t) > MAX_SEARCH_LEN or t.startswith("/") or "http" in t or "instagram" in t:
+        return None
+    keywords, terms, n = [], [], DEFAULT_N
+    for tok in re.split(r"[\s,]+", t):
+        tok = tok.rstrip("?!.~")
+        if not tok or tok in SEARCH_STOP:
+            continue
+        m = COUNT.match(tok)
+        if m:
+            n = max(1, min(MAX_N, int(m.group(1))))
+            continue
+        if tok in SEARCH_CATEGORY:
+            terms.append(SEARCH_CATEGORY[tok])
+            continue
+        word = next((w for w in SPLIT_WORDS if tok.endswith(w) and len(tok) > len(w)), None)
+        if word:
+            keywords.append(_strip_particle(tok[:-len(word)]))
+            terms.append(SEARCH_CATEGORY[word])
+            continue
+        keywords.append(_strip_particle(tok))
+    if not terms or not keywords:
+        return None
+    return list(dict.fromkeys(keywords + terms)), n
+
+
 def distance_m(lat1, lng1, lat2, lng2):
     p1, p2 = math.radians(lat1), math.radians(lat2)
     a = (math.sin((p2 - p1) / 2) ** 2
@@ -133,14 +181,56 @@ def _directions(p):
 
 
 def _line(i, m, p, rated=False):
+    """m: 거리(m) 또는 None(위치를 모를 때). 평점은 rated 일 때만."""
     star = " ⭐미쉐린" if "미쉐린" in (p.get("tags") or []) else ""
-    review = (f" · ★{p['rating']} (댓글 {p['reviews']:,})" if p.get("reviews") is not None
-              else f" · ★{p['rating']}") if rated else ""
-    return (f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))}{review} · "
-            f"{fmt_distance(m)}{star}\n"
-            f"   {html.escape(p.get('gmaps_list') or '')} · "
-            f"<a href=\"{html.escape(_directions(p))}\">길찾기</a> · "
-            f"<a href=\"{html.escape(_place_link(p))}\">지도</a>")
+    review = ""
+    if rated and p.get("rating"):
+        review = (f" · ★{p['rating']} (댓글 {p['reviews']:,})" if p.get("reviews") is not None
+                  else f" · ★{p['rating']}")
+    dist = f" · {fmt_distance(m)}" if m is not None else ""
+    links = [f'<a href="{html.escape(_place_link(p))}">지도</a>']
+    if p.get("lat") is not None:
+        links.insert(0, f'<a href="{html.escape(_directions(p))}">길찾기</a>')
+    return (f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))}{review}{dist}{star}\n"
+            f"   {html.escape(p.get('gmaps_list') or '')} · " + " · ".join(links))
+
+
+def search(store_places, sidecar, terms):
+    """검색어(지역·이름·분류)가 모두 맞는 저장 장소. 위치를 몰라도 되므로 좌표가 없는 곳도 포함한다."""
+    out = []
+    for key, e in store_places.items():
+        if not (e.get("gmaps_saved") or e.get("gmaps_no_save")):
+            continue
+        if not all(_matches(e, t) for t in terms):
+            continue
+        ll = coords.of(key, e, sidecar)
+        out.append(dict(e, lat=ll[0], lng=ll[1]) if ll else dict(e))
+    return out
+
+
+def rank_by_rating(matches, n=DEFAULT_N):
+    """평점(댓글 수 보정) 높은 순 n곳. 평점을 모르는 곳은 그 뒤에 (저장한 순서 그대로)."""
+    rated = sorted((p for p in matches if p.get("rating")), key=score, reverse=True)
+    return (rated + [p for p in matches if not p.get("rating")])[:n]
+
+
+def render_search(matches, terms, n=DEFAULT_N):
+    """검색어로 찾은 결과 (위치 없이): 평점 높은 순. 거리순은 위치를 받은 뒤 nearby_reply 가 보여 준다."""
+    label = html.escape(" ".join(terms))
+    if not matches:
+        return f"🔎 '{label}'에 맞는 저장 장소가 없어요."
+    top = rank_by_rating(matches, n)
+    head = f"🔎 {label} · 저장 장소 {len(matches)}곳"
+    if len(matches) > len(top):
+        head += f" 중 평점 상위 {len(top)}곳"
+    lines = [head, "", "평점 높은 순 (댓글 수 보정)", ""]
+    lines += [_line(i, None, p, rated=True) for i, p in enumerate(top, 1)]
+    unrated = sum(1 for p in top if not p.get("rating"))
+    foot = "📍 아래 버튼으로 위치를 보내면 가까운 순도 함께 보여 드려요"
+    if unrated:
+        foot += f" · 평점을 모르는 {unrated}곳은 뒤에 (/sync 로 채워져요)"
+    lines += ["", f"<i>{foot}</i>"]
+    return "\n".join(lines)
 
 
 def render(hits, terms, missing=0, rated=None):

@@ -125,6 +125,15 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
     if nearby.wants_nearby(text):  # '근처 카페' · /near 맛집 3 → 위치 보내기 버튼
         reply(chat_id, app.near_request(chat_id, text), markup=LOCATION_KEYBOARD)
         return
+    if nearby.parse_search(text):  # '용산 카페 찾아줘' → 평점순을 바로 보여 주고 위치 버튼을 띄운다
+        found = app.search_request(chat_id, text)
+        if found:
+            text_out, has_matches = found
+            if has_matches:  # 찾은 게 있으면 위치 버튼을 띄워 거리순도 보게 한다
+                reply(chat_id, text_out, markup=LOCATION_KEYBOARD)
+            else:
+                reply(chat_id, text_out)
+            return
     progress = None
     if instagram.find_urls(text) or text.strip().startswith(("/retry", "/sync")):
         progress = progress_for(chat_id) if progress_for else None

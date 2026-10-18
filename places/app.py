@@ -15,6 +15,7 @@ HELP = (
     "인스타그램 게시물 URL 을 보내면 장소를 찾아 구글 지도 목록과 옵시디언에 저장합니다.\n"
     "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장 · /status 작동 확인\n"
     "/sync 구글 지도 앱에서 직접 저장한 장소를 봇에 가져오기 (내 주변 추천에 반영)\n"
+    "🔎 검색: '용산 카페 찾아줘' · '성수 맛집' · '제주 장소' (평점순 → 위치를 보내면 거리순도)\n"
     "📍 근처 장소: 아래 ☕ 근처카페 · 🍽 근처맛집 · 🏛 근처장소 (또는 '/near 맛집 3') 를 누른 뒤 📍 위치 버튼을 누르세요"
 )
 MIN_CAPTION = 20  # URL 과 함께 온 텍스트가 이보다 길면 캡션으로 본다
@@ -198,6 +199,19 @@ class App:
         what = " ".join(terms) or "전체"
         return (f"📍 지금 계신 곳 기준으로 가까운 저장 장소를 찾을게요 ({esc(what)} · {n}곳).\n"
                 "아래 📍 버튼을 한 번 누르거나, 📎 → 위치로 현재 위치를 보내 주세요.")
+
+    def search_request(self, chat_id, text):
+        """'용산 카페 찾아줘' → (답장, 찾은 곳이 있는지). 검색이 아니면 None.
+        위치 없이 평점 높은 순을 바로 보여 주고, 같은 조건을 기억해 뒀다가 위치를 받으면
+        ① 거리순 ② 평점순으로 다시 보여 준다 (nearby_reply)."""
+        parsed = nearby.parse_search(text)
+        if not parsed or (self.pending and len(text.strip()) >= MIN_CAPTION):  # 캡션 붙여넣기는 검색이 아니다
+            return None
+        terms, n = parsed
+        matches = nearby.search(self.store.data["places"], coords_mod.load(self.config["data_dir"]), terms)
+        if matches:
+            self.near_state[str(chat_id)] = (terms, n, time.time())
+        return nearby.render_search(matches, terms, n), bool(matches)
 
     def nearby_reply(self, chat_id, lat, lng):
         """받은 GPS 위치 → 가까운 저장 장소 답장. 위치는 저장하지 않는다."""
