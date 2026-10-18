@@ -657,7 +657,221 @@ class ProgressTest(unittest.TestCase):
         quiet.finish()  # show 가 없으면 아무 일도 없다
 
 
+class FakeSource:
+    """구글 지도 화면 대신 — lists: {목록 이름: [장소 줄 글]}, infos: {장소 이름: place_info}."""
+
+    def __init__(self, lists, infos):
+        self.lists, self.infos = lists, infos
+        self.opened, self.saved, self.here, self.fail, self.current = [], [], None, set(), None
+
+    def start(self): pass
+
+    def read_lists(self):
+        return [{"name": n, "count": len(t), "nth": 0} for n, t in self.lists.items()]
+
+    def read_texts(self, lst):
+        return self.lists[lst["name"]]
+
+    def open_list(self, lst, upto):
+        self.current = lst["name"]
+
+    def open_item(self, lst, idx, name):
+        # 실제 화면처럼 목록을 먼저 열어 둔 상태에서만 장소를 열 수 있다
+        assert self.current == lst["name"], "목록을 열지 않고 장소를 열었다"
+        self.opened.append(name)
+        if name in self.fail:
+            raise RuntimeError("화면이 안 열림")
+        self.here = self.infos[name]
+        return self.here
+
+    def back(self, lst, idx): pass
+
+    def open_url(self, url):
+        self.here = next(i for i in self.infos.values() if i["url"] == url)
+
+    def save_here(self, target):
+        self.saved.append((self.here["name"], target))
+        return True, "저장"
+
+
+def _info(name, address, lat, lng, cid, category="베이커리"):
+    return {"name": name, "address": address, "category": category, "id": f"0x1:0x{cid:x}",
+            "url": f"https://maps.google.com/?cid={cid}", "lat": lat, "lng": lng}
+
+
+class SyncTest(unittest.TestCase):
+    LINES = {
+        "Saved places": ["어니언 성수\n4.5(1,234)\n₩10,000~20,000\n· 카페", "새집 소금빵\n4.7(30)\n· 베이커리"],
+        "가고 싶은 장소": ["새집 소금빵\n4.7(30)\n· 베이커리", "블루보틀 성수 카페\n4.4(900)\n· 카페"],
+    }
+
+    def setUp(self):
+        from places import sync
+        self.sync = sync
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        self.config = dict(CONFIG, data_dir=str(root / "data"),
+                           obsidian={"vault_path": str(root / "vault"), "folder": "Places",
+                                     "index_note": "장소 목록"})
+        self.vault = root / "vault" / "Places"
+        self.store = Store(self.config["data_dir"])
+        self.store.data["places"].update({
+            "k1": {"name": "어니언 성수", "category": "카페", "sido": "서울", "area": "성수", "address": "",
+                   "sources": ["https://www.instagram.com/p/AAA/"], "gmaps_saved": True},
+            # 봇이 인스타 글에서 만든 이름 — 구글 목록에는 '블루보틀 성수 카페' 로 보인다
+            "k2": {"name": "블루보틀 성수", "category": "카페", "sido": "서울", "area": "성수", "address": "",
+                   "lat": 37.5483, "lng": 127.0440, "sources": ["https://www.instagram.com/p/BBB/"],
+                   "gmaps_saved": True},
+        })
+        self.infos = {
+            "새집 소금빵": _info("새집 소금빵", "경기도 성남시 분당구 판교로 1", 37.40, 127.11, 101),
+            "블루보틀 성수 카페": _info("블루보틀 성수 카페", "서울특별시 성동구 아차산로 7", 37.5484, 127.0441, 102,
+                                  "카페"),
+        }
+        self.source = FakeSource(self.LINES, self.infos)
+
+    def engine(self, source=None):
+        return self.sync.Sync(self.config, self.store, source or self.source, log=lambda m: None)
+
+    def test_parse_item_and_answers(self):
+        self.assertEqual(self.sync.parse_item("어니언 성수\n4.5(1,234)\n₩10,000~20,000\n· 카페"), ("어니언 성수", 4.5))
+        self.assertEqual(self.sync.parse_item("서울 성동구 아차산로 7"), ("서울 성동구 아차산로 7", None))
+        self.assertEqual(self.sync.parse_item(""), ("", None))
+        self.assertEqual([self.sync.answer_of(w) for w in ("예", "아니오", "음")], [True, False, None])
+
+    def test_only_unknown_names_are_opened_and_recorded(self):
+        result = self.engine().run()
+        # 이미 아는 '어니언 성수' 는 열지 않고, 두 목록에 든 '새집 소금빵' 은 한 번만 연다
+        self.assertEqual(self.source.opened, ["새집 소금빵", "블루보틀 성수 카페"])
+        self.assertEqual((result["lists"], result["lines"]), (2, 4))
+        [new] = result["new"]
+        self.assertEqual((new["name"], new["category"], new["sido"], new["area"]),
+                         ("새집 소금빵", "베이커리", "경기", "성남"))
+        self.assertEqual(new["gmaps_origin"], ["Saved places", "가고 싶은 장소"])
+        # places.json · coords.json · 옵시디언 노트에 모두 들어간다
+        saved = Store(self.config["data_dir"]).data["places"]["gmaps:0x1:0x65"]
+        self.assertEqual((saved["lat"], saved["gmaps_saved"], saved["gmaps_list"]), (37.40, True, "Saved places"))
+        self.assertEqual(coords_load(self.config["data_dir"])["gmaps:0x1:0x65"], [37.40, 127.11])
+        note = (self.vault / "경기" / "성남" / "새집 소금빵.md").read_text(encoding="utf-8")
+        self.assertIn("gmaps_saved: true", note)
+        self.assertIn("구글 평점 4.7", note)
+        # '내 주변 추천' 후보가 되고 가장 가깝다
+        from places import nearby
+        places, missing = nearby.candidates(saved_places(self.config), coords_load(self.config["data_dir"]))
+        self.assertEqual(nearby.nearest(places, 37.4001, 127.1101, [], 1)[0][1]["name"], "새집 소금빵")
+
+    def test_same_place_with_other_name_is_linked_not_duplicated(self):
+        result = self.engine().run()
+        self.assertEqual(result["linked"], 1)  # 블루보틀: 이름이 비슷하고 300m 안이라 같은 장소
+        self.assertEqual(len(self.store.data["places"]), 3)  # k1, k2 + 새집 소금빵
+        self.assertIn("가고 싶은 장소", self.store.data["places"]["k2"]["gmaps_origin"])
+        self.assertFalse((self.vault / "서울" / "성동").exists())
+        again = FakeSource(self.LINES, self.infos)
+        self.engine(again).run()
+        self.assertEqual(again.opened, [])  # 두 번째부터는 아무것도 열지 않는다 (별칭 기억)
+
+    def test_far_same_name_is_a_different_branch(self):
+        self.infos["블루보틀 성수 카페"] = _info("블루보틀 성수 카페", "부산광역시 해운대구 1", 35.16, 129.16, 103, "카페")
+        result = self.engine().run()
+        self.assertEqual(result["linked"], 0)
+        self.assertEqual(sorted(e["name"] for e in result["new"]), ["블루보틀 성수 카페", "새집 소금빵"])
+
+    def test_failed_open_is_reported_and_retried_next_time(self):
+        self.source.fail = {"새집 소금빵"}
+        result = self.engine().run()
+        self.assertEqual(result["failed"], ["새집 소금빵"])
+        self.assertNotIn("gmaps:0x1:0x65", self.store.data["places"])
+        self.source.fail = set()
+        retry = FakeSource(self.LINES, self.infos)
+        self.assertEqual([e["name"] for e in self.engine(retry).run()["new"]], ["새집 소금빵"])
+
+    def test_city_list_is_asked_once_and_never_deletes(self):
+        first = self.engine().run()
+        self.assertTrue(first["ask_city"])
+        self.assertEqual(self.source.saved, [])  # 답하기 전에는 시 단위 목록에 넣지 않는다
+        engine = self.engine()
+        engine.set_city(True)
+        done = engine.apply_pending_city()
+        self.assertEqual(self.source.saved, [("새집 소금빵", "📍경기 성남시")])
+        self.assertEqual(done["city_saved"], ["새집 소금빵"])
+        self.assertEqual(self.store.data["places"]["gmaps:0x1:0x65"]["gmaps_list"], "📍경기 성남시")
+        # 이후 동기화는 묻지 않고, 새 장소는 연 자리에서 바로 시 단위 목록에 넣는다
+        self.lines_extra = dict(self.LINES, **{"여행 계획": ["연남 빵집\n4.2(10)\n· 베이커리"]})
+        self.infos["연남 빵집"] = _info("연남 빵집", "서울특별시 마포구 월드컵북로 1", 37.56, 126.92, 104)
+        later = FakeSource(self.lines_extra, self.infos)
+        result = self.engine(later).run()
+        self.assertFalse(result["ask_city"])
+        self.assertEqual(later.saved, [("연남 빵집", "📍서울")])
+
+    def test_no_to_city_list_clears_pending(self):
+        self.engine().run()
+        engine = self.engine()
+        engine.set_city(False)
+        self.assertEqual(self.store.data["sync"]["pending_city"], [])
+        self.assertEqual(self.source.saved, [])
+
+    def test_list_already_named_like_a_city_list_is_not_duplicated(self):
+        source = FakeSource({"📍경기 성남시": ["새집 소금빵\n4.7(30)"]}, self.infos)
+        eng = self.engine(source)
+        eng.set_city(True)
+        eng.run()
+        self.assertEqual(source.saved, [])
+
+    def test_report_is_short_and_lists_new_places(self):
+        text = self.sync.report(self.engine().run())
+        self.assertIn("목록 2개 · 장소 4곳 확인", text)
+        self.assertIn("<b>새집 소금빵</b> · 베이커리 · 경기 성남", text)
+        self.assertIn("/sync 예 · /sync 아니오", text)
+
+    def test_app_sync_command_and_city_answer(self):
+        app = App(self.config, store=self.store, gmaps=FakeGMaps())
+        with unittest.mock.patch("places.sync.GmapsSource", lambda config, gm: self.source):
+            [first] = app.handle("/sync")
+            self.assertIn("새 장소 1곳", first)
+            self.assertIn("/sync 예", first)
+            [yes] = app.handle("/sync 예")
+            [bad] = app.handle("/sync 글쎄")
+            [no] = App(self.config, store=Store(self.config["data_dir"]), gmaps=FakeGMaps()).handle("/sync 아니오")
+        self.assertIn("시 단위 목록에도 1곳", yes)
+        self.assertIn("사용법", bad)
+        self.assertIn("넣지 않을게요", no)
+        self.assertEqual(self.source.saved, [("새집 소금빵", "📍경기 성남시")])
+
+    def test_app_sync_off_without_gmaps(self):
+        self.assertIn("꺼져", App(self.config, store=self.store).handle("/sync")[0])
+
+    def test_sync_gets_its_own_progress_steps(self):
+        from places.progress import Progress
+        shown = []
+        progress = Progress(show=shown.append)
+        app = App(self.config, store=self.store, gmaps=FakeGMaps())
+        with unittest.mock.patch("places.sync.GmapsSource", lambda config, gm: self.source):
+            app.handle("/sync", progress=progress)
+        self.assertIn("노트·좌표 저장", progress.render())
+        self.assertNotIn("게시물 읽기", progress.render())
+
+
+def coords_load(data_dir):
+    from places import coords
+    return coords.load(data_dir)
+
+
+def saved_places(config):
+    return Store(config["data_dir"]).data["places"]
+
+
 class BotTest(unittest.TestCase):
+    def test_sync_command_gets_progress_message(self):
+        calls = []
+        progress = SimpleNamespace(finish=lambda text=None: calls.append("finish"), elapsed=lambda: 1)
+        app = SimpleNamespace(handle=lambda text, progress=None: calls.append(("handle", text, progress)) or ["끝"])
+        update = {"message": {"chat": {"id": 7}, "text": "/sync 예"}}
+        sent = []
+        handle_update(app, update, "7", lambda c, t: sent.append(t), set(), lambda chat: progress)
+        self.assertEqual(calls, [("handle", "/sync 예", progress), "finish"])
+        self.assertEqual(sent, ["끝"])
+
     def test_location_message_gets_nearby_reply_without_logging_coordinates(self):
         seen = []
         app = SimpleNamespace(nearby_reply=lambda chat, lat, lng: seen.append((lat, lng)) or "가까운 곳")

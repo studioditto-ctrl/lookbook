@@ -46,7 +46,7 @@ def _norm(name):
 
 
 class Reorg:
-    def __init__(self, config, log=print):
+    def __init__(self, config, log=print, gm=None):
         self.config = config
         self.log = log
         self.data_dir = Path(config["data_dir"])
@@ -54,7 +54,7 @@ class Reorg:
         self.state = {"lists": None, "progress": {}, "places": {}}
         if self.state_path.exists():
             self.state.update(json.loads(self.state_path.read_text(encoding="utf-8")))
-        self.gm = GMaps(config, config["data_dir"])
+        self.gm = gm or GMaps(config, config["data_dir"])  # gm: 봇이 쓰는 크롬을 빌려 쓸 때 (sync.py)
         self.page = None
 
     def save_state(self):

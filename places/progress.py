@@ -20,7 +20,8 @@ BAR = 10
 
 
 class Progress:
-    def __init__(self, show=None, interval=3.0, clock=time.monotonic):
+    def __init__(self, show=None, interval=3.0, clock=time.monotonic, steps=STEPS, hints=HINTS):
+        self.steps, self.hints = steps, hints  # 마지막 단계에 진도율 막대가 붙는다
         self.show = show            # show(text) — 같은 메시지를 고쳐 쓴다
         self.interval = interval
         self.clock = clock
@@ -79,7 +80,7 @@ class Progress:
         spin = SPIN[self._tick % len(SPIN)]
         head = f"{spin} 처리 중{' · ' + self.label if self.label else ''} · {self.elapsed()}초"
         lines = [head]
-        for i, name in enumerate(STEPS):
+        for i, name in enumerate(self.steps):
             if i < self.step:
                 lines.append(f"✅ {name}")
                 continue
@@ -87,13 +88,13 @@ class Progress:
                 lines.append(f"▫️ {name}")
                 continue
             line = f"{spin} {name}"
-            if i == 2 and self.total:
+            if i == len(self.steps) - 1 and self.total:
                 filled = BAR * self.done // self.total
                 line += f"\n{'▓' * filled}{'░' * (BAR - filled)} {self.done}/{self.total}"
                 if self.done < self.total:
                     line += f" · 약 {self.eta()}초 남음"
-            elif HINTS[i]:
-                line += f" · {HINTS[i]}"
+            elif self.hints[i]:
+                line += f" · {self.hints[i]}"
             if self.detail:
                 line += f" · {self.detail}"
             lines.append(line)

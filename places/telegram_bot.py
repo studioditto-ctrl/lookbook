@@ -110,7 +110,7 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
         reply(chat_id, app.near_request(chat_id, text), markup=LOCATION_KEYBOARD)
         return
     progress = None
-    if instagram.find_urls(text) or text.strip().startswith("/retry"):
+    if instagram.find_urls(text) or text.strip().startswith(("/retry", "/sync")):
         progress = progress_for(chat_id) if progress_for else None
         if progress is None:
             reply(chat_id, "🔎 분석 중… (1분 정도 걸릴 수 있어요)")

@@ -14,6 +14,7 @@ from .store import Store
 HELP = (
     "인스타그램 게시물 URL 을 보내면 장소를 찾아 구글 지도 목록과 옵시디언에 저장합니다.\n"
     "/recent 최근 저장 · /stats 지역별 개수 · /undo 마지막 저장 취소 · /retry 지도 미저장 다시 저장 · /status 작동 확인\n"
+    "/sync 구글 지도 앱에서 직접 저장한 장소를 봇에 가져오기 (내 주변 추천에 반영)\n"
     "📍 근처 장소: '근처 카페' · '/near 맛집 3' 라고 보낸 뒤 위치를 보내면 가까운 저장 장소를 알려줘요"
 )
 MIN_CAPTION = 20  # URL 과 함께 온 텍스트가 이보다 길면 캡션으로 본다
@@ -52,6 +53,8 @@ class App:
             cmd = text.split()[0].split("@")[0]
             if cmd == "/retry":  # 오래 걸려서 진행 표시를 넘긴다
                 return [self.retry_gmaps(progress)]
+            if cmd == "/sync":  # 목록을 모두 읽느라 오래 걸린다
+                return [self.sync_gmaps(" ".join(text.split()[1:]), progress)]
             return [self.command(cmd)]
         urls = instagram.find_urls(text)
         if not urls:
@@ -250,6 +253,37 @@ class App:
         if fails:
             lines.append("⚠️ 또 실패: " + esc(", ".join(fails)) + " — /retry 로 다시 시도")
         return "\n".join(lines)
+
+    def sync_gmaps(self, arg="", progress=None):
+        """/sync [예|아니오] — 구글 지도 앱에서 직접 저장한 장소를 봇 기록에 가져온다 (sync.py).
+        봇의 크롬(self.gmaps)을 쓰고 봇의 메모리 기록(self.store)에 바로 쓴다."""
+        from . import sync
+        if not self.gmaps:
+            return "구글 지도 자동 저장이 꺼져 있어요."
+        answer = sync.answer_of(arg)
+        if arg.strip() and answer is None:
+            return "사용법: /sync · /sync 예 · /sync 아니오"
+        progress = progress or Progress()
+        progress.steps, progress.hints = sync.STEPS, sync.HINTS  # 진행 메시지 단계 이름을 동기화용으로
+        engine = sync.Sync(self.config, self.store, sync.GmapsSource(self.config, self.gmaps),
+                           log=print, progress=progress)
+        try:
+            if answer is None:
+                result = engine.run()
+            elif answer:
+                engine.set_city(True)
+                result = engine.apply_pending_city()
+                if not (result["city_saved"] or result["city_failed"]):
+                    return "👌 앞으로 새 장소는 시 단위 목록에도 넣을게요."
+            else:
+                engine.set_city(False)
+                self.store.save()
+                return "👌 시 단위 목록에는 넣지 않을게요. 직접 저장한 목록 이름 그대로 둡니다."
+        except Exception as e:  # noqa: BLE001 — 크롬 창 문제 등은 알리고 봇은 계속
+            print(f"[app] 동기화 실패: {e}")
+            self.store.save()
+            return f"⚠️ 동기화 중 오류가 났어요 ({esc(type(e).__name__)}). places.log 를 확인해 주세요."
+        return sync.report(result, esc=esc)
 
     def _already(self, code):
         post = self.store.data["posts"][code]
