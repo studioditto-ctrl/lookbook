@@ -14,8 +14,8 @@ from urllib.parse import quote
 
 from . import coords
 
-DEFAULT_N = 5
-MAX_N = 10
+DEFAULT_N = 20
+MAX_N = 50
 FAR_M = 30_000  # 이보다 멀면 '근처에는 없어요' 라고 알린다
 
 NEAR_WORDS = ("/near", "근처", "주변", "가까운", "nearby")
@@ -92,16 +92,20 @@ def candidates(store_places, sidecar):
             if key not in sidecar:  # coords.json 에 null 로 적힌 곳은 '알 수 없다고 확인한' 곳이라 세지 않는다
                 missing += 1
             continue
-        out.append(dict(e, lat=ll[0], lng=ll[1]))
+        out.append(dict(e, lat=ll[0], lng=ll[1], _order=len(out)))  # places.json 은 저장한 순서라 _order 가 클수록 최근
     return out, missing
 
 
-def nearest(places, lat, lng, terms=(), n=DEFAULT_N):
-    """[(거리 m, 장소)] 가까운 순. terms 는 모두 맞아야 한다."""
+def nearest(places, lat, lng, terms=(), n=DEFAULT_N, recent=False):
+    """[(거리 m, 장소)] 가까운 순. terms 는 모두 맞아야 한다.
+    recent 면 가까운 n곳을 뽑은 뒤 최근 저장한 것부터 보여 준다 (저장일이 있으면 그 날짜, 없으면 저장한 순서)."""
     hits = [(distance_m(lat, lng, p["lat"], p["lng"]), p) for p in places
             if all(_matches(p, t) for t in terms)]
     hits.sort(key=lambda h: h[0])
-    return hits[:n]
+    hits = hits[:n]
+    if recent:
+        hits.sort(key=lambda h: h[1].get("_order", 0), reverse=True)
+    return hits
 
 
 def _place_link(p):
@@ -116,7 +120,7 @@ def _directions(p):
     return f"https://www.google.com/maps/dir/?api=1&destination={p['lat']},{p['lng']}&travelmode=walking"
 
 
-def render(hits, terms, missing=0):
+def render(hits, terms, missing=0, recent=False):
     label = " ".join(terms)
     if not hits:
         what = f"'{html.escape(label)}'에 맞는 " if terms else ""
@@ -129,10 +133,11 @@ def render(hits, terms, missing=0):
         star = " ⭐미쉐린" if "미쉐린" in (p.get("tags") or []) else ""
         lines.append(f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))} · "
                      f"{fmt_distance(m)}{star}")
-        lines.append(f"   {html.escape(p.get('gmaps_list') or '')} · "
+        saved = f" · {p['saved_at'][5:]} 저장" if recent and p.get("saved_at") else ""
+        lines.append(f"   {html.escape(p.get('gmaps_list') or '')}{saved} · "
                      f"<a href=\"{html.escape(_directions(p))}\">길찾기</a> · "
                      f"<a href=\"{html.escape(_place_link(p))}\">지도</a>")
-    foot = "직선거리 기준"
+    foot = f"가까운 {len(hits)}곳 · 최근 저장한 순 · 직선거리 기준" if recent else "직선거리 기준"
     if missing:
         foot += f" · 좌표를 아직 모르는 {missing}곳은 빠졌어요"
     lines += ["", f"<i>{foot}</i>"]

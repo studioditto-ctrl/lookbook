@@ -206,7 +206,7 @@ class App:
         if state and time.time() - state[2] < NEAR_MEMORY_SECONDS:  # 바로 앞에 '근처 카페' 라고 했으면 그걸로
             terms, n = state[0], state[1]
         places, missing = nearby.candidates(self.store.data["places"], coords_mod.load(self.config["data_dir"]))
-        return nearby.render(nearby.nearest(places, lat, lng, terms, n), terms, missing)
+        return nearby.render(nearby.nearest(places, lat, lng, terms, n, recent=True), terms, missing, recent=True)
 
     def _status(self):
         """밖에서도 봇이 도는지 확인용."""

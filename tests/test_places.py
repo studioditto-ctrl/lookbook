@@ -470,13 +470,13 @@ class NearbyTest(unittest.TestCase):
     def test_parse_request(self):
         from places import nearby
         self.assertEqual(nearby.parse_request("근처 카페 3 추천해줘"), (["카페"], 3))
-        self.assertEqual(nearby.parse_request("/near 맛집 99"), (["식당"], 10))
-        self.assertEqual(nearby.parse_request("주변 미슐랭"), (["미쉐린"], 5))
-        self.assertEqual(nearby.parse_request("/near"), ([], 5))
-        self.assertEqual(nearby.parse_request("/근처카페"), (["카페"], 5))
+        self.assertEqual(nearby.parse_request("/near 맛집 99"), (["식당"], 50))
+        self.assertEqual(nearby.parse_request("주변 미슐랭"), (["미쉐린"], 20))
+        self.assertEqual(nearby.parse_request("/near"), ([], 20))
+        self.assertEqual(nearby.parse_request("/근처카페"), (["카페"], 20))
         self.assertEqual(nearby.parse_request("/근처맛집@ditto_bot 3"), (["식당"], 3))
-        self.assertEqual(nearby.parse_request("/근처장소"), (["명소"], 5))
-        self.assertEqual(nearby.parse_request("근처 가볼만한 곳"), (["명소"], 5))
+        self.assertEqual(nearby.parse_request("/근처장소"), (["명소"], 20))
+        self.assertEqual(nearby.parse_request("근처 가볼만한 곳"), (["명소"], 20))
         self.assertTrue(nearby.wants_nearby("근처에 뭐 있어?"))
         self.assertFalse(nearby.wants_nearby("https://www.instagram.com/p/AAA/ 근처 카페"))
 
@@ -490,6 +490,26 @@ class NearbyTest(unittest.TestCase):
         self.assertEqual([p["name"] for _, p in cafes], ["리사르커피 성수", "먼 곳 카페"])  # 설명 글의 '카페' 는 제외
         star = nearby.nearest(places, 37.5450, 127.0560, ["미쉐린"], 5)
         self.assertEqual([p["name"] for _, p in star], ["모수"])
+
+    def test_recent_ordering_picks_nearest_then_shows_newest_first(self):
+        from places import nearby
+        raw = {f"p{i}": {"name": f"집{i}", "category": "카페", "gmaps_saved": True, "sources": [],
+                         "lat": 37.5 + i * 0.001, "lng": 127.0, "saved_at": f"2026-10-{10 + i:02d}"}
+               for i in range(5)}  # 집0 이 가장 가깝고 집4 가 가장 최근에 저장됨
+        places, _ = nearby.candidates(raw, {})
+        near3 = nearby.nearest(places, 37.5, 127.0, [], 3, recent=True)
+        self.assertEqual([p["name"] for _, p in near3], ["집2", "집1", "집0"])  # 먼 집3·4 는 가까운 3곳에 못 든다
+        text = nearby.render(near3, [], 0, recent=True)
+        self.assertIn("10-12 저장", text)
+        self.assertIn("최근 저장한 순", text)
+        self.assertEqual([p["name"] for _, p in nearby.nearest(places, 37.5, 127.0, [], 3)], ["집0", "집1", "집2"])
+
+    def test_default_shows_twenty(self):
+        from places import nearby
+        raw = {f"p{i}": {"name": f"집{i}", "category": "카페", "gmaps_saved": True, "sources": [],
+                         "lat": 37.5 + i * 0.0001, "lng": 127.0} for i in range(30)}
+        places, _ = nearby.candidates(raw, {})
+        self.assertEqual(len(nearby.nearest(places, 37.5, 127.0, [], nearby.DEFAULT_N)), 20)
 
     def test_sights_are_exhibition_and_nature_places(self):
         from places import nearby

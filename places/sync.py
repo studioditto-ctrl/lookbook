@@ -250,7 +250,7 @@ class Sync:
             "note": note, "confidence": 1.0, "checked": True,
             "sources": [info["url"] or f"https://www.google.com/maps/search/?api=1&query={info['name']}"],
             "gmaps_saved": True, "gmaps_list": f["lists"][0], "gmaps_origin": list(f["lists"]),
-            "gmaps_synced": time.strftime("%Y-%m-%d"),
+            "gmaps_synced": time.strftime("%Y-%m-%d"), "saved_at": time.strftime("%Y-%m-%d"),
         }
         self.store.data["places"][key] = entry
         self.state["alias"][norm(f["name"])] = key

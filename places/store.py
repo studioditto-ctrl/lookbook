@@ -9,6 +9,7 @@ offset: 텔레그램 getUpdates 오프셋
 import json
 import os
 from dataclasses import asdict
+from datetime import date
 from pathlib import Path
 
 
@@ -39,6 +40,7 @@ class Store:
         entry = asdict(place)
         entry["sources"] = [source_url]
         entry["gmaps_saved"] = False
+        entry["saved_at"] = date.today().isoformat()  # '내 주변' 에서 최근 저장순으로 보여 주는 데 쓴다
         places[place.key] = entry
         return True
 
