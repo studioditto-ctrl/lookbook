@@ -42,17 +42,29 @@ def chunks(text, limit=MAX_LEN):
     return out
 
 
-def send(token, chat_id, text, markup=None):
+# 항상 떠 있는 메뉴 키보드 (한 번 보내면 바꾸거나 지울 때까지 남는다). 위치 버튼은 누르면 GPS 를 한 번 보낸다.
+# 지우개 같은 되돌릴 수 없는 명령(/undo)은 실수로 누르기 쉬워서 넣지 않았다.
+MAIN_MENU = {"keyboard": [
+    [{"text": "📍 내 위치 보내기", "request_location": True}],
+    [{"text": "☕ 근처 카페"}, {"text": "🍽 근처 맛집"}],
+    [{"text": "🔄 동기화"}, {"text": "🕘 최근 저장"}],
+    [{"text": "📊 통계"}, {"text": "🟢 상태"}, {"text": "🔁 재시도"}],
+], "resize_keyboard": True, "is_persistent": True}
+# 버튼 글자 → 봇이 알아듣는 말 (버튼은 글자를 메시지로 보낸다)
+MENU_ACTIONS = {"☕ 근처 카페": "근처 카페", "🍽 근처 맛집": "근처 맛집", "🔄 동기화": "/sync",
+                "🕘 최근 저장": "/recent", "📊 통계": "/stats", "🟢 상태": "/status", "🔁 재시도": "/retry"}
+# 입력창 옆 '메뉴' 버튼에 뜨는 명령 목록
+COMMANDS = [("near", "내 주변 저장 장소 (예: /near 카페 3)"), ("sync", "구글 지도 앱에서 저장한 장소 가져오기"),
+            ("recent", "최근 저장한 장소"), ("stats", "지역별 저장 개수"), ("status", "봇 작동 확인"),
+            ("retry", "지도에 저장 못 한 장소 다시 저장"), ("undo", "마지막 저장 취소")]
+
+
+def send(token, chat_id, text, markup=MAIN_MENU):
     parts = chunks(text)
     for i, part in enumerate(parts):
         extra = {"reply_markup": markup} if markup and i == len(parts) - 1 else {}
         call(token, "sendMessage", chat_id=chat_id, text=part,
              parse_mode="HTML", link_preview_options={"is_disabled": True}, **extra)
-
-
-# 누르면 휴대폰이 현재 위치(GPS)를 한 번 보내 준다. 한 번 쓰면 키보드는 접힌다
-LOCATION_KEYBOARD = {"keyboard": [[{"text": "📍 내 위치 보내기", "request_location": True}]],
-                     "resize_keyboard": True, "one_time_keyboard": True}
 
 
 def send_one(token, chat_id, text):
@@ -98,6 +110,7 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
             notified.add(chat_id)
             reply(chat_id, f"이 봇은 다른 채팅방 전용입니다. 이 채팅방 ID: <code>{chat_id}</code>")
         return
+    text = MENU_ACTIONS.get(text.strip(), text)  # 메뉴 버튼 글자 → 명령
     if location and not text:  # 📎 → 위치, 또는 '내 위치 보내기' 버튼
         try:
             out = app.nearby_reply(chat_id, location["latitude"], location["longitude"])
@@ -107,7 +120,7 @@ def handle_update(app, update, allowed, reply, notified, progress_for=None):
         reply(chat_id, out)
         return
     if nearby.wants_nearby(text):  # '근처 카페' · /near 맛집 3 → 위치 보내기 버튼
-        reply(chat_id, app.near_request(chat_id, text), markup=LOCATION_KEYBOARD)
+        reply(chat_id, app.near_request(chat_id, text), markup=MAIN_MENU)
         return
     progress = None
     if instagram.find_urls(text) or text.strip().startswith(("/retry", "/sync")):
@@ -132,7 +145,7 @@ def run(app):
     allowed = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     notified = set()
 
-    def reply(chat_id, text, markup=None):
+    def reply(chat_id, text, markup=MAIN_MENU):  # 모든 답장에 메뉴를 붙여 항상 떠 있게 한다
         try:
             send(token, chat_id, text, markup)
         except (requests.RequestException, RuntimeError) as e:
@@ -147,6 +160,10 @@ def run(app):
         return Progress(show=lambda text: edit(token, chat_id, message_id, text))
 
     me = call(token, "getMe")
+    try:  # 입력창 옆 메뉴 버튼의 명령 목록. 실패해도 봇은 돈다
+        call(token, "setMyCommands", commands=[{"command": c, "description": d} for c, d in COMMANDS])
+    except (requests.RequestException, RuntimeError) as e:
+        log(f"[bot] 메뉴 명령 등록 실패: {e}")
     # 하루 첫 시작(아침 7:20 부팅)에만 알린다. 밖에서도 봇이 켜졌는지 알 수 있게
     today = time.strftime("%Y-%m-%d")
     if allowed and app.store.data.get("last_hello") != today:

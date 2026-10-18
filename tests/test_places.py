@@ -884,14 +884,42 @@ class BotTest(unittest.TestCase):
         self.assertIn("위치 수신", logged)
         self.assertNotIn("37.5", logged)  # 좌표는 로그에 안 남는다
 
+    def test_menu_is_persistent_and_every_button_is_understood(self):
+        from places.telegram_bot import MAIN_MENU, MENU_ACTIONS, COMMANDS
+        self.assertTrue(MAIN_MENU["is_persistent"])
+        self.assertNotIn("one_time_keyboard", MAIN_MENU)  # 한 번 쓰면 접히는 키보드가 아니다
+        labels = [b["text"] for row in MAIN_MENU["keyboard"] for b in row]
+        self.assertEqual([l for l in labels if l not in MENU_ACTIONS], ["📍 내 위치 보내기"])  # 나머지는 모두 글자→명령
+        self.assertTrue(MAIN_MENU["keyboard"][0][0]["request_location"])
+        self.assertNotIn("/undo", MENU_ACTIONS.values())  # 실수로 눌러 저장이 취소되지 않게
+        self.assertIn("sync", [c for c, _ in COMMANDS])
+
+    def test_menu_button_text_runs_the_command(self):
+        got = []
+        app = SimpleNamespace(handle=lambda text, progress=None: got.append(text) or ["끝"],
+                              near_request=lambda chat, text: got.append(text) or "위치를 보내 주세요")
+        sent = []
+        reply = lambda c, t, markup=None: sent.append(t)  # noqa: E731
+        for label in ("🔄 동기화", "📊 통계", "☕ 근처 카페"):
+            handle_update(app, {"message": {"chat": {"id": 7}, "text": label}}, "7", reply, set(),
+                          lambda chat: None)
+        self.assertEqual(got, ["/sync", "/stats", "근처 카페"])
+
+    def test_every_reply_carries_the_menu(self):
+        from places import telegram_bot
+        calls = []
+        with unittest.mock.patch.object(telegram_bot, "call", lambda token, method, **kw: calls.append(kw)):
+            telegram_bot.send("T", 7, "안녕")
+        self.assertEqual(calls[0]["reply_markup"], telegram_bot.MAIN_MENU)
+
     def test_near_request_shows_location_button(self):
-        from places.telegram_bot import LOCATION_KEYBOARD
+        from places.telegram_bot import MAIN_MENU
         app = SimpleNamespace(near_request=lambda chat, text: "위치를 보내 주세요")
         update = {"message": {"chat": {"id": 7}, "text": "근처 카페 추천해줘"}}
         sent = []
         handle_update(app, update, "7", lambda c, t, markup=None: sent.append((t, markup)), set())
-        self.assertEqual(sent, [("위치를 보내 주세요", LOCATION_KEYBOARD)])
-        button = LOCATION_KEYBOARD["keyboard"][0][0]
+        self.assertEqual(sent, [("위치를 보내 주세요", MAIN_MENU)])
+        button = MAIN_MENU["keyboard"][0][0]
         self.assertTrue(button["request_location"])
 
     def test_progress_message_wraps_url_processing(self):
