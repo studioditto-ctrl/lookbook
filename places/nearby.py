@@ -1,0 +1,262 @@
+"""내 주변 추천: 텔레그램으로 받은 GPS 위치에서 가까운 저장 장소를 고른다.
+
+기준은 봇이 아는 저장 장소(places.json — 구글 지도 저장 목록 + 인스타·미쉐린으로 넣은 것)다.
+거리는 직선거리. 위치는 이 계산에만 쓰고 기록하지 않는다 (로그에도 좌표를 남기지 않는다).
+
+  근처 카페          → 카페만       근처 미쉐린 3     → 미쉐린 3곳
+  /near 맛집 10      → 식당 10곳    (위치를 아직 안 보냈으면 위치 보내기 버튼을 보여 준다)
+"""
+
+import html
+import math
+import re
+from urllib.parse import quote
+
+from . import coords
+
+DEFAULT_N = 20
+MAX_N = 50
+PRIOR_RATING, PRIOR_REVIEWS = 4.3, 20
+POOL_FACTOR = 3  # 평점순은 가까운 n×3곳 중에서 고른다
+FAR_M = 30_000  # 이보다 멀면 '근처에는 없어요' 라고 알린다
+
+NEAR_WORDS = ("/near", "근처", "주변", "가까운", "nearby")
+STOP = {"/near", "근처", "주변", "가까운", "nearby", "추천", "추천해줘", "추천해", "해줘", "알려줘", "보여줘",
+        "에서", "좀", "장소", "곳", "있는", "내", "나", "의", "을", "를", "곳으로", "찾아줘", "찾아봐"}
+CATEGORIES = {"식당", "카페", "베이커리", "바", "전시/공간", "숙소", "쇼핑", "자연/산책", "기타"}
+ALIASES = {
+    "맛집": "식당", "밥": "식당", "식사": "식당", "레스토랑": "식당", "점심": "식당", "저녁": "식당",
+    "커피": "카페", "디저트": "카페", "술": "바", "와인": "바", "술집": "바", "빵": "베이커리",
+    "호텔": "숙소", "펜션": "숙소", "전시": "전시/공간", "미술관": "전시/공간", "박물관": "전시/공간",
+    "산책": "자연/산책", "자연": "자연/산책", "공원": "자연/산책", "별": "미쉐린", "스타": "미쉐린",
+    "미슐랭": "미쉐린", "가볼만한": "명소", "가볼만한곳": "명소", "관광": "명소", "볼거리": "명소",
+}
+# 글자로 보낸 명령 (텔레그램 메뉴 목록에는 한글 명령을 못 올려서 버튼 글자가 이 명령을 보낸다)
+COMMAND_TERMS = {"/근처카페": "카페", "/근처맛집": "식당", "/근처장소": "명소", "/근처명소": "명소"}
+SIGHT_CATEGORIES = {"전시/공간", "자연/산책"}  # '명소' = 가볼 만한 곳
+
+
+def wants_nearby(text):
+    t = (text or "").strip().lower()
+    return bool(t) and "instagram.com" not in t and any(w in t for w in NEAR_WORDS)
+
+
+def parse_request(text):
+    """'근처 카페 3 추천해줘' → (['카페'], 3)."""
+    terms, n = [], DEFAULT_N
+    for tok in re.split(r"[\s,]+", (text or "").lower()):
+        if tok.startswith("/"):
+            tok = tok.split("@")[0]  # /near@봇이름
+        if tok in COMMAND_TERMS:
+            terms.append(COMMAND_TERMS[tok])
+            continue
+        if not tok or tok in STOP:
+            continue
+        if tok.isdigit():
+            n = max(1, min(MAX_N, int(tok)))
+            continue
+        terms.append(ALIASES.get(tok, tok))
+    return list(dict.fromkeys(terms)), n
+
+
+SEARCH_STOP = {"찾아줘", "찾아", "찾아봐", "찾아주세요", "추천", "추천해줘", "추천해", "추천해주세요", "알려줘", "알려주세요",
+               "보여줘", "검색", "검색해줘", "좀", "있는", "리스트", "목록", "리스트업", "리스트업해줘", "top", "탑",
+               "곳", "어디", "어때", "있어", "해줘", "줘"}
+# 검색어의 분류 말. '장소' 는 가볼 만한 곳(명소). 1글자 별칭(별·스타)은 이름에 너무 흔해서 뺐다
+SEARCH_CATEGORY = {**{k: v for k, v in ALIASES.items() if k not in ("별", "스타")},
+                   **{c: c for c in CATEGORIES if c != "기타"}, "장소": "명소", "명소": "명소", "미쉐린": "미쉐린"}
+SPLIT_WORDS = sorted((w for w in SEARCH_CATEGORY if len(w) >= 2), key=len, reverse=True)  # '용산카페' → 용산 + 카페
+PARTICLES = ("에서", "에는", "쪽", "에", "의")
+MAX_SEARCH_LEN = 40
+COUNT = re.compile(r"^(\d+)(곳|개)?$")
+
+
+def _strip_particle(tok):
+    for p in PARTICLES:
+        if tok.endswith(p) and len(tok) > len(p) + 1:
+            return tok[:-len(p)]
+    return tok
+
+
+def parse_search(text):
+    """'용산 카페 찾아줘' → (['용산', '카페'], 20). 지역·이름 말과 분류 말이 모두 있을 때만 검색으로 본다.
+    (분류만 있으면 None — '근처 카페' 는 위치로 찾는다.) 명령·링크·긴 글(캡션)은 None."""
+    t = (text or "").strip().lower()
+    if not t or len(t) > MAX_SEARCH_LEN or t.startswith("/") or "http" in t or "instagram" in t:
+        return None
+    keywords, terms, n = [], [], DEFAULT_N
+    for tok in re.split(r"[\s,]+", t):
+        tok = tok.rstrip("?!.~")
+        if not tok or tok in SEARCH_STOP:
+            continue
+        m = COUNT.match(tok)
+        if m:
+            n = max(1, min(MAX_N, int(m.group(1))))
+            continue
+        if tok in SEARCH_CATEGORY:
+            terms.append(SEARCH_CATEGORY[tok])
+            continue
+        word = next((w for w in SPLIT_WORDS if tok.endswith(w) and len(tok) > len(w)), None)
+        if word:
+            keywords.append(_strip_particle(tok[:-len(word)]))
+            terms.append(SEARCH_CATEGORY[word])
+            continue
+        keywords.append(_strip_particle(tok))
+    if not terms or not keywords:
+        return None
+    return list(dict.fromkeys(keywords + terms)), n
+
+
+def distance_m(lat1, lng1, lat2, lng2):
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = (math.sin((p2 - p1) / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lng2 - lng1) / 2) ** 2)
+    return 2 * 6_371_000 * math.asin(math.sqrt(a))
+
+
+def fmt_distance(m):
+    if m < 1000:
+        return f"{int(round(m, -1)) or 10}m"
+    return f"{m / 1000:.1f}km"
+
+
+def _matches(entry, term):
+    if term == "명소":
+        return entry.get("category") in SIGHT_CATEGORIES
+    if term in CATEGORIES:  # '카페' 가 설명 글에 든 식당까지 걸리지 않게 분류는 정확히
+        return entry.get("category") == term
+    hay = " ".join([entry.get("name", ""), entry.get("category", ""), entry.get("note", ""),
+                    entry.get("gmaps_list", ""), entry.get("area", ""), entry.get("address", ""),
+                    *(entry.get("tags") or [])]).lower()
+    return term.lower() in hay
+
+
+def candidates(store_places, sidecar):
+    """좌표가 있고 구글 지도에 저장된 장소. (좌표 없는 수도 함께 돌려준다)"""
+    out, missing = [], 0
+    for key, e in store_places.items():
+        if not (e.get("gmaps_saved") or e.get("gmaps_no_save")):
+            continue
+        ll = coords.of(key, e, sidecar)
+        if not ll:
+            if key not in sidecar:  # coords.json 에 null 로 적힌 곳은 '알 수 없다고 확인한' 곳이라 세지 않는다
+                missing += 1
+            continue
+        out.append(dict(e, lat=ll[0], lng=ll[1]))
+    return out, missing
+
+
+def nearest(places, lat, lng, terms=(), n=DEFAULT_N):
+    """[(거리 m, 장소)] 가까운 순. terms 는 모두 맞아야 한다."""
+    hits = [(distance_m(lat, lng, p["lat"], p["lng"]), p) for p in places
+            if all(_matches(p, t) for t in terms)]
+    hits.sort(key=lambda h: h[0])
+    return hits[:n]
+
+
+def score(p):
+    """평점을 댓글 수로 보정한 점수. 5.0(1개) 보다 4.7(1,000개) 이 위에 오게 한다 (평균 4.3 의 가짜 댓글 20개를 더해 평균)."""
+    v = p.get("reviews") or 0
+    return (v * p["rating"] + PRIOR_REVIEWS * PRIOR_RATING) / (v + PRIOR_REVIEWS)
+
+
+def top_rated(places, lat, lng, terms=(), n=DEFAULT_N):
+    """가까운 POOL_FACTOR*n 곳 중 평점 높은 n곳. (목록, 후보 수, 평점 모르는 수). 평점은 /sync 가 목록에서 읽어 둔다."""
+    pool = nearest(places, lat, lng, terms, n * POOL_FACTOR)
+    rated = [h for h in pool if h[1].get("rating")]
+    rated.sort(key=lambda h: score(h[1]), reverse=True)
+    return rated[:n], len(pool), len(pool) - len(rated)
+
+
+def _place_link(p):
+    cid = coords.cid_url(p)
+    if cid:
+        return cid
+    q = " ".join(x for x in (p.get("name"), p.get("address") or p.get("area")) if x)
+    return f"https://www.google.com/maps/search/?api=1&query={quote(q)}"
+
+
+def _directions(p):
+    return f"https://www.google.com/maps/dir/?api=1&destination={p['lat']},{p['lng']}&travelmode=walking"
+
+
+def _line(i, m, p, rated=False):
+    """m: 거리(m) 또는 None(위치를 모를 때). 평점은 rated 일 때만."""
+    star = " ⭐미쉐린" if "미쉐린" in (p.get("tags") or []) else ""
+    review = ""
+    if rated and p.get("rating"):
+        review = (f" · ★{p['rating']} (댓글 {p['reviews']:,})" if p.get("reviews") is not None
+                  else f" · ★{p['rating']}")
+    dist = f" · {fmt_distance(m)}" if m is not None else ""
+    links = [f'<a href="{html.escape(_place_link(p))}">지도</a>']
+    if p.get("lat") is not None:
+        links.insert(0, f'<a href="{html.escape(_directions(p))}">길찾기</a>')
+    return (f"{i}. <b>{html.escape(p['name'])}</b> · {html.escape(p.get('category', ''))}{review}{dist}{star}\n"
+            f"   {html.escape(p.get('gmaps_list') or '')} · " + " · ".join(links))
+
+
+def search(store_places, sidecar, terms):
+    """검색어(지역·이름·분류)가 모두 맞는 저장 장소. 위치를 몰라도 되므로 좌표가 없는 곳도 포함한다."""
+    out = []
+    for key, e in store_places.items():
+        if not (e.get("gmaps_saved") or e.get("gmaps_no_save")):
+            continue
+        if not all(_matches(e, t) for t in terms):
+            continue
+        ll = coords.of(key, e, sidecar)
+        out.append(dict(e, lat=ll[0], lng=ll[1]) if ll else dict(e))
+    return out
+
+
+def rank_by_rating(matches, n=DEFAULT_N):
+    """평점(댓글 수 보정) 높은 순 n곳. 평점을 모르는 곳은 그 뒤에 (저장한 순서 그대로)."""
+    rated = sorted((p for p in matches if p.get("rating")), key=score, reverse=True)
+    return (rated + [p for p in matches if not p.get("rating")])[:n]
+
+
+def render_search(matches, terms, n=DEFAULT_N):
+    """검색어로 찾은 결과 (위치 없이): 평점 높은 순. 거리순은 위치를 받은 뒤 nearby_reply 가 보여 준다."""
+    label = html.escape(" ".join(terms))
+    if not matches:
+        return f"🔎 '{label}'에 맞는 저장 장소가 없어요."
+    top = rank_by_rating(matches, n)
+    head = f"🔎 {label} · 저장 장소 {len(matches)}곳"
+    if len(matches) > len(top):
+        head += f" 중 평점 상위 {len(top)}곳"
+    lines = [head, "", "평점 높은 순 (댓글 수 보정)", ""]
+    lines += [_line(i, None, p, rated=True) for i, p in enumerate(top, 1)]
+    unrated = sum(1 for p in top if not p.get("rating"))
+    foot = "📍 아래 버튼으로 위치를 보내면 가까운 순도 함께 보여 드려요"
+    if unrated:
+        foot += f" · 평점을 모르는 {unrated}곳은 뒤에 (/sync 로 채워져요)"
+    lines += ["", f"<i>{foot}</i>"]
+    return "\n".join(lines)
+
+
+def render(hits, terms, missing=0, rated=None):
+    """hits: 거리순. rated: top_rated 의 결과 (목록, 후보 수, 평점 모르는 수) — 주면 평점순 구간을 덧붙인다."""
+    label = " ".join(terms)
+    if not hits:
+        what = f"'{html.escape(label)}'에 맞는 " if terms else ""
+        return f"📍 {what}저장 장소가 없어요."
+    head = f"📍 내 주변 저장 장소{' · ' + html.escape(label) if label else ''}"
+    if hits[0][0] > FAR_M:
+        head += f"\n근처 {FAR_M // 1000}km 안에는 없어요. 가장 가까운 곳이에요."
+    lines = [head, ""]
+    if rated is not None:
+        lines += [f"① 가까운 순 ({len(hits)}곳)", ""]
+    lines += [_line(i, m, p) for i, (m, p) in enumerate(hits, 1)]
+    foot = "직선거리 기준"
+    if rated is not None:
+        top, pool, unrated = rated
+        lines += ["", f"② 평점 높은 순 (가까운 {pool}곳 중 · 댓글 수 보정)", ""]
+        if top:
+            lines += [_line(i, m, p, rated=True) for i, (m, p) in enumerate(top, 1)]
+        else:
+            lines.append("평점 정보가 아직 없어요. /sync 를 한 번 보내면 채워져요.")
+        if top and unrated:
+            foot += f" · 평점을 모르는 {unrated}곳은 ②에서 빠졌어요 (/sync)"
+    if missing:
+        foot += f" · 좌표를 아직 모르는 {missing}곳은 빠졌어요"
+    lines += ["", f"<i>{foot}</i>"]
+    return "\n".join(lines)
